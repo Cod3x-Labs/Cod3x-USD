@@ -1,8 +1,9 @@
 
-<div style="text-align: center;">
+<p align="center">
   <img src="imgs/Cod3x_Logo.png" alt="Cod3x Logo" style="width: 90px; vertical-align: middle;">
   <span style="font-size: 3em; vertical-align: middle; margin-left: 10px;">Cod3x USD</span>
-</div>
+</p>
+
 <br>
 
 <p align="center">Cod3x-USD (cdxUSD) is the native Cod3x overcollateralized stablecoin integrated into <a href="https://github.com/Cod3x-Labs/Cod3x-Lend" style="color: #a77dff">Cod3x lend</a> market, multichain using <a href="https://layerzero.network/" style="color: #a77dff">LayerZero</a> and with a new innovative interest rate <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4844212" style="color: #a77dff">PID controle system</a>.
@@ -31,14 +32,6 @@ yarn compile
 
 ```bash
 yarn test
-```
-Or adjust the `package.json` to for example remove `hardhat` tests:
-
-```diff
-- "test": "$npm_execpath test:forge && $npm_execpath test:hardhat",
-- "test:forge": "forge test",
-- "test:hardhat": "$npm_execpath hardhat test"
-+ "test": "forge test"
 ```
 
 ## Deploying Contracts
