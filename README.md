@@ -1,13 +1,7 @@
-<table align="center">
-  <tr>
-    <td align="center">
-      <img src="imgs/Cod3x_Logo.png" alt="Cod3x Logo" style="width: 90px;">
-    </td>
-    <td align="center">
-      <font size="+4"><b>Cod3x USD</b></font>
-    </td>
-  </tr>
-</table>
+<p align="center" style="line-height: 90px;">
+  <img src="imgs/Cod3x_Logo.png" alt="Cod3x Logo" style="width: 90px; vertical-align: middle;">
+  <span style="font-size: 3em; vertical-align: middle; margin-left: 10px;">Cod3x USD</span>
+</p>
 
 
 <br>
