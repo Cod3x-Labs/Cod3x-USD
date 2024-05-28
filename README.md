@@ -1,10 +1,4 @@
-<p align="center" style="line-height: 90px;">
-  <img src="imgs/Cod3x_Logo.png" alt="Cod3x Logo" style="width: 90px; vertical-align: middle;">
-  <span style="font-size: 3em; vertical-align: middle; margin-left: 10px;">Cod3x USD</span>
-</p>
-
-
-<br>
+# Cod3x USD
 
 <p align="center">Cod3x-USD (cdxUSD) is the native Cod3x overcollateralized stablecoin integrated into <a href="https://github.com/Cod3x-Labs/Cod3x-Lend" style="color: #a77dff">Cod3x lend</a> market, multichain using <a href="https://layerzero.network/" style="color: #a77dff">LayerZero</a> and with a new innovative interest rate <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4844212" style="color: #a77dff">PID controle system</a>.
 </p>
