@@ -2,28 +2,39 @@
 pragma solidity ^0.8.20;
 
 // Mock imports
-import { OFTMock } from "../mocks/OFTMock.sol";
-import { ERC20Mock } from "../mocks/ERC20Mock.sol";
-import { OFTComposerMock } from "../mocks/OFTComposerMock.sol";
+import {OFTMock} from "../mocks/OFTMock.sol";
+import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {OFTComposerMock} from "../mocks/OFTComposerMock.sol";
+import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
 
 // OApp imports
-import { IOAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
-import { OptionsBuilder } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
+import {
+    IOAppOptionsType3,
+    EnforcedOptionParam
+} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
+import {OptionsBuilder} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
 
 // OFT imports
-import { IOFT, SendParam, OFTReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
-import { MessagingFee, MessagingReceipt } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
-import { OFTMsgCodec } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTMsgCodec.sol";
-import { OFTComposeMsgCodec } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
+import {
+    IOFT,
+    SendParam,
+    OFTReceipt
+} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
+import {
+    MessagingFee, MessagingReceipt
+} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
+import {OFTMsgCodec} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTMsgCodec.sol";
+import {OFTComposeMsgCodec} from
+    "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
 
 // OZ imports
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Forge imports
 import "forge-std/console.sol";
 
 // DevTools imports
-import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 contract LZCdxUSDTest is TestHelperOz5 {
     using OptionsBuilder for bytes;
@@ -36,6 +47,9 @@ contract LZCdxUSDTest is TestHelperOz5 {
 
     address public userA = address(0x1);
     address public userB = address(0x2);
+    address public owner = address(this);
+    address public guardian = address(0x4);
+    address public treasury = address(0x5);
     uint256 public initialBalance = 100 ether;
 
     function setUp() public virtual override {
@@ -46,11 +60,17 @@ contract LZCdxUSDTest is TestHelperOz5 {
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
         aOFT = OFTMock(
-            _deployOApp(type(OFTMock).creationCode, abi.encode("aOFT", "aOFT", address(endpoints[aEid]), address(this)))
+            _deployOApp(
+                type(OFTMock).creationCode,
+                abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
+            )
         );
 
         bOFT = OFTMock(
-            _deployOApp(type(OFTMock).creationCode, abi.encode("bOFT", "bOFT", address(endpoints[bEid]), address(this)))
+            _deployOApp(
+                type(OFTMock).creationCode,
+                abi.encode("bOFT", "bOFT", address(endpoints[bEid]), owner, treasury, guardian)
+            )
         );
 
         // config and wire the ofts
@@ -58,6 +78,9 @@ contract LZCdxUSDTest is TestHelperOz5 {
         ofts[0] = address(aOFT);
         ofts[1] = address(bOFT);
         this.wireOApps(ofts);
+
+        aOFT.setBridgeConfig(bEid, type(int112).min, type(uint104).max, 0);
+        bOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
 
         // mint tokens
         aOFT.mint(userA, initialBalance);
@@ -68,6 +91,12 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(aOFT.owner(), address(this));
         assertEq(bOFT.owner(), address(this));
 
+        assertEq(aOFT.treasury(), treasury);
+        assertEq(bOFT.treasury(), treasury);
+
+        assertEq(aOFT.guardian(), guardian);
+        assertEq(bOFT.guardian(), guardian);
+
         assertEq(aOFT.balanceOf(userA), initialBalance);
         assertEq(bOFT.balanceOf(userB), initialBalance);
 
@@ -75,29 +104,65 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(bOFT.token(), address(bOFT));
     }
 
-    function test_send_oft() public {
+    function test_lzPause() public {
+        aOFT.toggleBridgePause();
+
         uint256 tokensToSend = 1 ether;
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
-        SendParam memory sendParam = SendParam(
-            bEid,
-            addressToBytes32(userB),
-            tokensToSend,
-            tokensToSend,
-            options,
-            "",
-            ""
-        );
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(userB), tokensToSend, tokensToSend, options, "", "");
         MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
 
         assertEq(aOFT.balanceOf(userA), initialBalance);
         assertEq(bOFT.balanceOf(userB), initialBalance);
 
         vm.prank(userA);
-        aOFT.send{ value: fee.nativeFee }(sendParam, fee, payable(address(this)));
+        vm.expectRevert(IOFTExtended.OFTExtended__BRIDGING_PAUSED.selector);
+        aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+
+        assertEq(aOFT.balanceOf(userA), initialBalance);
+        assertEq(bOFT.balanceOf(userB), initialBalance);
+
+        vm.prank(guardian);
+        aOFT.toggleBridgePause();
+
+        test_send_oft_a_to_b();
+    }
+
+    function test_send_oft_a_to_b() public {
+        uint256 tokensToSend = 1 ether;
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(userB), tokensToSend, tokensToSend, options, "", "");
+        MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+        assertEq(aOFT.balanceOf(userA), initialBalance);
+        assertEq(bOFT.balanceOf(userB), initialBalance);
+
+        vm.prank(userA);
+        aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
         verifyPackets(bEid, addressToBytes32(address(bOFT)));
 
         assertEq(aOFT.balanceOf(userA), initialBalance - tokensToSend);
         assertEq(bOFT.balanceOf(userB), initialBalance + tokensToSend);
+    }
+
+    function test_send_oft_b_to_a() public {
+        uint256 tokensToSend = 1 ether;
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        SendParam memory sendParam =
+            SendParam(aEid, addressToBytes32(userA), tokensToSend, tokensToSend, options, "", "");
+        MessagingFee memory fee = bOFT.quoteSend(sendParam, false);
+
+        assertEq(aOFT.balanceOf(userA), initialBalance);
+        assertEq(bOFT.balanceOf(userB), initialBalance);
+
+        vm.prank(userB);
+        bOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+        verifyPackets(aEid, addressToBytes32(address(aOFT)));
+
+        assertEq(bOFT.balanceOf(userB), initialBalance - tokensToSend);
+        assertEq(aOFT.balanceOf(userA), initialBalance + tokensToSend);
     }
 
     function test_send_oft_compose_msg() public {
@@ -105,9 +170,7 @@ contract LZCdxUSDTest is TestHelperOz5 {
 
         OFTComposerMock composer = new OFTComposerMock();
 
-        bytes memory options = OptionsBuilder
-            .newOptions()
-            .addExecutorLzReceiveOption(200000, 0)
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0)
             .addExecutorLzComposeOption(0, 500000, 0);
         bytes memory composeMsg = hex"1234";
         SendParam memory sendParam = SendParam(
@@ -125,11 +188,8 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(bOFT.balanceOf(address(composer)), 0);
 
         vm.prank(userA);
-        (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) = aOFT.send{ value: fee.nativeFee }(
-            sendParam,
-            fee,
-            payable(address(this))
-        );
+        (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) =
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
         verifyPackets(bEid, addressToBytes32(address(bOFT)));
 
         // lzCompose params
@@ -168,8 +228,13 @@ contract LZCdxUSDTest is TestHelperOz5 {
             amountCreditLD,
             abi.encodePacked(addressToBytes32(msg.sender), composeMsg)
         );
-        (uint64 nonce_, uint32 srcEid_, uint256 amountCreditLD_, bytes32 composeFrom_, bytes memory composeMsg_) = this
-            .decodeOFTComposeMsgCodec(message);
+        (
+            uint64 nonce_,
+            uint32 srcEid_,
+            uint256 amountCreditLD_,
+            bytes32 composeFrom_,
+            bytes memory composeMsg_
+        ) = this.decodeOFTComposeMsgCodec(message);
 
         assertEq(nonce_, nonce);
         assertEq(srcEid_, srcEid);
@@ -178,12 +243,16 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(composeMsg_, composeMsg);
     }
 
-    function decodeOFTComposeMsgCodec(
-        bytes calldata message
-    )
+    function decodeOFTComposeMsgCodec(bytes calldata message)
         public
         pure
-        returns (uint64 nonce, uint32 srcEid, uint256 amountCreditLD, bytes32 composeFrom, bytes memory composeMsg)
+        returns (
+            uint64 nonce,
+            uint32 srcEid,
+            uint256 amountCreditLD,
+            bytes32 composeFrom,
+            bytes memory composeMsg
+        )
     {
         nonce = OFTComposeMsgCodec.nonce(message);
         srcEid = OFTComposeMsgCodec.srcEid(message);
@@ -201,7 +270,9 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(aOFT.removeDust(amountToSendLD), 1.234567 ether);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IOFT.SlippageExceeded.selector, aOFT.removeDust(amountToSendLD), minAmountToCreditLD)
+            abi.encodeWithSelector(
+                IOFT.SlippageExceeded.selector, aOFT.removeDust(amountToSendLD), minAmountToCreditLD
+            )
         );
         aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
     }
@@ -211,9 +282,14 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint256 minAmountToCreditLD = 1.00000001 ether;
         uint32 dstEid = aEid;
 
-        vm.expectRevert(abi.encodeWithSelector(IOFT.SlippageExceeded.selector, amountToSendLD, minAmountToCreditLD));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOFT.SlippageExceeded.selector, amountToSendLD, minAmountToCreditLD
+            )
+        );
         aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
     }
+
     function test_toLD() public {
         uint64 amountSD = 1000;
         assertEq(amountSD * aOFT.decimalConversionRate(), aOFT.toLD(uint64(amountSD)));
@@ -225,6 +301,8 @@ contract LZCdxUSDTest is TestHelperOz5 {
     }
 
     function test_oft_debit() public {
+        aOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
+
         uint256 amountToSendLD = 1 ether;
         uint256 minAmountToCreditLD = 1 ether;
         uint32 dstEid = aEid;
@@ -233,7 +311,8 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(aOFT.balanceOf(address(this)), 0);
 
         vm.prank(userA);
-        (uint256 amountDebitedLD, uint256 amountToCreditLD) = aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
+        (uint256 amountDebitedLD, uint256 amountToCreditLD) =
+            aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
 
         assertEq(amountDebitedLD, amountToSendLD);
         assertEq(amountToCreditLD, amountToSendLD);
@@ -242,8 +321,7 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(aOFT.balanceOf(address(this)), 0);
     }
 
-    
-   function test_oft_credit() public {
+    function test_oft_credit() public {
         uint256 amountToCreditLD = 1 ether;
         uint32 srcEid = aEid;
 
@@ -257,9 +335,11 @@ contract LZCdxUSDTest is TestHelperOz5 {
         assertEq(aOFT.balanceOf(address(this)), 0);
     }
 
-        function decodeOFTMsgCodec(
-        bytes calldata message
-    ) public pure returns (bool isComposed, bytes32 sendTo, uint64 amountSD, bytes memory composeMsg) {
+    function decodeOFTMsgCodec(bytes calldata message)
+        public
+        pure
+        returns (bool isComposed, bytes32 sendTo, uint64 amountSD, bytes memory composeMsg)
+    {
         isComposed = OFTMsgCodec.isComposed(message);
         sendTo = OFTMsgCodec.sendTo(message);
         amountSD = OFTMsgCodec.amountSD(message);
@@ -273,29 +353,23 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint256 minAmountToCreditLD = aOFT.removeDust(amountToSendLD);
 
         // params for buildMsgAndOptions
-        bytes memory extraOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory extraOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         bytes memory composeMsg = hex"1234";
-        SendParam memory sendParam = SendParam(
-            dstEid,
-            to,
-            amountToSendLD,
-            minAmountToCreditLD,
-            extraOptions,
-            composeMsg,
-            ""
-        );
+        SendParam memory sendParam =
+            SendParam(dstEid, to, amountToSendLD, minAmountToCreditLD, extraOptions, composeMsg, "");
         uint256 amountToCreditLD = minAmountToCreditLD;
 
-        (bytes memory message, ) = aOFT.buildMsgAndOptions(sendParam, amountToCreditLD);
+        (bytes memory message,) = aOFT.buildMsgAndOptions(sendParam, amountToCreditLD);
 
-        (bool isComposed_, bytes32 sendTo_, uint64 amountSD_, bytes memory composeMsg_) = this.decodeOFTMsgCodec(
-            message
-        );
+        (bool isComposed_, bytes32 sendTo_, uint64 amountSD_, bytes memory composeMsg_) =
+            this.decodeOFTMsgCodec(message);
 
         assertEq(isComposed_, true);
         assertEq(sendTo_, to);
         assertEq(amountSD_, aOFT.toSD(amountToCreditLD));
-        bytes memory expectedComposeMsg = abi.encodePacked(addressToBytes32(address(this)), composeMsg);
+        bytes memory expectedComposeMsg =
+            abi.encodePacked(addressToBytes32(address(this)), composeMsg);
         assertEq(composeMsg_, expectedComposeMsg);
     }
 
@@ -306,24 +380,17 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint256 minAmountToCreditLD = aOFT.removeDust(amountToSendLD);
 
         // params for buildMsgAndOptions
-        bytes memory extraOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory extraOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         bytes memory composeMsg = "";
-        SendParam memory sendParam = SendParam(
-            dstEid,
-            to,
-            amountToSendLD,
-            minAmountToCreditLD,
-            extraOptions,
-            composeMsg,
-            ""
-        );
+        SendParam memory sendParam =
+            SendParam(dstEid, to, amountToSendLD, minAmountToCreditLD, extraOptions, composeMsg, "");
         uint256 amountToCreditLD = minAmountToCreditLD;
 
-        (bytes memory message, ) = aOFT.buildMsgAndOptions(sendParam, amountToCreditLD);
+        (bytes memory message,) = aOFT.buildMsgAndOptions(sendParam, amountToCreditLD);
 
-        (bool isComposed_, bytes32 sendTo_, uint64 amountSD_, bytes memory composeMsg_) = this.decodeOFTMsgCodec(
-            message
-        );
+        (bool isComposed_, bytes32 sendTo_, uint64 amountSD_, bytes memory composeMsg_) =
+            this.decodeOFTMsgCodec(message);
 
         assertEq(isComposed_, false);
         assertEq(sendTo_, to);
@@ -334,8 +401,10 @@ contract LZCdxUSDTest is TestHelperOz5 {
     function test_set_enforced_options() public {
         uint32 eid = 1;
 
-        bytes memory optionsTypeOne = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
-        bytes memory optionsTypeTwo = OptionsBuilder.newOptions().addExecutorLzReceiveOption(250000, 0);
+        bytes memory optionsTypeOne =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory optionsTypeTwo =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(250000, 0);
 
         EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](2);
         enforcedOptions[0] = EnforcedOptionParam(eid, 1, optionsTypeOne);
@@ -352,15 +421,21 @@ contract LZCdxUSDTest is TestHelperOz5 {
         EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](1);
 
         enforcedOptions[0] = EnforcedOptionParam(eid, 1, hex"0004"); // not type 3
-        vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0004"));
+        vm.expectRevert(
+            abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0004")
+        );
         aOFT.setEnforcedOptions(enforcedOptions);
 
         enforcedOptions[0] = EnforcedOptionParam(eid, 1, hex"0002"); // not type 3
-        vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0002"));
+        vm.expectRevert(
+            abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0002")
+        );
         aOFT.setEnforcedOptions(enforcedOptions);
 
         enforcedOptions[0] = EnforcedOptionParam(eid, 1, hex"0001"); // not type 3
-        vm.expectRevert(abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0001"));
+        vm.expectRevert(
+            abi.encodeWithSelector(IOAppOptionsType3.InvalidOptions.selector, hex"0001")
+        );
         aOFT.setEnforcedOptions(enforcedOptions);
 
         enforcedOptions[0] = EnforcedOptionParam(eid, 1, hex"0003"); // IS type 3
@@ -371,20 +446,19 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint32 eid = 1;
         uint16 msgType = 1;
 
-        bytes memory enforcedOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory enforcedOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
         enforcedOptionsArray[0] = EnforcedOptionParam(eid, msgType, enforcedOptions);
         aOFT.setEnforcedOptions(enforcedOptionsArray);
 
         bytes memory extraOptions = OptionsBuilder.newOptions().addExecutorNativeDropOption(
-            1.2345 ether,
-            addressToBytes32(userA)
+            1.2345 ether, addressToBytes32(userA)
         );
 
-        bytes memory expectedOptions = OptionsBuilder
-            .newOptions()
-            .addExecutorLzReceiveOption(200000, 0)
-            .addExecutorNativeDropOption(1.2345 ether, addressToBytes32(userA));
+        bytes memory expectedOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(
+            200000, 0
+        ).addExecutorNativeDropOption(1.2345 ether, addressToBytes32(userA));
 
         bytes memory combinedOptions = aOFT.combineOptions(eid, msgType, extraOptions);
         assertEq(combinedOptions, expectedOptions);
@@ -394,12 +468,14 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint32 eid = 1;
         uint16 msgType = 1;
 
-        bytes memory enforcedOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory enforcedOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         EnforcedOptionParam[] memory enforcedOptionsArray = new EnforcedOptionParam[](1);
         enforcedOptionsArray[0] = EnforcedOptionParam(eid, msgType, enforcedOptions);
         aOFT.setEnforcedOptions(enforcedOptionsArray);
 
-        bytes memory expectedOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        bytes memory expectedOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
 
         bytes memory combinedOptions = aOFT.combineOptions(eid, msgType, "");
         assertEq(combinedOptions, expectedOptions);
@@ -410,16 +486,191 @@ contract LZCdxUSDTest is TestHelperOz5 {
         uint16 msgType = 1;
 
         bytes memory extraOptions = OptionsBuilder.newOptions().addExecutorNativeDropOption(
-            1.2345 ether,
-            addressToBytes32(userA)
+            1.2345 ether, addressToBytes32(userA)
         );
 
         bytes memory expectedOptions = OptionsBuilder.newOptions().addExecutorNativeDropOption(
-            1.2345 ether,
-            addressToBytes32(userA)
+            1.2345 ether, addressToBytes32(userA)
         );
 
         bytes memory combinedOptions = aOFT.combineOptions(eid, msgType, extraOptions);
         assertEq(combinedOptions, expectedOptions);
+    }
+
+    function test_limit_bridge_rate(uint256 _seedLimit, uint256 _seedAmountToSend) public {
+        int112 _limit = -int112(uint112(bound(_seedLimit, 0, initialBalance * 2)));
+        uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
+
+        bool isLimitTrigger = _amountToSend > uint256(-int256(_limit));
+
+        aOFT.setBridgeConfig(bEid, _limit, type(uint104).max, 0);
+        bOFT.setBridgeConfig(aEid, _limit, type(uint104).max, 0);
+
+        if (isLimitTrigger) {
+            bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+            SendParam memory sendParam =
+                SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
+            MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+
+            vm.prank(userA);
+            vm.expectRevert(
+                abi.encodeWithSelector(IOFTExtended.OFTExtended__BRIDGING_LIMIT_REACHED.selector, 2)
+            );
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+        } else {
+            bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+            SendParam memory sendParam =
+                SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
+            MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+
+            vm.prank(userA);
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+            verifyPackets(bEid, addressToBytes32(address(bOFT)));
+
+            assertEq(aOFT.balanceOf(userA), initialBalance - _amountToSend);
+            assertEq(bOFT.balanceOf(userB), initialBalance + _amountToSend);
+
+            int112 balanceA = aOFT.getBridgeUtilization(bEid).balance;
+            assertEq(abs(int256(balanceA)), _amountToSend);
+
+            int112 balanceB = bOFT.getBridgeUtilization(aEid).balance;
+            assertEq(abs(int256(balanceB)), _amountToSend);
+
+            // 2nb send
+            uint256 initialBalanceA = aOFT.balanceOf(userA);
+            uint256 initialBalanceB = bOFT.balanceOf(userB);
+
+            options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+            sendParam = SendParam(
+                aEid, addressToBytes32(userA), _amountToSend, _amountToSend, options, "", ""
+            );
+            fee = bOFT.quoteSend(sendParam, false);
+
+            vm.prank(userB);
+            bOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+            verifyPackets(aEid, addressToBytes32(address(aOFT)));
+
+            assertEq(bOFT.balanceOf(userB), initialBalanceB - _amountToSend);
+            assertEq(aOFT.balanceOf(userA), initialBalanceA + _amountToSend);
+
+            balanceA = aOFT.getBridgeUtilization(bEid).balance;
+            assertEq(_removeDust(abs(int256(balanceA))), 0);
+
+            balanceB = bOFT.getBridgeUtilization(aEid).balance;
+            assertEq(_removeDust(abs(int256(balanceB))), 0);
+        }
+    }
+
+    function test_bridging_fees(uint256 _seedLimit, uint256 _seedAmountToSend) public {
+        uint16 feeT = uint16(bound(_seedLimit, 0, 1000));
+        uint256 tokensToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
+
+        aOFT.setBridgeConfig(bEid, type(int112).min, type(uint104).max, feeT);
+        bOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, feeT);
+
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(userB), tokensToSend, 0, options, "", "");
+        MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+        assertEq(aOFT.balanceOf(userA), initialBalance);
+        assertEq(bOFT.balanceOf(userB), initialBalance);
+
+        vm.prank(userA);
+        aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+        verifyPackets(bEid, addressToBytes32(address(bOFT)));
+
+        uint256 tokensToSendWithFee = _removeDust(tokensToSend - (tokensToSend * feeT / 10000));
+        assertEq(aOFT.balanceOf(treasury), tokensToSend - tokensToSendWithFee);
+        assertEq(aOFT.balanceOf(userA), initialBalance - tokensToSend);
+        assertEq(bOFT.balanceOf(userB), _removeDust(initialBalance + tokensToSendWithFee));
+    }
+
+    function test_hourly_bridging_limit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend)
+        public
+    {
+        uint104 _hourlyLimit = uint104(bound(_seedHourlyLimit, 0, initialBalance));
+        uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 1e14, initialBalance / 2));
+
+        bool isLimitTrigger = _amountToSend > uint256(_hourlyLimit);
+
+        aOFT.setBridgeConfig(bEid, type(int112).min, _hourlyLimit, 0);
+        bOFT.setBridgeConfig(aEid, type(int112).min, _hourlyLimit, 0);
+
+        if (isLimitTrigger) {
+            bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+            SendParam memory sendParam =
+                SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
+            MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+
+            vm.prank(userA);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IOFTExtended.OFTExtended__BRIDGING_HOURLY_LIMIT_REACHED.selector, 2
+                )
+            );
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+        } else {
+            aOFT.setBridgeConfig(bEid, type(int112).min, uint104(_amountToSend), 0);
+            bOFT.setBridgeConfig(aEid, type(int112).min, uint104(_amountToSend), 0);
+
+            bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+            SendParam memory sendParam =
+                SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
+            MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+            assertEq(aOFT.balanceOf(userA), initialBalance);
+            assertEq(bOFT.balanceOf(userB), initialBalance);
+
+            vm.prank(userA);
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+            verifyPackets(bEid, addressToBytes32(address(bOFT)));
+
+            assertEq(aOFT.balanceOf(userA), initialBalance - _amountToSend);
+            assertEq(bOFT.balanceOf(userB), initialBalance + _amountToSend);
+
+            uint104 shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
+            assertEq(shluA, _amountToSend);
+
+            uint104 shluB = bOFT.getBridgeUtilization(aEid).slidingHourlyLimitUtilization;
+            assertEq(shluB, 0);
+            skip(30 minutes);
+
+            // 2nb send
+            sendParam =
+                SendParam(bEid, addressToBytes32(userB), _amountToSend / 4, 0, options, "", "");
+            fee = aOFT.quoteSend(sendParam, false);
+
+            vm.prank(userA);
+            aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+
+            shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
+            assertApproxEqRel(shluA, _amountToSend / 2 + _amountToSend / 4, 1e18 / 10000); // %0,001
+        }
+    }
+
+    // ------------------- Helpers -------------------
+
+    function _removeDust(uint256 _amountLD) internal pure returns (uint256 amountLD) {
+        return (_amountLD / 1e12) * 1e12; // 18 - 6 = 12
+    }
+
+    function abs(int256 x) public pure returns (uint256) {
+        return x < 0 ? uint256(-x) : uint256(x);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import { CdxUSD } from "contracts/CdxUSD.sol";
+import { CdxUSD } from "contracts/tokens/CdxUSD.sol";
 import { SendParam } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 
 contract OFTMock is CdxUSD {
@@ -9,8 +9,10 @@ contract OFTMock is CdxUSD {
         string memory _name,
         string memory _symbol,
         address _lzEndpoint,
-        address _delegate
-    ) CdxUSD(_name, _symbol, _lzEndpoint, _delegate) {}
+        address _delegate,
+        address _treasury,
+        address _guardian
+    ) CdxUSD(_name, _symbol, _lzEndpoint, _delegate, _treasury, _guardian) {}
 
     function mint(address _to, uint256 _amount) public {
         _mint(_to, _amount);

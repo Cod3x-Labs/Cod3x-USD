@@ -1,5 +1,5 @@
 [profile.default]
-solc-version = '0.8.22'
+solc-version = '0.8.25'
 optimizer = true
 optimizer_runs = 1800
 src = 'contracts'
