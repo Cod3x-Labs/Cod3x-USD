@@ -2,8 +2,10 @@
 pragma solidity 0.8.25;
 
 import {IOFT} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-interface IOFTExtended is IOFT {
+interface IOFTExtended is IOFT, IERC20 /*, IERC20Permit */ {
     // ======================= Errors ================================
 
     error OFTExtended__ONLY_ADMINS();
@@ -12,6 +14,15 @@ interface IOFTExtended is IOFT {
     error OFTExtended__BRIDGING_PAUSED();
     error OFTExtended__LIMIT_MUST_BE_NEGATIVE();
     error OFTExtended__FEE_TOO_HIGH();
+
+    // ================================== Events ===================================
+
+    event SetBridgeConfig(
+        uint32 indexed _eid, int112 _minBalanceLimit, uint104 _hourlyLimit, uint16 _fee
+    );
+    event SetTreasury(address _newTreasury);
+    event SetGuardian(address _newGuardian);
+    event ToggleBridgePause(bool _pause);
 
     // ======================= Structs ================================
 
@@ -52,6 +63,8 @@ interface IOFTExtended is IOFT {
     ) external;
 
     function setTreasury(address _treasury) external;
+
+    function setGuardian(address _guardian) external;
 
     function toggleBridgePause() external;
 

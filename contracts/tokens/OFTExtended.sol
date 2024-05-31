@@ -10,7 +10,7 @@ import {OFTCore} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 
 /**
  * @title OFTExtended Contract
- * @author Beirao - Cod3X
+ * @author Cod3X Labs - Beirao
  * @dev OFT token that extends the functionality of the OFTCore contract by adding some features:
  *          - Possibility to pause bridge transactions
  *          - Limit bridging rate
@@ -43,8 +43,6 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         _;
     }
 
-    // ================================== Events ===================================
-
     /**
      * @dev Constructor for the OFT contract.
      * @param _name The name of the OFT.
@@ -67,6 +65,9 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
     {
         treasury = _treasury;
         guardian = _guardian;
+
+        emit SetTreasury(_treasury);
+        emit SetGuardian(_guardian);
     }
 
     // ======================= Getters ================================
@@ -109,6 +110,8 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         eidToConfigPtr.minBalanceLimit = _minBalanceLimit;
         eidToConfigPtr.hourlyLimit = _hourlyLimit;
         eidToConfigPtr.fee = _fee;
+
+        emit SetBridgeConfig(_eid, _minBalanceLimit, _hourlyLimit, _fee);
     }
 
     /**
@@ -118,6 +121,16 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
      */
     function setTreasury(address _treasury) external onlyOwner {
         treasury = _treasury;
+        emit SetTreasury(_treasury);
+    }
+
+    /**
+     * @notice set guardian address.
+     * @param _guardian guardian address.
+     */
+    function setGuardian(address _guardian) external onlyOwner {
+        guardian = _guardian;
+        emit SetGuardian(_guardian);
     }
 
     /**
@@ -126,6 +139,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
      */
     function toggleBridgePause() external onlyGuardianOrOwner {
         lzPause = !lzPause;
+        emit ToggleBridgePause(lzPause);
     }
 
     // ======================= LayerZero override Functions ================================

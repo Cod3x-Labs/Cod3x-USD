@@ -14,7 +14,7 @@ contract OFTMock is CdxUSD {
         address _guardian
     ) CdxUSD(_name, _symbol, _lzEndpoint, _delegate, _treasury, _guardian) {}
 
-    function mint(address _to, uint256 _amount) public {
+    function mockMint(address _to, uint256 _amount) public {
         _mint(_to, _amount);
     }
 

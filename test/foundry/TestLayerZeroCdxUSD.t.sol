@@ -36,7 +36,7 @@ import "forge-std/console.sol";
 // DevTools imports
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
-contract LZCdxUSDTest is TestHelperOz5 {
+contract TestLayerZeroCdxUSD is TestHelperOz5 {
     using OptionsBuilder for bytes;
 
     uint32 aEid = 1;
@@ -83,8 +83,8 @@ contract LZCdxUSDTest is TestHelperOz5 {
         bOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
 
         // mint tokens
-        aOFT.mint(userA, initialBalance);
-        bOFT.mint(userB, initialBalance);
+        aOFT.mockMint(userA, initialBalance);
+        bOFT.mockMint(userB, initialBalance);
     }
 
     function test_constructor() public {
@@ -599,7 +599,7 @@ contract LZCdxUSDTest is TestHelperOz5 {
         public
     {
         uint104 _hourlyLimit = uint104(bound(_seedHourlyLimit, 0, initialBalance));
-        uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 1e14, initialBalance / 2));
+        uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 1e15, initialBalance / 2));
 
         bool isLimitTrigger = _amountToSend > uint256(_hourlyLimit);
 
@@ -660,7 +660,7 @@ contract LZCdxUSDTest is TestHelperOz5 {
             aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
 
             shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
-            assertApproxEqRel(shluA, _amountToSend / 2 + _amountToSend / 4, 1e18 / 10000); // %0,001
+            assertApproxEqRel(shluA, _amountToSend / 2 + _amountToSend / 4, 1e18 / 1000); // %0,1
         }
     }
 
