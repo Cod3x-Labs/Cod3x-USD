@@ -88,14 +88,12 @@ Please use `forge fmt` before commiting.
 
 ## TODOs
 
-- CdxUSD 
-  - Minters 
-  - Max minting capacity
 - Stacking module
   - stUSD
 - Minters
   - ERC20
   - ERC6909
+- Governor
 
 <br>
 

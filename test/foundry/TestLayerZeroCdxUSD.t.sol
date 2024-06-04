@@ -27,35 +27,18 @@ import {OFTMsgCodec} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTM
 import {OFTComposeMsgCodec} from
     "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
 
-// OZ imports
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-
-// Forge imports
-import "forge-std/console.sol";
-
 // DevTools imports
-import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 
-contract TestLayerZeroCdxUSD is TestHelperOz5 {
+contract TestLayerZeroCdxUSD is TestCdxUSD {
     using OptionsBuilder for bytes;
-
-    uint32 aEid = 1;
-    uint32 bEid = 2;
 
     OFTMock aOFT;
     OFTMock bOFT;
 
-    address public userA = address(0x1);
-    address public userB = address(0x2);
-    address public owner = address(this);
-    address public guardian = address(0x4);
-    address public treasury = address(0x5);
     uint256 public initialBalance = 100 ether;
 
     function setUp() public virtual override {
-        vm.deal(userA, 1000 ether);
-        vm.deal(userB, 1000 ether);
-
         super.setUp();
         setUpEndpoints(2, LibraryType.UltraLightNode);
 

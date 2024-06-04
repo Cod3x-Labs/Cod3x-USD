@@ -196,6 +196,36 @@
     "@babel/helper-validator-identifier" "^7.24.6"
     to-fast-properties "^2.0.0"
 
+"@balancer-labs/v2-deployments@^3.2.0":
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/@balancer-labs/v2-deployments/-/v2-deployments-3.2.0.tgz#d37fd2b1ea2abf71e0c436901dccbc0a47155382"
+  integrity sha512-pghD7qyTVp1832d7F7yHgAeh/EZvS2/GLvUx9ieM671NMh1KTprYZOBCpEVVC9JnE1Vpru5rc9DDNlFw3capVw==
+
+"@balancer-labs/v2-interfaces@0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@balancer-labs/v2-interfaces/-/v2-interfaces-0.2.0.tgz#327c6a6d663c5e07872c59c590bb687e5b2e0f4e"
+  integrity sha512-p317Ojk3iZ6ja689u72HZvi03mG02LRkS+40J/EO2o1SDdOxbKThP7cWaZNbNJBC3IP8hzRcsZI+zmLqGa6Emw==
+
+"@balancer-labs/v2-interfaces@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@balancer-labs/v2-interfaces/-/v2-interfaces-0.2.1.tgz#df6f02496939fe1599fc17232fbb6704cef63cc8"
+  integrity sha512-CBbUKjIJKdPwPGW5PCjqwStbvu9+qonnx0sY8vhIn1hJ17kopio6HCe7SsyMF7vWOd4YqzUq4Zc/6kyHH+8Bpg==
+
+"@balancer-labs/v2-solidity-utils@3.0.1":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/@balancer-labs/v2-solidity-utils/-/v2-solidity-utils-3.0.1.tgz#8af2b5bab500577c0af05232890025f73b0febfb"
+  integrity sha512-uhaQbgFyT5uRWW39aPWH0ZARzqIICJvwZXKJpv7EPG2NAUrf03ZsF/Zb3gxpTZXfNoKsKznJWtxgJ1W0rnLu9w==
+  dependencies:
+    "@balancer-labs/v2-interfaces" "0.2.0"
+
+"@balancer-labs/v2-vault@^3.0.1":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/@balancer-labs/v2-vault/-/v2-vault-3.0.1.tgz#dc13d4faf84ec833aa96d0f6ad180c20ba049068"
+  integrity sha512-uVvHWDR8sGUCxdMOluYPEjeqeNYHo9/47ALYnpv4NLdXwNH8nw7PWun+cExLLdTBJ3XEc/6IyuYUlfcoWWpfcw==
+  dependencies:
+    "@balancer-labs/v2-interfaces" "0.2.1"
+    "@balancer-labs/v2-solidity-utils" "3.0.1"
+
 "@colors/colors@1.5.0":
   version "1.5.0"
   resolved "https://registry.yarnpkg.com/@colors/colors/-/colors-1.5.0.tgz#bb504579c1cae923e6576a4f5da43d25f97bdbd9"
