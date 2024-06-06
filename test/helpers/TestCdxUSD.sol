@@ -42,6 +42,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault} from "test/helpers/interfaces/IVault.sol";
 import {ERC20UsdMock} from "test/mocks/ERC20UsdMock.sol";
 import "test/helpers/Constants.sol";
+import "test/helpers/Sort.sol";
 import {
     IComposableStablePoolFactory,
     IRateProvider,
@@ -51,7 +52,7 @@ import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/
 import {IVault, JoinKind, ExitKind, SwapKind} from "test/helpers/interfaces/IVault.sol";
 import "forge-std/console2.sol";
 
-contract TestCdxUSD is TestHelperOz5, Events, Constants {
+contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     uint32 aEid = 1;
     uint32 bEid = 2;
 
@@ -98,8 +99,14 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
         usdt = IERC20(address(new ERC20UsdMock{salt: "1"}("USDT", "USDT")));
 
         /// initial mint
-        ERC20UsdMock(address(usdc)).mint(userA, INITIAL_USDT_AMT);
+        ERC20UsdMock(address(usdc)).mint(userA, INITIAL_USDC_AMT);
         ERC20UsdMock(address(usdt)).mint(userA, INITIAL_USDT_AMT);
+
+        ERC20UsdMock(address(usdc)).mint(userB, INITIAL_USDC_AMT);
+        ERC20UsdMock(address(usdt)).mint(userB, INITIAL_USDT_AMT);
+
+        ERC20UsdMock(address(usdc)).mint(userC, INITIAL_USDC_AMT);
+        ERC20UsdMock(address(usdt)).mint(userC, INITIAL_USDT_AMT);
 
         vm.prank(userA); 
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
@@ -114,16 +121,14 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
         }
     }
     function createStablePool(        
-        string memory name,
-        string memory symbol,
         IERC20[] memory assets,
         uint256 amplificationParameter,
         address owner
-    ) public returns (bytes32 poolId) {
+    ) public returns (bytes32, address) {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
-        tokens = sortIERC20(assets);
+        tokens = sort(assets);
 
         IRateProvider[] memory rateProviders = new IRateProvider[](3);
         rateProviders[0] = IRateProvider(address(0));
@@ -138,8 +143,8 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
         ComposableStablePool stablePool = IComposableStablePoolFactory(
             address(composableStablePoolFactory)
         ).create(
-            name,
-            symbol,
+            "Cod3x-USD-Pool",
+            "CUP",
             tokens,
             2500, // test only
             rateProviders,
@@ -149,15 +154,15 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
             owner,
             bytes32("")
         );
-        poolId = stablePool.getPoolId();
-        console.logBytes32(poolId);
+
+        return (stablePool.getPoolId(), address(stablePool));
     }
 
-    function joinPool(bytes32 poolId, /*uint256[] memory amounts, */ address user, JoinKind kind) public {
-        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
-
+    function joinPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256[] memory amounts, address user, JoinKind kind) public {
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-        tokens = sortIERC20(setupPoolTokens);
+        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
+
+        (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
 
         IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
         for (uint i = 0; i < setupPoolTokens.length; i++) {
@@ -169,12 +174,6 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
             maxAmounts[i] = type(uint256).max;
         }
 
-        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-        amountsToAdd[0] = INITIAL_CDXUSD_AMT;
-        amountsToAdd[1] = INITIAL_USDT_AMT;
-        amountsToAdd[2] = INITIAL_USDC_AMT;
-        amountsToAdd[3] = 1e13;
-
         IVault.JoinPoolRequest memory request;
         request.assets = assetsIAsset;
         request.maxAmountsIn = maxAmounts;
@@ -185,47 +184,48 @@ contract TestCdxUSD is TestHelperOz5, Events, Constants {
         IVault(vault).joinPool(poolId, user, user, request);
     }
 
-    // ----- helpers -----
+    function exitPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256 amount, address user, ExitKind kind) public {
+        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
 
-    function quickSort(uint[] memory arr, int left, int right) internal pure {
-        int i = left;
-        int j = right;
-        if (i == j) return;
-        uint pivot = arr[uint(left + (right - left) / 2)];
-        while (i <= j) {
-            while (arr[uint(i)] < pivot) i++;
-            while (pivot < arr[uint(j)]) j--;
-            if (i <= j) {
-                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
-                i++;
-                j--;
-            }
+        tokens = sort(setupPoolTokens);
+
+        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
+        for (uint i = 0; i < setupPoolTokens.length; i++) {
+            assetsIAsset[i] = IAsset(address(tokens[i]));
         }
-        if (left < j)
-            quickSort(arr, left, j);
-        if (i < right)
-            quickSort(arr, i, right);
+        
+        uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
+        for (uint i = 0; i < setupPoolTokens.length; i++) {
+            minAmountsOut[i] = 0;
+        }
+
+        IVault.ExitPoolRequest memory request;
+        request.assets = assetsIAsset;
+        request.minAmountsOut = minAmountsOut;
+        request.toInternalBalance = false;
+        request.userData = abi.encode(kind, amount);
+
+        vm.prank(user);
+        IVault(vault).exitPool(poolId, user, payable(user), request);
     }
 
-    function sort(uint[] memory data) public pure returns (uint[] memory) {
-        quickSort(data, int(0), int(data.length - 1));
-        return data;
-    }
+    function swap(bytes32 poolId, address user, address assetIn, address assetOut, uint256 amount, uint256 limit, uint256 deadline, SwapKind kind) public {
+        IVault.SingleSwap memory singleSwap;
+        singleSwap.poolId = poolId;
+        singleSwap.kind = kind;
+        singleSwap.assetIn = IAsset(assetIn);
+        singleSwap.assetOut = IAsset(assetOut);
+        singleSwap.amount = amount;
+        singleSwap.userData = bytes("");
 
-    function sortIERC20(IERC20[] memory data) public pure returns (IERC20[] memory retIERC20) {
-        uint256[] memory arr = new uint256[](data.length);
-        uint256[] memory arrr = new uint256[](data.length);
-        retIERC20 = new IERC20[](data.length);
+        IVault.FundManagement memory fundManagement;
+        fundManagement.sender = user;
+        fundManagement.fromInternalBalance = false;
+        fundManagement.recipient = payable(user);
+        fundManagement.toInternalBalance = false;
 
-        for (uint i = 0; i < data.length; i++) {
-            arr[i] = uint256(uint160(address(data[i])));
-        }
-
-        arrr = sort(arr);
-
-        for (uint i = 0; i < data.length; i++) {
-            retIERC20[i] = IERC20(address(uint160((arrr[i]))));
-        }
+        vm.prank(user);
+        IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
     }
 
 }

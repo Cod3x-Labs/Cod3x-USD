@@ -51,6 +51,7 @@ import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 
 contract TestStakingModule is TestCdxUSD {
     bytes32 public poolId;
+    address public poolAdd;
     IERC20[] public assets;
 
     function setUp() public virtual override {
@@ -60,18 +61,49 @@ contract TestStakingModule is TestCdxUSD {
         assets = [IERC20(address(cdxUSD)), usdc, usdt];
 
         /// balancer stable pool creation
-        poolId = createStablePool(
-            "Cod3x-USD-Pool", "CUP", assets, 2500, userA
+        (poolId, poolAdd) = createStablePool(
+            assets, 2500, userA
         );
 
         /// join Pool
-        joinPool(poolId, userA, JoinKind.INIT);
+        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+        uint256[] memory amountsToAdd = new uint256[](assets.length + 1);
+        amountsToAdd[0] = INITIAL_CDXUSD_AMT;
+        amountsToAdd[1] = INITIAL_USDT_AMT;
+        amountsToAdd[2] = INITIAL_USDC_AMT;
+        amountsToAdd[3] = 1e13;
+
+        joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
     }
 
     function testInitialBalance() public {
         assertEq(0, usdc.balanceOf(userA));
         assertEq(0, usdt.balanceOf(userA));
         assertEq(0, cdxUSD.balanceOf(userA));
+        // assertEq(1e13, IERC20(poolAdd).balanceOf(userA));
+    }
+
+    function testExitPool() public {
+        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+
+        exitPool(poolId, setupPoolTokens, IERC20(poolAdd).balanceOf(userA) / 2, userA, ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT);
+        assertApproxEqRel(INITIAL_USDC_AMT / 2, usdc.balanceOf(userA), 1e15); // 0,1%
+        assertApproxEqRel(INITIAL_USDT_AMT / 2, usdt.balanceOf(userA), 1e15); // 0,1%
+        assertApproxEqRel(INITIAL_CDXUSD_AMT / 2, cdxUSD.balanceOf(userA), 1e15); // 0,1%
+    }
+
+    function testSwap() public {
+        uint256 amt = 1000;
+
+        assertEq(INITIAL_USDC_AMT, usdc.balanceOf(userB));
+        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
+        assertEq(0, cdxUSD.balanceOf(userB));
+
+        swap(poolId, userB, address(usdc), address(cdxUSD), amt * 10 ** 6, 0, block.timestamp, SwapKind.GIVEN_IN);
+
+        assertEq(INITIAL_USDC_AMT  - amt * 10 ** 6, usdc.balanceOf(userB));
+        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
+        assertApproxEqRel(amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
     }
 
     // ------ helpers --------
