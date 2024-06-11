@@ -11,7 +11,7 @@
 #### Installing dependencies
 
 ```bash
-yarn install
+yarn && forge install
 ```
 
 #### Compiling your contracts
