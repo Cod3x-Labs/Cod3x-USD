@@ -67,11 +67,11 @@ contract TestStakingModule is TestCdxUSD {
 
         /// join Pool
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
-        uint256[] memory amountsToAdd = new uint256[](assets.length + 1);
+        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
         amountsToAdd[0] = INITIAL_CDXUSD_AMT;
         amountsToAdd[1] = INITIAL_USDT_AMT;
         amountsToAdd[2] = INITIAL_USDC_AMT;
-        amountsToAdd[3] = 1e13;
+        amountsToAdd[3] = 0;
 
         joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
     }
@@ -83,6 +83,7 @@ contract TestStakingModule is TestCdxUSD {
         // assertEq(1e13, IERC20(poolAdd).balanceOf(userA));
     }
 
+
     function testExitPool() public {
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
 
@@ -92,8 +93,11 @@ contract TestStakingModule is TestCdxUSD {
         assertApproxEqRel(INITIAL_CDXUSD_AMT / 2, cdxUSD.balanceOf(userA), 1e15); // 0,1%
     }
 
-    function testSwap() public {
-        uint256 amt = 1000;
+    function testSwapAndJoin() public {
+        logCash();
+
+        /// Swap
+        uint256 amt = 10000;
 
         assertEq(INITIAL_USDC_AMT, usdc.balanceOf(userB));
         assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
@@ -104,6 +108,37 @@ contract TestStakingModule is TestCdxUSD {
         assertEq(INITIAL_USDC_AMT  - amt * 10 ** 6, usdc.balanceOf(userB));
         assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
         assertApproxEqRel(amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
+        
+        logCash();
+        /// Join
+        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+
+        uint256[] memory amountsToAdd = new uint256[](assets.length);
+        // amountsToAdd[0] = 0;
+        // amountsToAdd[1] = amt * 10**6;
+        // amountsToAdd[2] = amt * 10**6;
+        amountsToAdd[0] = cdxUSD.balanceOf(userB);
+        amountsToAdd[1] = usdt.balanceOf(userB);
+        amountsToAdd[2] = usdc.balanceOf(userB);
+
+        joinPool(poolId, setupPoolTokens, amountsToAdd, userB, JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT);
+        assertEq(0, usdc.balanceOf(userB));
+        assertEq(0, usdt.balanceOf(userB));
+        assertEq(0, cdxUSD.balanceOf(userB));
+        assertGt(IERC20(poolAdd).balanceOf(userB), 0);
+
+        logCash();
+    }
+
+    function logCash() public view{
+        for (uint i = 0; i < assets.length; i++) {
+            (uint256 cash, ,,) = IVault(vault).getPoolTokenInfo(poolId, assets[i]);
+
+            console.log(cash);
+            // console.log(managed);
+            // console.log("---");
+            }
+        console.log("---");   
     }
 
     // ------ helpers --------

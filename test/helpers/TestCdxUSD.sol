@@ -131,14 +131,14 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         tokens = sort(assets);
 
         IRateProvider[] memory rateProviders = new IRateProvider[](3);
-        rateProviders[0] = IRateProvider(address(0));
-        rateProviders[1] = IRateProvider(address(0));
-        rateProviders[2] = IRateProvider(address(0));
+        for (uint i = 0; i < assets.length; i++) {
+            rateProviders[i] = IRateProvider(address(0));
+        }   
 
         uint256[] memory tokenRateCacheDurations = new uint256[](3);
-        tokenRateCacheDurations[0] = uint256(0);
-        tokenRateCacheDurations[1] = uint256(0);
-        tokenRateCacheDurations[2] = uint256(0);
+        for (uint i = 0; i < assets.length; i++) {
+            tokenRateCacheDurations[i] = uint256(0);
+        }
 
         ComposableStablePool stablePool = IComposableStablePoolFactory(
             address(composableStablePoolFactory)
@@ -159,6 +159,8 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     }
 
     function joinPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256[] memory amounts, address user, JoinKind kind) public {
+        require(kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, "Operation not supported");
+
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
         uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
 
@@ -178,13 +180,18 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         request.assets = assetsIAsset;
         request.maxAmountsIn = maxAmounts;
         request.fromInternalBalance = false;
-        request.userData = abi.encode(kind, amountsToAdd);
-
+        if (kind == JoinKind.INIT)
+            request.userData = abi.encode(kind, amountsToAdd);
+        else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT)
+            request.userData = abi.encode(kind, amountsToAdd, 0);
+        
         vm.prank(user);
         IVault(vault).joinPool(poolId, user, user, request);
     }
 
     function exitPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256 amount, address user, ExitKind kind) public {
+        require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
+
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
 
         tokens = sort(setupPoolTokens);
@@ -210,6 +217,8 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     }
 
     function swap(bytes32 poolId, address user, address assetIn, address assetOut, uint256 amount, uint256 limit, uint256 deadline, SwapKind kind) public {
+        require(kind == SwapKind.GIVEN_IN, "Operation not supported");
+
         IVault.SingleSwap memory singleSwap;
         singleSwap.poolId = poolId;
         singleSwap.kind = kind;
