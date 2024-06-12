@@ -79,7 +79,7 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         super.setUp();
 
         string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL);
+        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20077043);
 
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);
