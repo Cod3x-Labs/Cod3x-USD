@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.22;
 
 import {OFTExtended} from "./OFTExtended.sol";
-import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
+import {ICdxUSD} from "./interfaces/ICdxUSD.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**

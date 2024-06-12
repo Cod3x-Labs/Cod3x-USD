@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.22;
 
-import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
+import {IOFTExtended} from "./interfaces/IOFTExtended.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

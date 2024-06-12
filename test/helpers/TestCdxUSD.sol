@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 /// LayerZero
 // Mock imports
-import {OFTMock} from "../mocks/OFTMock.sol";
-import {ERC20Mock} from "../mocks/ERC20Mock.sol";
-import {OFTComposerMock} from "../mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
+import {OFTMock} from "../helpers/mocks/OFTMock.sol";
+import {ERC20Mock} from "../helpers/mocks/ERC20Mock.sol";
+import {OFTComposerMock} from "../helpers/mocks/OFTComposerMock.sol";
+import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -34,13 +34,12 @@ import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/
 /// Main import
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/tokens/CdxUSD.sol";
-import "contracts/interfaces/ICdxUSD.sol";
+import "contracts/tokens/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault} from "test/helpers/interfaces/IVault.sol";
-import {ERC20UsdMock} from "test/mocks/ERC20UsdMock.sol";
 import "test/helpers/Constants.sol";
 import "test/helpers/Sort.sol";
 import {
@@ -95,18 +94,18 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         );
         cdxUSD.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
 
-        usdc = IERC20(address(new ERC20UsdMock{salt: "1"}("USDC", "USDC")));
-        usdt = IERC20(address(new ERC20UsdMock{salt: "1"}("USDT", "USDT")));
+        usdc = IERC20(address(new ERC20Mock{salt: "1"}(6)));
+        usdt = IERC20(address(new ERC20Mock{salt: "2"}(6)));
 
         /// initial mint
-        ERC20UsdMock(address(usdc)).mint(userA, INITIAL_USDC_AMT);
-        ERC20UsdMock(address(usdt)).mint(userA, INITIAL_USDT_AMT);
+        ERC20Mock(address(usdc)).mint(userA, INITIAL_USDC_AMT);
+        ERC20Mock(address(usdt)).mint(userA, INITIAL_USDT_AMT);
 
-        ERC20UsdMock(address(usdc)).mint(userB, INITIAL_USDC_AMT);
-        ERC20UsdMock(address(usdt)).mint(userB, INITIAL_USDT_AMT);
+        ERC20Mock(address(usdc)).mint(userB, INITIAL_USDC_AMT);
+        ERC20Mock(address(usdt)).mint(userB, INITIAL_USDT_AMT);
 
-        ERC20UsdMock(address(usdc)).mint(userC, INITIAL_USDC_AMT);
-        ERC20UsdMock(address(usdt)).mint(userC, INITIAL_USDT_AMT);
+        ERC20Mock(address(usdc)).mint(userC, INITIAL_USDC_AMT);
+        ERC20Mock(address(usdt)).mint(userC, INITIAL_USDT_AMT);
 
         vm.prank(userA); 
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);

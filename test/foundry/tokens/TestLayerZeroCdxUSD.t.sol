@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 // Mock imports
-import {OFTMock} from "../mocks/OFTMock.sol";
-import {ERC20Mock} from "../mocks/ERC20Mock.sol";
-import {OFTComposerMock} from "../mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
+import {OFTMock} from "../../helpers/mocks/OFTMock.sol";
+import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
+import {OFTComposerMock} from "../../helpers/mocks/OFTComposerMock.sol";
+import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -70,7 +70,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         bOFT.mockMint(userB, initialBalance);
     }
 
-    function test_constructor() public {
+    function testConstructor() public {
         assertEq(aOFT.owner(), address(this));
         assertEq(bOFT.owner(), address(this));
 
@@ -87,7 +87,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(bOFT.token(), address(bOFT));
     }
 
-    function test_lzPause() public {
+    function testLzPause() public {
         aOFT.toggleBridgePause();
 
         uint256 tokensToSend = 1 ether;
@@ -109,10 +109,10 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         vm.prank(guardian);
         aOFT.toggleBridgePause();
 
-        test_send_oft_a_to_b();
+        testSendOftAToB();
     }
 
-    function test_send_oft_a_to_b() public {
+    function testSendOftAToB() public {
         uint256 tokensToSend = 1 ether;
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         SendParam memory sendParam =
@@ -130,7 +130,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(bOFT.balanceOf(userB), initialBalance + tokensToSend);
     }
 
-    function test_send_oft_b_to_a() public {
+    function testSendOftBToA() public {
         uint256 tokensToSend = 1 ether;
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         SendParam memory sendParam =
@@ -148,7 +148,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.balanceOf(userA), initialBalance + tokensToSend);
     }
 
-    function test_send_oft_compose_msg() public {
+    function testSendOftComposeMsg() public {
         uint256 tokensToSend = 1 ether;
 
         OFTComposerMock composer = new OFTComposerMock();
@@ -199,7 +199,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(composer.extraData(), composerMsg_); // default to setting the extraData to the message as well to test
     }
 
-    function test_oft_compose_codec() public {
+    function testOftComposeCodec() public {
         uint64 nonce = 1;
         uint32 srcEid = 2;
         uint256 amountCreditLD = 3;
@@ -244,7 +244,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         composeMsg = OFTComposeMsgCodec.composeMsg(message);
     }
 
-    function test_debit_slippage_removeDust() public {
+    function testDebitSlippageRemoveDust() public {
         uint256 amountToSendLD = 1.23456789 ether;
         uint256 minAmountToCreditLD = 1.23456789 ether;
         uint32 dstEid = aEid;
@@ -260,7 +260,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
     }
 
-    function test_debit_slippage_minAmountToCreditLD() public {
+    function testDebitSlippageMinAmountToCreditLD() public {
         uint256 amountToSendLD = 1 ether;
         uint256 minAmountToCreditLD = 1.00000001 ether;
         uint32 dstEid = aEid;
@@ -273,17 +273,17 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         aOFT.debit(amountToSendLD, minAmountToCreditLD, dstEid);
     }
 
-    function test_toLD() public {
+    function testToLD() public {
         uint64 amountSD = 1000;
         assertEq(amountSD * aOFT.decimalConversionRate(), aOFT.toLD(uint64(amountSD)));
     }
 
-    function test_toSD() public {
+    function testToSD() public {
         uint256 amountLD = 1000000;
         assertEq(amountLD / aOFT.decimalConversionRate(), aOFT.toSD(amountLD));
     }
 
-    function test_oft_debit() public {
+    function testOftDebit() public {
         aOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
 
         uint256 amountToSendLD = 1 ether;
@@ -304,7 +304,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.balanceOf(address(this)), 0);
     }
 
-    function test_oft_credit() public {
+    function testOftCredit() public {
         uint256 amountToCreditLD = 1 ether;
         uint32 srcEid = aEid;
 
@@ -329,7 +329,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         composeMsg = OFTMsgCodec.composeMsg(message);
     }
 
-    function test_oft_build_msg() public {
+    function testOftBuildMsg() public {
         uint32 dstEid = bEid;
         bytes32 to = addressToBytes32(userA);
         uint256 amountToSendLD = 1.23456789 ether;
@@ -356,7 +356,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(composeMsg_, expectedComposeMsg);
     }
 
-    function test_oft_build_msg_no_compose_msg() public {
+    function testOftBuildMsgNoComposeMsg() public {
         uint32 dstEid = bEid;
         bytes32 to = addressToBytes32(userA);
         uint256 amountToSendLD = 1.23456789 ether;
@@ -381,7 +381,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(composeMsg_, "");
     }
 
-    function test_set_enforced_options() public {
+    function testSetEnforcedOptions() public {
         uint32 eid = 1;
 
         bytes memory optionsTypeOne =
@@ -399,7 +399,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.enforcedOptions(eid, 2), optionsTypeTwo);
     }
 
-    function test_assert_options_type3_revert() public {
+    function testAssertOptionsType3Revert() public {
         uint32 eid = 1;
         EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](1);
 
@@ -425,7 +425,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         aOFT.setEnforcedOptions(enforcedOptions); // doesnt revert cus option type 3
     }
 
-    function test_combine_options() public {
+    function testCombineOptions() public {
         uint32 eid = 1;
         uint16 msgType = 1;
 
@@ -447,7 +447,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(combinedOptions, expectedOptions);
     }
 
-    function test_combine_options_no_extra_options() public {
+    function testCombineOptionsNoExtraOptions() public {
         uint32 eid = 1;
         uint16 msgType = 1;
 
@@ -464,7 +464,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(combinedOptions, expectedOptions);
     }
 
-    function test_combine_options_no_enforced_options() public {
+    function testCombineOptionsNoEnforcedOptions() public {
         uint32 eid = 1;
         uint16 msgType = 1;
 
@@ -480,7 +480,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(combinedOptions, expectedOptions);
     }
 
-    function test_limit_bridge_rate(uint256 _seedLimit, uint256 _seedAmountToSend) public {
+    function testLimitBridgeRate(uint256 _seedLimit, uint256 _seedAmountToSend) public {
         int112 _limit = -int112(uint112(bound(_seedLimit, 0, initialBalance * 2)));
         uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
 
@@ -553,7 +553,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         }
     }
 
-    function test_bridging_fees(uint256 _seedLimit, uint256 _seedAmountToSend) public {
+    function testBridgingFees(uint256 _seedLimit, uint256 _seedAmountToSend) public {
         uint16 feeT = uint16(bound(_seedLimit, 0, 1000));
         uint256 tokensToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
 
@@ -578,9 +578,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(bOFT.balanceOf(userB), _removeDust(initialBalance + tokensToSendWithFee));
     }
 
-    function test_hourly_bridging_limit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend)
-        public
-    {
+    function testHourlyBridgingLimit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend) public {
         uint104 _hourlyLimit = uint104(bound(_seedHourlyLimit, 0, initialBalance));
         uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 1e15, initialBalance / 2));
 

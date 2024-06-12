@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 /// LayerZero
 // Mock imports
-import {OFTMock} from "../mocks/OFTMock.sol";
-import {ERC20Mock} from "../mocks/ERC20Mock.sol";
-import {OFTComposerMock} from "../mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
+import {OFTMock} from "../../helpers/mocks/OFTMock.sol";
+import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
+import {OFTComposerMock} from "../../helpers/mocks/OFTComposerMock.sol";
+import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -31,13 +31,12 @@ import {OFTComposeMsgCodec} from
 /// Main import
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/tokens/CdxUSD.sol";
-import "contracts/interfaces/ICdxUSD.sol";
+import "contracts/tokens/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault, JoinKind, ExitKind, SwapKind} from "test/helpers/interfaces/IVault.sol";
-import {ERC20UsdMock} from "test/mocks/ERC20UsdMock.sol";
 import "test/helpers/Constants.sol";
 import {
     IComposableStablePoolFactory,
@@ -61,9 +60,7 @@ contract TestStakingModule is TestCdxUSD {
         assets = [IERC20(address(cdxUSD)), usdc, usdt];
 
         /// balancer stable pool creation
-        (poolId, poolAdd) = createStablePool(
-            assets, 2500, userA
-        );
+        (poolId, poolAdd) = createStablePool(assets, 2500, userA);
 
         /// join Pool
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
@@ -83,11 +80,16 @@ contract TestStakingModule is TestCdxUSD {
         // assertEq(1e13, IERC20(poolAdd).balanceOf(userA));
     }
 
-
     function testExitPool() public {
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
 
-        exitPool(poolId, setupPoolTokens, IERC20(poolAdd).balanceOf(userA) / 2, userA, ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT);
+        exitPool(
+            poolId,
+            setupPoolTokens,
+            IERC20(poolAdd).balanceOf(userA) / 2,
+            userA,
+            ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT
+        );
         assertApproxEqRel(INITIAL_USDC_AMT / 2, usdc.balanceOf(userA), 1e15); // 0,1%
         assertApproxEqRel(INITIAL_USDT_AMT / 2, usdt.balanceOf(userA), 1e15); // 0,1%
         assertApproxEqRel(INITIAL_CDXUSD_AMT / 2, cdxUSD.balanceOf(userA), 1e15); // 0,1%
@@ -103,12 +105,21 @@ contract TestStakingModule is TestCdxUSD {
         assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
         assertEq(0, cdxUSD.balanceOf(userB));
 
-        swap(poolId, userB, address(usdc), address(cdxUSD), amt * 10 ** 6, 0, block.timestamp, SwapKind.GIVEN_IN);
+        swap(
+            poolId,
+            userB,
+            address(usdc),
+            address(cdxUSD),
+            amt * 10 ** 6,
+            0,
+            block.timestamp,
+            SwapKind.GIVEN_IN
+        );
 
-        assertEq(INITIAL_USDC_AMT  - amt * 10 ** 6, usdc.balanceOf(userB));
+        assertEq(INITIAL_USDC_AMT - amt * 10 ** 6, usdc.balanceOf(userB));
         assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
         assertApproxEqRel(amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
-        
+
         logCash();
         /// Join
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
@@ -130,15 +141,15 @@ contract TestStakingModule is TestCdxUSD {
         logCash();
     }
 
-    function logCash() public view{
-        for (uint i = 0; i < assets.length; i++) {
-            (uint256 cash, ,,) = IVault(vault).getPoolTokenInfo(poolId, assets[i]);
+    function logCash() public view {
+        for (uint256 i = 0; i < assets.length; i++) {
+            (uint256 cash,,,) = IVault(vault).getPoolTokenInfo(poolId, assets[i]);
 
             console.log(cash);
             // console.log(managed);
             // console.log("---");
-            }
-        console.log("---");   
+        }
+        console.log("---");
     }
 
     // ------ helpers --------
