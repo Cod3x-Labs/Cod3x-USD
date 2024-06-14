@@ -14,7 +14,6 @@
 
 pragma experimental ABIEncoderV2;
 
-
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 
@@ -26,16 +25,23 @@ enum JoinKind {
     TOKEN_IN_FOR_EXACT_BPT_OUT,
     ALL_TOKENS_IN_FOR_EXACT_BPT_OUT
 }
-enum ExitKind { EXACT_BPT_IN_FOR_ONE_TOKEN_OUT, BPT_IN_FOR_EXACT_TOKENS_OUT, EXACT_BPT_IN_FOR_ALL_TOKENS_OUT }
-enum SwapKind { GIVEN_IN, GIVEN_OUT }
+
+enum ExitKind {
+    EXACT_BPT_IN_FOR_ONE_TOKEN_OUT,
+    BPT_IN_FOR_EXACT_TOKENS_OUT,
+    EXACT_BPT_IN_FOR_ALL_TOKENS_OUT
+}
+
+enum SwapKind {
+    GIVEN_IN,
+    GIVEN_OUT
+}
 
 /**
  * @dev Full external interface for the Vault core contract - no external or public methods exist in the contract that
  * don't override one of these declarations.
  */
 interface IVault {
-
-
     // Generalities about the Vault:
     //
     // - Whenever documentation refers to 'tokens', it strictly refers to ERC20-compliant token contracts. Tokens are
@@ -50,8 +56,6 @@ interface IVault {
     // Contracts calling view functions in the Vault must make sure the Vault has not already been entered.
     //
     // - View functions revert if referring to either unregistered Pools, or unregistered tokens for registered Pools.
-
-
 
     // Relayers
     //
@@ -77,11 +81,7 @@ interface IVault {
      *
      * Emits a `RelayerApprovalChanged` event.
      */
-    function setRelayerApproval(
-        address sender,
-        address relayer,
-        bool approved
-    ) external;
+    function setRelayerApproval(address sender, address relayer, bool approved) external;
 
     /**
      * @dev Emitted every time a relayer is approved or disapproved by `setRelayerApproval`.
@@ -101,7 +101,10 @@ interface IVault {
     /**
      * @dev Returns `user`'s Internal Balance for a set of tokens.
      */
-    function getInternalBalance(address user, IERC20[] memory tokens) external view returns (uint256[] memory);
+    function getInternalBalance(address user, IERC20[] memory tokens)
+        external
+        view
+        returns (uint256[] memory);
 
     /**
      * @dev Performs a set of user balance operations, which involve Internal Balance (deposit, withdraw or transfer)
@@ -114,7 +117,7 @@ interface IVault {
 
     /**
      * @dev Data for `manageUserBalance` operations, which include the possibility for ETH to be sent and received
-     without manual WETH wrapping or unwrapping.
+     *  without manual WETH wrapping or unwrapping.
      */
     struct UserBalanceOp {
         UserBalanceOpKind kind;
@@ -162,7 +165,12 @@ interface IVault {
     //
     // Emits an `ExternalBalanceTransfer` event.
 
-    enum UserBalanceOpKind { DEPOSIT_INTERNAL, WITHDRAW_INTERNAL, TRANSFER_INTERNAL, TRANSFER_EXTERNAL }
+    enum UserBalanceOpKind {
+        DEPOSIT_INTERNAL,
+        WITHDRAW_INTERNAL,
+        TRANSFER_INTERNAL,
+        TRANSFER_EXTERNAL
+    }
 
     /**
      * @dev Emitted when a user's Internal Balance changes, either from calls to `manageUserBalance`, or through
@@ -176,7 +184,9 @@ interface IVault {
     /**
      * @dev Emitted when a user's Vault ERC20 allowance is used by the Vault to transfer tokens to an external account.
      */
-    event ExternalBalanceTransfer(IERC20 indexed token, address indexed sender, address recipient, uint256 amount);
+    event ExternalBalanceTransfer(
+        IERC20 indexed token, address indexed sender, address recipient, uint256 amount
+    );
 
     // Pools
     //
@@ -195,7 +205,11 @@ interface IVault {
     //  - Two Token: only allows two tokens to be registered. This achieves the lowest possible swap gas cost. Like
     // minimal swap info Pools, these are called via IMinimalSwapInfoPool.
 
-    enum PoolSpecialization { GENERAL, MINIMAL_SWAP_INFO, TWO_TOKEN }
+    enum PoolSpecialization {
+        GENERAL,
+        MINIMAL_SWAP_INFO,
+        TWO_TOKEN
+    }
 
     /**
      * @dev Registers the caller account as a Pool with a given specialization setting. Returns the Pool's ID, which
@@ -215,7 +229,9 @@ interface IVault {
     /**
      * @dev Emitted when a Pool is registered by calling `registerPool`.
      */
-    event PoolRegistered(bytes32 indexed poolId, address indexed poolAddress, PoolSpecialization specialization);
+    event PoolRegistered(
+        bytes32 indexed poolId, address indexed poolAddress, PoolSpecialization specialization
+    );
 
     /**
      * @dev Returns a Pool's contract address and specialization setting.
@@ -244,11 +260,8 @@ interface IVault {
      *
      * Emits a `TokensRegistered` event.
      */
-    function registerTokens(
-        bytes32 poolId,
-        IERC20[] memory tokens,
-        address[] memory assetManagers
-    ) external;
+    function registerTokens(bytes32 poolId, IERC20[] memory tokens, address[] memory assetManagers)
+        external;
 
     /**
      * @dev Emitted when a Pool registers tokens by calling `registerTokens`.
@@ -293,12 +306,7 @@ interface IVault {
     function getPoolTokenInfo(bytes32 poolId, IERC20 token)
         external
         view
-        returns (
-            uint256 cash,
-            uint256 managed,
-            uint256 lastChangeBlock,
-            address assetManager
-        );
+        returns (uint256 cash, uint256 managed, uint256 lastChangeBlock, address assetManager);
 
     /**
      * @dev Returns a Pool's registered tokens, the total balance for each, and the latest block when *any* of
@@ -317,11 +325,7 @@ interface IVault {
     function getPoolTokens(bytes32 poolId)
         external
         view
-        returns (
-            IERC20[] memory tokens,
-            uint256[] memory balances,
-            uint256 lastChangeBlock
-        );
+        returns (IERC20[] memory tokens, uint256[] memory balances, uint256 lastChangeBlock);
 
     /**
      * @dev Called by users to join a Pool, which transfers tokens from `sender` into the Pool's balance. This will
@@ -429,7 +433,10 @@ interface IVault {
         uint256[] protocolFeeAmounts
     );
 
-    enum PoolBalanceChangeKind { JOIN, EXIT }
+    enum PoolBalanceChangeKind {
+        JOIN,
+        EXIT
+    }
 
     // Swaps
     //
@@ -670,7 +677,11 @@ interface IVault {
      * Updates don't affect the Pool's cash balance, but because the managed balance changes, it does alter the total.
      * The external amount can be either increased or decreased by this call (i.e., reporting a gain or a loss).
      */
-    enum PoolBalanceOpKind { WITHDRAW, DEPOSIT, UPDATE }
+    enum PoolBalanceOpKind {
+        WITHDRAW,
+        DEPOSIT,
+        UPDATE
+    }
 
     /**
      * @dev Emitted when a Pool's token Asset Manager alters its balance via `managePoolBalance`.
@@ -698,7 +709,6 @@ interface IVault {
     // Vault when they are joined or exited. This prevents users from joining a Pool with unpaid debt, as well as
     // exiting a Pool in debt without first paying their share.
 
-
     /**
      * @dev Safety mechanism to pause most Vault operations in the event of an emergency - typically detection of an
      * error in some part of the system.
@@ -715,5 +725,4 @@ interface IVault {
      * Internal Balance can still be withdrawn, and Pools exited.
      */
     function setPaused(bool paused) external;
-
 }

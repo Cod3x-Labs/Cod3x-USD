@@ -119,6 +119,8 @@ interface IReliquary is IERC721 {
 
     function poolLength() external view returns (uint256 pools_);
 
+    function getAmountInRelic(uint256 _posId) external view returns (uint256);
+
     function getPositionForId(uint256 _posId) external view returns (PositionInfo memory);
 
     function getPoolInfo(uint8 _poolId) external view returns (PoolInfo memory);

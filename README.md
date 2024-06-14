@@ -88,12 +88,7 @@ Please use `forge fmt` before commiting.
 
 ## TODOs
 
-- Stacking module
-  - stUSD
-- Minters
-  - ERC20
-  - ERC6909
-- Governor
+- Evaluate risk on Reliquary__TOKEN_NOT_COMPATIBLE() comment
 
 <br>
 

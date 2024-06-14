@@ -39,16 +39,15 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault} from "test/helpers/interfaces/IVault.sol";
 import "test/helpers/Constants.sol";
 import "test/helpers/Sort.sol";
 import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "test/helpers/interfaces/IComposableStablePoolFactory.sol";
+} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "test/helpers/interfaces/IVault.sol";
+import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
 import "forge-std/console2.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
@@ -109,6 +108,8 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
 
         vm.prank(userA); 
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
+        vm.prank(userA); 
+        cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
 
         // MAX approve "vault" by all users
         for (uint160 i = 1; i <= 3; i++) {

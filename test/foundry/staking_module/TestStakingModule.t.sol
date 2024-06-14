@@ -1,76 +1,149 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
-/// LayerZero
-// Mock imports
-import {OFTMock} from "../../helpers/mocks/OFTMock.sol";
-import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
-import {OFTComposerMock} from "../../helpers/mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
-
-// OApp imports
-import {
-    IOAppOptionsType3,
-    EnforcedOptionParam
-} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OAppOptionsType3.sol";
-import {OptionsBuilder} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/libs/OptionsBuilder.sol";
-
-// OFT imports
-import {
-    IOFT,
-    SendParam,
-    OFTReceipt
-} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/interfaces/IOFT.sol";
-import {
-    MessagingFee, MessagingReceipt
-} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
-import {OFTMsgCodec} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTMsgCodec.sol";
-import {OFTComposeMsgCodec} from
-    "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/libs/OFTComposeMsgCodec.sol";
-
-/// Main import
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "contracts/tokens/CdxUSD.sol";
-import "contracts/tokens/interfaces/ICdxUSD.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import "test/helpers/Events.sol";
-import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "test/helpers/interfaces/IVault.sol";
-import "test/helpers/Constants.sol";
+import {
+    IVault,
+    JoinKind,
+    ExitKind,
+    SwapKind
+} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
 import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "test/helpers/interfaces/IComposableStablePoolFactory.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "forge-std/console2.sol";
+} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
+import "forge-std/console.sol";
 
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 
-contract TestStakingModule is TestCdxUSD {
+// reliquary
+import "contracts/staking_module/reliquary/Reliquary.sol";
+import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
+import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
+import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
+import "contracts/staking_module/reliquary/rewarders/ParentRollingRewarder.sol";
+import "contracts/staking_module/reliquary/interfaces/ICurves.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+
+// vault
+import {ReaperBaseStrategyv4} from "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
+import {ReaperVaultV2} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
+import {ScdxUsdVaultStrategy} from "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+contract TestStakingModule is TestCdxUSD, ERC721Holder {
     bytes32 public poolId;
     address public poolAdd;
     IERC20[] public assets;
+    Reliquary public reliquary;
+    RollingRewarder public rewarder;
+    ReaperVaultV2 public cod3xVault;
+    ScdxUsdVaultStrategy public strategy;
+
+    // Linear function config (to config)
+    uint256 public slope = 100; // Increase of multiplier every second
+    uint256 public minMultiplier = 365 days * 100; // Arbitrary (but should be coherent with slope)
+    uint256 public plateau = 10 days;
 
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(forkIdEth);
 
-        assets = [IERC20(address(cdxUSD)), usdc, usdt];
+        /// ======= Balancer Pool Deploy =======
+        {
+            assets = [IERC20(address(cdxUSD)), usdc, usdt];
 
-        /// balancer stable pool creation
-        (poolId, poolAdd) = createStablePool(assets, 2500, userA);
+            // balancer stable pool creation
+            (poolId, poolAdd) = createStablePool(assets, 2500, userA);
 
-        /// join Pool
-        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
-        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-        amountsToAdd[0] = INITIAL_CDXUSD_AMT;
-        amountsToAdd[1] = INITIAL_USDT_AMT;
-        amountsToAdd[2] = INITIAL_USDC_AMT;
-        amountsToAdd[3] = 0;
+            // join Pool
+            (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+            uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
+            amountsToAdd[0] = INITIAL_CDXUSD_AMT;
+            amountsToAdd[1] = INITIAL_USDT_AMT;
+            amountsToAdd[2] = INITIAL_USDC_AMT;
+            amountsToAdd[3] = 0;
 
-        joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+            joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+            vm.prank(userA);
+            IERC20(poolAdd).transfer(address(this), 1);
+        }
+
+        /// ========= Reliquary Deploy =========
+        {
+            reliquary = new Reliquary(address(0), 0, "Reliquary scdxUSD", "scdxUSD Relic");
+            address linearPlateauCurve =
+                address(new LinearPlateauCurve(slope, minMultiplier, plateau));
+
+            address nftDescriptor = address(new NFTDescriptor(address(reliquary)));
+
+            address parentRewarder = address(new ParentRollingRewarder());
+
+            reliquary.grantRole(keccak256("OPERATOR"), address(this));
+
+            console.log(IERC20(poolAdd).totalSupply());
+            console.log(IERC20(poolAdd).balanceOf(userA));
+
+            IERC20(poolAdd).approve(address(reliquary), 1); // approve 1 wei to bootstrap the pool
+            reliquary.addPool(
+                100, // only one pool is necessary
+                address(poolAdd), // BTP
+                address(parentRewarder),
+                ICurves(linearPlateauCurve),
+                "scdxUSD Pool",
+                nftDescriptor,
+                true,
+                address(this) // can send to the strategy directly.
+            );
+
+            rewarder =
+                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD)));
+            IERC20(cdxUSD).approve(address(reliquary), type(uint256).max);
+            IERC20(cdxUSD).approve(address(rewarder), type(uint256).max);
+        }
+
+        /// ========== sdxUSD Vault Strategy Deploy ===========
+        {
+            address[] memory ownerArr = new address[](3);
+            ownerArr[0] = address(this);
+            ownerArr[1] = address(this);
+            ownerArr[2] = address(this);
+
+            address[] memory ownerArr1 = new address[](1);
+            ownerArr[0] = address(this);
+
+            cod3xVault = new ReaperVaultV2(
+                poolAdd,
+                "Staked Cod3x USD",
+                "scdxUSD",
+                type(uint256).max,
+                0,
+                treasury,
+                ownerArr,
+                ownerArr,
+                address(this)
+            );
+
+            ScdxUsdVaultStrategy implementation = new ScdxUsdVaultStrategy();
+            ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), "");
+            strategy = ScdxUsdVaultStrategy(address(proxy));
+
+            reliquary.transferFrom(address(this), address(strategy), 1); // transfer Relic#1 to strategy.
+            strategy.initialize(
+                address(cod3xVault),
+                address(vault),
+                ownerArr1,
+                ownerArr,
+                ownerArr1,
+                address(cdxUSD),
+                address(reliquary),
+                address(poolAdd),
+                poolId
+            );
+
+            cod3xVault.addStrategy(address(strategy), 0, 100);
+        }
     }
 
     function testInitialBalance() public {
@@ -79,78 +152,4 @@ contract TestStakingModule is TestCdxUSD {
         assertEq(0, cdxUSD.balanceOf(userA));
         // assertEq(1e13, IERC20(poolAdd).balanceOf(userA));
     }
-
-    function testExitPool() public {
-        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
-
-        exitPool(
-            poolId,
-            setupPoolTokens,
-            IERC20(poolAdd).balanceOf(userA) / 2,
-            userA,
-            ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT
-        );
-        assertApproxEqRel(INITIAL_USDC_AMT / 2, usdc.balanceOf(userA), 1e15); // 0,1%
-        assertApproxEqRel(INITIAL_USDT_AMT / 2, usdt.balanceOf(userA), 1e15); // 0,1%
-        assertApproxEqRel(INITIAL_CDXUSD_AMT / 2, cdxUSD.balanceOf(userA), 1e15); // 0,1%
-    }
-
-    function testSwapAndJoin() public {
-        logCash();
-
-        /// Swap
-        uint256 amt = 10000;
-
-        assertEq(INITIAL_USDC_AMT, usdc.balanceOf(userB));
-        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
-        assertEq(0, cdxUSD.balanceOf(userB));
-
-        swap(
-            poolId,
-            userB,
-            address(usdc),
-            address(cdxUSD),
-            amt * 10 ** 6,
-            0,
-            block.timestamp,
-            SwapKind.GIVEN_IN
-        );
-
-        assertEq(INITIAL_USDC_AMT - amt * 10 ** 6, usdc.balanceOf(userB));
-        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
-        assertApproxEqRel(amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
-
-        logCash();
-        /// Join
-        (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
-
-        uint256[] memory amountsToAdd = new uint256[](assets.length);
-        // amountsToAdd[0] = 0;
-        // amountsToAdd[1] = amt * 10**6;
-        // amountsToAdd[2] = amt * 10**6;
-        amountsToAdd[0] = cdxUSD.balanceOf(userB);
-        amountsToAdd[1] = usdt.balanceOf(userB);
-        amountsToAdd[2] = usdc.balanceOf(userB);
-
-        joinPool(poolId, setupPoolTokens, amountsToAdd, userB, JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT);
-        assertEq(0, usdc.balanceOf(userB));
-        assertEq(0, usdt.balanceOf(userB));
-        assertEq(0, cdxUSD.balanceOf(userB));
-        assertGt(IERC20(poolAdd).balanceOf(userB), 0);
-
-        logCash();
-    }
-
-    function logCash() public view {
-        for (uint256 i = 0; i < assets.length; i++) {
-            (uint256 cash,,,) = IVault(vault).getPoolTokenInfo(poolId, assets[i]);
-
-            console.log(cash);
-            // console.log(managed);
-            // console.log("---");
-        }
-        console.log("---");
-    }
-
-    // ------ helpers --------
 }

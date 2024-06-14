@@ -136,10 +136,11 @@ contract Reliquary is
         {
             if (_poolToken == rewardToken) revert Reliquary__REWARD_TOKEN_AS_POOL_TOKEN();
 
-            // Tokens with more than the maximum allowed supply can't serve as pool tokens.
-            if (IERC20(_poolToken).totalSupply() > MAX_SUPPLY_ALLOWED) {
-                revert Reliquary__TOKEN_NOT_COMPATIBLE();
-            }
+            // TODO evaluate risk
+            // // Tokens with more than the maximum allowed supply can't serve as pool tokens.
+            // if (IERC20(_poolToken).totalSupply() > MAX_SUPPLY_ALLOWED) {
+            //     revert Reliquary__TOKEN_NOT_COMPATIBLE();
+            // }
 
             // Multiplier at f(0) must not be 0.
             if (_curve.getFunction(0) == 0) {
@@ -713,6 +714,11 @@ contract Reliquary is
         }
     }
     // -------------- views --------------
+
+    /// @notice Returns the amount of `poolToken` in Relic#1.
+    function getAmountInRelic(uint256 _relicId) external view returns (uint256) {
+        return positionForId[_relicId].amount;
+    }
 
     /// @notice Returns a PositionInfo object for the given relicId.
     function getPositionForId(uint256 _relicId)

@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 
 /// Main import
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault} from "test/helpers/interfaces/IVault.sol";
+import {IVault} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
 
 contract Sort {
 
