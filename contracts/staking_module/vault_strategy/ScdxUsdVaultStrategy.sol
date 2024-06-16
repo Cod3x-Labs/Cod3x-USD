@@ -6,6 +6,7 @@ import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "./interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
+import "./interfaces/IBaseBalancerPool.sol";
 
 /// Errors
 error ScdxUsdVaultStrategy__INVALID_INPUT();
@@ -26,6 +27,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
     IERC20 public cdxUSD;
     IReliquary public reliquary;
+    IBalancerVault public balancerVault;
 
     IAsset[] public poolTokens;
     bytes32 public poolId;
@@ -52,7 +54,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
                 || _multisigRoles.length != 3
         ) revert ScdxUsdVaultStrategy__INVALID_INPUT();
 
-        if (!IReliquary(_reliquary).isApprovedOrOwner(address(this), 1)) {
+        if (!IReliquary(_reliquary).isApprovedOrOwner(address(this), RELIC_ID)) {
             revert ScdxUsdVaultStrategy__SHOULD_OWN_RELIC_1();
         }
 
@@ -70,7 +72,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
         );
 
         cdxUSD = IERC20(_cdxUSD);
-
+        balancerVault = IBalancerVault(_balancerVault);
         IERC20(poolToken_).approve(_reliquary, type(uint256).max);
 
         reliquary = IReliquary(_reliquary);
@@ -84,6 +86,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
         IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
 
+        (address _poolAdd, ) = IBalancerVault(_balancerVault).getPool(poolId);
+        poolTokens_ = _dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
@@ -147,14 +151,18 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
      * deposited in external contracts to generate yield.
      */
     function _deposit(uint256 _toReinvest) internal override {
-        reliquary.deposit(RELIC_ID, _toReinvest, address(0));
+        if (_toReinvest != 0) {
+            reliquary.deposit(_toReinvest, RELIC_ID, address(0));
+        }
     }
 
     /**
      * @dev Withdraws funds from external contracts and brings them back to the strategy.
      */
     function _withdraw(uint256 _amount) internal override {
-        reliquary.withdraw(_amount, RELIC_ID, address(0));
+        if (balanceOfPool() != 0 && _amount != 0) {
+            reliquary.withdraw(_amount, RELIC_ID, address(0));
+        }
     }
 
     /**
@@ -165,8 +173,14 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
      */
     function _harvestCore() internal override {
         if (minBPTAmountOut == 1) revert ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
+
         reliquary.update(RELIC_ID, address(this));
-        _joinPool(cdxUSD.balanceOf(address(this)));
+
+        uint256 balanceCdxUSD = cdxUSD.balanceOf(address(this));
+        if (balanceCdxUSD != 0) {
+            _joinPool(balanceCdxUSD);
+        }
+
         minBPTAmountOut = 1;
     }
 
@@ -184,12 +198,12 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     function _joinPool(uint256 _amount) internal {
         uint256 len_ = poolTokens.length;
 
-        uint256[] memory amountsToAdd = new uint256[](len_);
+        uint256[] memory amountsToAdd = new uint256[](len_ - 1); // TODO not clean at all.
         amountsToAdd[cdxUsdIndex] = _amount;
 
         uint256[] memory maxAmounts = new uint256[](len_);
         for (uint256 i = 0; i < len_; i++) {
-            maxAmounts[i] = type(uint256).max;
+            maxAmounts[i] = type(uint256).max; // Ok. We always send balanceOf(address(this)).
         }
 
         IBalancerVault.JoinPoolRequest memory request;
@@ -199,6 +213,15 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
         request.userData =
             abi.encode(JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, amountsToAdd, minBPTAmountOut);
 
-        IBalancerVault(vault).joinPool(poolId, address(this), address(this), request);
+        balancerVault.joinPool(poolId, address(this), address(this), request);
+    }
+
+    function _dropBptItem(IERC20[] memory _array, address _pool) internal view returns (IERC20[] memory) {
+        IERC20[] memory arrayWithoutBpt_ = new IERC20[](_array.length - 1);
+        for (uint256 i = 0; i < arrayWithoutBpt_.length; i++) {
+            arrayWithoutBpt_[i] = _array[i < IBaseBalancerPool(_pool).getBptIndex() ? i : i + 1];
+        }
+
+        return arrayWithoutBpt_;
     }
 }

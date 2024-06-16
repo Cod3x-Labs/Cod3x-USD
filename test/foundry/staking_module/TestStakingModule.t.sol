@@ -16,6 +16,7 @@ import {
 import "forge-std/console.sol";
 
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
+import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
 // reliquary
 import "contracts/staking_module/reliquary/Reliquary.sol";
@@ -29,8 +30,10 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 // vault
 import {ReaperBaseStrategyv4} from "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import {ReaperVaultV2} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
-import {ScdxUsdVaultStrategy} from "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
+import {ScdxUsdVaultStrategy} from
+    "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
 
 contract TestStakingModule is TestCdxUSD, ERC721Holder {
     bytes32 public poolId;
@@ -40,11 +43,13 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     RollingRewarder public rewarder;
     ReaperVaultV2 public cod3xVault;
     ScdxUsdVaultStrategy public strategy;
+    IERC20 public mockRewardToken;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
     uint256 public minMultiplier = 365 days * 100; // Arbitrary (but should be coherent with slope)
     uint256 public plateau = 10 days;
+    uint256 private constant RELIC_ID = 1;
 
     function setUp() public virtual override {
         super.setUp();
@@ -72,7 +77,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
         /// ========= Reliquary Deploy =========
         {
-            reliquary = new Reliquary(address(0), 0, "Reliquary scdxUSD", "scdxUSD Relic");
+            mockRewardToken = IERC20(address(new ERC20Mock(18)));
+            reliquary =
+                new Reliquary(address(mockRewardToken), 0, "Reliquary scdxUSD", "scdxUSD Relic");
             address linearPlateauCurve =
                 address(new LinearPlateauCurve(slope, minMultiplier, plateau));
 
@@ -81,9 +88,6 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             address parentRewarder = address(new ParentRollingRewarder());
 
             reliquary.grantRole(keccak256("OPERATOR"), address(this));
-
-            console.log(IERC20(poolAdd).totalSupply());
-            console.log(IERC20(poolAdd).balanceOf(userA));
 
             IERC20(poolAdd).approve(address(reliquary), 1); // approve 1 wei to bootstrap the pool
             reliquary.addPool(
@@ -103,7 +107,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             IERC20(cdxUSD).approve(address(rewarder), type(uint256).max);
         }
 
-        /// ========== sdxUSD Vault Strategy Deploy ===========
+        /// ========== scdxUSD Vault Strategy Deploy ===========
         {
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
@@ -112,6 +116,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
             address[] memory ownerArr1 = new address[](1);
             ownerArr[0] = address(this);
+
+            FeeControllerMock feeControllerMock = new FeeControllerMock();
+            feeControllerMock.updateManagementFeeBPS(0);
 
             cod3xVault = new ReaperVaultV2(
                 poolAdd,
@@ -122,14 +129,14 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
                 treasury,
                 ownerArr,
                 ownerArr,
-                address(this)
+                address(feeControllerMock)
             );
 
             ScdxUsdVaultStrategy implementation = new ScdxUsdVaultStrategy();
             ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), "");
             strategy = ScdxUsdVaultStrategy(address(proxy));
 
-            reliquary.transferFrom(address(this), address(strategy), 1); // transfer Relic#1 to strategy.
+            reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
                 address(vault),
@@ -142,8 +149,44 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
                 poolId
             );
 
-            cod3xVault.addStrategy(address(strategy), 0, 100);
+            // console.log(address(cod3xVault));
+            // console.log(address(vault));
+            // console.log(address(cdxUSD));
+            // console.log(address(reliquary));
+            // console.log(address(poolAdd));
+
+            cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
         }
+    }
+
+    function testDeposit() public {
+        uint256 amt = 1000e18;
+
+        vm.startPrank(userA);
+        IERC20(poolAdd).approve(address(cod3xVault), type(uint256).max);
+        cod3xVault.deposit(amt);
+        vm.stopPrank();
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(1000e18);
+
+        skip(3 days);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        // assertEq(0, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+        assertEq(0, IERC20(poolAdd).balanceOf(address(strategy)));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(reliquary)));
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+        assertApproxEqRel(amt + amt * 3 days / 7 days , IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+
     }
 
     function testInitialBalance() public {

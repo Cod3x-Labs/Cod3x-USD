@@ -48,7 +48,7 @@ import {
 } from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
-import "forge-std/console2.sol";
+import "forge-std/console.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     uint32 aEid = 1;
