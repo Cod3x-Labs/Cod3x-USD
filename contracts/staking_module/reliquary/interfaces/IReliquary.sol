@@ -83,6 +83,10 @@ interface IReliquary is IERC721 {
     error Reliquary__CURVE_OVERFLOW();
     error Reliquary__RELIC1_PROHIBITED_ACTION();
 
+    function pause() external;
+
+    function unpause() external;
+
     function setEmissionRate(uint256 _emissionRate) external;
 
     function addPool(

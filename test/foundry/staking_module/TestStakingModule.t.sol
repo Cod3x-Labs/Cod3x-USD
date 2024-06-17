@@ -20,6 +20,7 @@ import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
 // reliquary
 import "contracts/staking_module/reliquary/Reliquary.sol";
+import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
 import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
@@ -39,7 +40,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     bytes32 public poolId;
     address public poolAdd;
     IERC20[] public assets;
-    Reliquary public reliquary;
+    IReliquary public reliquary;
     RollingRewarder public rewarder;
     ReaperVaultV2 public cod3xVault;
     ScdxUsdVaultStrategy public strategy;
@@ -71,6 +72,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             amountsToAdd[3] = 0;
 
             joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
         }
@@ -87,7 +89,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
             address parentRewarder = address(new ParentRollingRewarder());
 
-            reliquary.grantRole(keccak256("OPERATOR"), address(this));
+            Reliquary(address(reliquary)).grantRole(keccak256("OPERATOR"), address(this));
+            Reliquary(address(reliquary)).grantRole(keccak256("GUARDIAN"), address(this));
+            Reliquary(address(reliquary)).grantRole(keccak256("EMISSION_RATE"), address(this));
 
             IERC20(poolAdd).approve(address(reliquary), 1); // approve 1 wei to bootstrap the pool
             reliquary.addPool(
@@ -157,42 +161,354 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
             cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
         }
+
+        // MAX approve "cod3xVault" by all users
+        for (uint160 i = 1; i <= 3; i++) {
+            vm.prank(address(i)); // address(0x1) == address(1)
+            IERC20(poolAdd).approve(address(cod3xVault), type(uint256).max);
+        }
     }
 
-    function testDeposit() public {
-        uint256 amt = 1000e18;
+    function testVariables() public {
+        // reliquary
+        assertEq(reliquary.emissionRate(), 0);
+        assertEq(rewarder.distributionPeriod(), 7 days);
 
-        vm.startPrank(userA);
-        IERC20(poolAdd).approve(address(cod3xVault), type(uint256).max);
+        // vault
+        assertEq(cod3xVault.tvlCap(), type(uint256).max);
+        assertEq(cod3xVault.managementFeeCapBPS(), 0);
+        assertEq(cod3xVault.tvlCap(), type(uint256).max);
+        assertEq(cod3xVault.totalAllocBPS(), 10_000);
+        assertEq(cod3xVault.totalAllocated(), 0);
+        assertEq(cod3xVault.emergencyShutdown(), false);
+        assertEq(address(cod3xVault.token()), poolAdd);
+        assertEq(reliquary.isApprovedOrOwner(address(strategy), RELIC_ID), true);
+
+        // strategy
+        assertEq(address(strategy.cdxUSD()), address(cdxUSD));
+        assertEq(address(strategy.reliquary()), address(reliquary));
+        assertEq(address(strategy.balancerVault()), address(vault));
+        assertNotEq(strategy.cdxUsdIndex(), type(uint256).max);
+        assertEq(strategy.minBPTAmountOut(), 1);
+        assertEq(strategy.want(), poolAdd);
+        assertEq(strategy.vault(), address(cod3xVault));
+        assertEq(address(strategy.swapper()), address(0));
+    }
+
+    function testDepositWithdraw(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
         cod3xVault.deposit(amt);
-        vm.stopPrank();
 
         assertEq(amt, cod3xVault.balanceOf(userA));
         assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
 
-        rewarder.fund(1000e18);
+        rewarder.fund(funding);
 
-        skip(3 days);
+        skip(deltaTime);
 
         strategy.setMinBPTAmountOut(2);
         strategy.harvest();
 
-        // assertEq(0, IERC20(poolAdd).balanceOf(address(cod3xVault)));
-        assertEq(0, IERC20(poolAdd).balanceOf(address(strategy)));
+        assertEq(0, strategy.balanceOfWant());
         assertEq(amt, IERC20(poolAdd).balanceOf(address(reliquary)));
 
         strategy.setMinBPTAmountOut(2);
         strategy.harvest();
 
         assertEq(0, IERC20(poolAdd).balanceOf(address(cod3xVault)));
-        assertApproxEqRel(amt + amt * 3 days / 7 days , IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(reliquary)),
+            1e14
+        ); // 0,01%
 
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+
+        assertApproxEqRel(
+            balanceUserABefore + amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
     }
 
-    function testInitialBalance() public {
-        assertEq(0, usdc.balanceOf(userA));
-        assertEq(0, usdt.balanceOf(userA));
-        assertEq(0, cdxUSD.balanceOf(userA));
-        // assertEq(1e13, IERC20(poolAdd).balanceOf(userA));
+    function testSlippageProtectionCheck(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, type(uint40).max);
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+
+        skip(deltaTime);
+        vm.expectRevert(ScdxUsdVaultStrategy.ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION.selector);
+        strategy.harvest();
+    }
+
+    function testVaultEmergencyWithdraw1(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+
+        skip(deltaTime);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        cod3xVault.setEmergencyShutdown(true);
+        assertEq(cod3xVault.emergencyShutdown(), true);
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(reliquary)),
+            1e14
+        ); // 0,01%
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
+        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+
+        // withdraw
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+
+        assertApproxEqRel(
+            balanceUserABefore + amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
+    }
+
+    function testVaultEmergencyWithdraw2(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+
+        skip(deltaTime);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        cod3xVault.setEmergencyShutdown(true);
+        assertEq(cod3xVault.emergencyShutdown(), true);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
+        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+
+        // withdraw
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+
+        assertApproxEqRel(
+            balanceUserABefore + amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
+    }
+
+    function testStrategyEmergencyExit(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+
+        skip(deltaTime);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        strategy.setEmergencyExit();
+        assertEq(strategy.emergencyExit(), true);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
+        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+
+        // withdraw
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+
+        assertApproxEqRel(
+            balanceUserABefore + amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
+    }
+
+    function testStrategyAndVaultEmergencyExit0(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+
+        skip(deltaTime);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        strategy.setEmergencyExit();
+        assertEq(strategy.emergencyExit(), true);
+        cod3xVault.setEmergencyShutdown(true);
+        assertEq(cod3xVault.emergencyShutdown(), true);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
+        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+
+        // withdraw
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+        assertApproxEqRel(
+            balanceUserABefore + amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
+    }
+
+    function testStrategyAndVaultEmergencyExitWithReliquaryPaused(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
+        public
+    {
+        uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
+        uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
+        uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
+
+        vm.prank(userA);
+        cod3xVault.deposit(amt);
+
+        assertEq(amt, cod3xVault.balanceOf(userA));
+        assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
+
+        rewarder.fund(funding);
+       
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();        
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        // full emergency
+        strategy.setEmergencyExit();
+        cod3xVault.setEmergencyShutdown(true);
+        reliquary.pause();
+
+        skip(deltaTime);
+
+        strategy.setMinBPTAmountOut(2);
+        strategy.harvest();
+
+        assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
+        assertEq(funding, IERC20(cdxUSD).balanceOf(address(rewarder)));
+        assertApproxEqRel(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+
+        // withdraw
+        uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
+
+        skip(7 hours); // For 100% profit degradation.
+
+        vm.prank(userA);
+        cod3xVault.withdrawAll();
+
+        assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
+        assertEq(funding, IERC20(cdxUSD).balanceOf(address(rewarder)));
+        assertApproxEqRel(
+            balanceUserABefore + amt,
+            IERC20(poolAdd).balanceOf(userA),
+            1e14
+        ); // 0,01%
     }
 }
