@@ -106,10 +106,14 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         ERC20Mock(address(usdc)).mint(userC, INITIAL_USDC_AMT);
         ERC20Mock(address(usdt)).mint(userC, INITIAL_USDT_AMT);
 
-        vm.prank(userA); 
+        vm.startPrank(userA); 
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
-        vm.prank(userA); 
+        cdxUSD.mint(userB, INITIAL_CDXUSD_AMT);
         cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
+        vm.stopPrank();
+
+        ERC20Mock(address(usdc)).mint(userB, INITIAL_USDC_AMT);
+        ERC20Mock(address(usdt)).mint(userB, INITIAL_USDT_AMT);
 
         // MAX approve "vault" by all users
         for (uint160 i = 1; i <= 3; i++) {

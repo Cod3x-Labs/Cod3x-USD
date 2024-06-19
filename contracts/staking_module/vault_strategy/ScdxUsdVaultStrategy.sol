@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "./interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import "./interfaces/IBaseBalancerPool.sol";
+import "./libraries/BalancerHelper.sol";
 
 /**
  * @title ScdxUsdVaultStrategy Contract
@@ -89,7 +90,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
         IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
 
         (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
-        poolTokens_ = _dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
+        poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
@@ -178,7 +179,12 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
         uint256 balanceCdxUSD = cdxUSD.balanceOf(address(this));
         if (balanceCdxUSD != 0) {
-            _joinPool(balanceCdxUSD);
+            uint256[] memory amountsToAdd_ = new uint256[](poolTokens.length - 1);
+            amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
+
+            BalancerHelper._joinPool(
+                balancerVault, amountsToAdd_, poolId, poolTokens, minBPTAmountOut
+            );
         }
 
         minBPTAmountOut = 1;
@@ -191,41 +197,5 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     function setMinBPTAmountOut(uint256 _minBPTAmountOut) external {
         _atLeastRole(KEEPER);
         minBPTAmountOut = _minBPTAmountOut;
-    }
-
-    /// --------------- Helpers ---------------
-
-    function _joinPool(uint256 _amount) internal {
-        uint256 len_ = poolTokens.length;
-
-        uint256[] memory amountsToAdd = new uint256[](len_ - 1);
-        amountsToAdd[cdxUsdIndex] = _amount;
-
-        uint256[] memory maxAmounts = new uint256[](len_);
-        for (uint256 i = 0; i < len_; i++) {
-            maxAmounts[i] = type(uint256).max; // Ok. We always send balanceOf(address(this)).
-        }
-
-        IBalancerVault.JoinPoolRequest memory request;
-        request.assets = poolTokens;
-        request.maxAmountsIn = maxAmounts;
-        request.fromInternalBalance = false;
-        request.userData =
-            abi.encode(JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, amountsToAdd, minBPTAmountOut);
-
-        balancerVault.joinPool(poolId, address(this), address(this), request);
-    }
-
-    function _dropBptItem(IERC20[] memory _array, address _pool)
-        internal
-        view
-        returns (IERC20[] memory)
-    {
-        IERC20[] memory arrayWithoutBpt_ = new IERC20[](_array.length - 1);
-        for (uint256 i = 0; i < arrayWithoutBpt_.length; i++) {
-            arrayWithoutBpt_[i] = _array[i < IBaseBalancerPool(_pool).getBptIndex() ? i : i + 1];
-        }
-
-        return arrayWithoutBpt_;
     }
 }

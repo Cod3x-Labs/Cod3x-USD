@@ -70,9 +70,9 @@ contract TestBalancerInterface is TestCdxUSD {
         /// Swap
         uint256 amt = 10000;
 
-        assertEq(INITIAL_USDC_AMT, usdc.balanceOf(userB));
-        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
-        assertEq(0, cdxUSD.balanceOf(userB));
+        assertEq(INITIAL_USDC_AMT * 2, usdc.balanceOf(userB));
+        assertEq(INITIAL_USDT_AMT * 2, usdt.balanceOf(userB));
+        assertEq(INITIAL_CDXUSD_AMT, cdxUSD.balanceOf(userB));
 
         swap(
             poolId,
@@ -85,9 +85,9 @@ contract TestBalancerInterface is TestCdxUSD {
             SwapKind.GIVEN_IN
         );
 
-        assertEq(INITIAL_USDC_AMT - amt * 10 ** 6, usdc.balanceOf(userB));
-        assertEq(INITIAL_USDT_AMT, usdt.balanceOf(userB));
-        assertApproxEqRel(amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
+        assertEq(INITIAL_USDC_AMT * 2 - amt * 10 ** 6, usdc.balanceOf(userB));
+        assertEq(INITIAL_USDT_AMT * 2, usdt.balanceOf(userB));
+        assertApproxEqRel(INITIAL_CDXUSD_AMT + amt * 10 ** 18, cdxUSD.balanceOf(userB), 1e15); // 0,1%
 
         logCash();
         /// Join
@@ -102,10 +102,10 @@ contract TestBalancerInterface is TestCdxUSD {
         amountsToAdd[2] = usdc.balanceOf(userB);
 
         joinPool(poolId, setupPoolTokens, amountsToAdd, userB, JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT);
-        assertEq(0, usdc.balanceOf(userB));
-        assertEq(0, usdt.balanceOf(userB));
-        assertEq(0, cdxUSD.balanceOf(userB));
-        assertGt(IERC20(poolAdd).balanceOf(userB), 0);
+        assertEq(0, usdc.balanceOf(userB), "01");
+        assertEq(0, usdt.balanceOf(userB), "02");
+        assertEq(0, cdxUSD.balanceOf(userB), "03");
+        assertGt(IERC20(poolAdd).balanceOf(userB), 0, "04");
 
         logCash();
     }

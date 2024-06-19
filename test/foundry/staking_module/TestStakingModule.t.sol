@@ -266,9 +266,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         strategy.harvest();
     }
 
-    function testVaultEmergencyWithdraw1(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
-        public
-    {
+    function testVaultEmergencyWithdraw1(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
         uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
         uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
         uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
@@ -303,7 +305,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         strategy.harvest();
 
         assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
-        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(cod3xVault)),
+            1e14
+        ); // 0,01%
 
         // withdraw
         uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
@@ -322,9 +328,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         ); // 0,01%
     }
 
-    function testVaultEmergencyWithdraw2(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
-        public
-    {
+    function testVaultEmergencyWithdraw2(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
         uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
         uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
         uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
@@ -349,7 +357,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         strategy.harvest();
 
         assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
-        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(cod3xVault)),
+            1e14
+        ); // 0,01%
 
         // withdraw
         uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
@@ -368,9 +380,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         ); // 0,01%
     }
 
-    function testStrategyEmergencyExit(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
-        public
-    {
+    function testStrategyEmergencyExit(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
         uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
         uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
         uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
@@ -395,7 +409,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         strategy.harvest();
 
         assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
-        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(cod3xVault)),
+            1e14
+        ); // 0,01%
 
         // withdraw
         uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
@@ -414,9 +432,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         ); // 0,01%
     }
 
-    function testStrategyAndVaultEmergencyExit0(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
-        public
-    {
+    function testStrategyAndVaultEmergencyExit0(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
         uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
         uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
         uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
@@ -443,7 +463,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         strategy.harvest();
 
         assertEq(0, IERC20(poolAdd).balanceOf(address(reliquary)));
-        assertApproxEqRel(amt + funding * deltaTime / rewarder.distributionPeriod(), IERC20(poolAdd).balanceOf(address(cod3xVault)), 1e14); // 0,01%
+        assertApproxEqRel(
+            amt + funding * deltaTime / rewarder.distributionPeriod(),
+            IERC20(poolAdd).balanceOf(address(cod3xVault)),
+            1e14
+        ); // 0,01%
 
         // withdraw
         uint256 balanceUserABefore = IERC20(poolAdd).balanceOf(userA);
@@ -461,9 +485,11 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         ); // 0,01%
     }
 
-    function testStrategyAndVaultEmergencyExitWithReliquaryPaused(uint256 _seedAmt, uint256 _seedFunding, uint256 _seedDeltaTime)
-        public
-    {
+    function testStrategyAndVaultEmergencyExitWithReliquaryPaused(
+        uint256 _seedAmt,
+        uint256 _seedFunding,
+        uint256 _seedDeltaTime
+    ) public {
         uint256 amt = bound(_seedAmt, 1e15, IERC20(poolAdd).balanceOf(userA));
         uint256 funding = bound(_seedFunding, 1e15, cdxUSD.balanceOf(address(this)));
         uint256 deltaTime = bound(_seedDeltaTime, 0, rewarder.distributionPeriod());
@@ -475,9 +501,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         assertEq(amt, IERC20(poolAdd).balanceOf(address(cod3xVault)));
 
         rewarder.fund(funding);
-       
+
         strategy.setMinBPTAmountOut(2);
-        strategy.harvest();        
+        strategy.harvest();
         strategy.setMinBPTAmountOut(2);
         strategy.harvest();
 
@@ -505,10 +531,6 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
         assertApproxEqRel(0, IERC20(poolAdd).balanceOf(address(reliquary)), 1e14); // 0,01%
         assertEq(funding, IERC20(cdxUSD).balanceOf(address(rewarder)));
-        assertApproxEqRel(
-            balanceUserABefore + amt,
-            IERC20(poolAdd).balanceOf(userA),
-            1e14
-        ); // 0,01%
+        assertApproxEqRel(balanceUserABefore + amt, IERC20(poolAdd).balanceOf(userA), 1e14); // 0,01%
     }
 }
