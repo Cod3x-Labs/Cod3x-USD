@@ -19,8 +19,6 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "forge-std/console.sol";
-
 contract Zap is Pausable, Ownable {
     using SafeERC20 for IERC20;
 
@@ -79,7 +77,6 @@ contract Zap is Pausable, Ownable {
 
         poolAdd = IERC20(_poolAdd);
 
-        // TODO compatibility check.
         {
             if (poolTokens_.length != NB_BALANCER_POOL_ASSET) revert Zap__CONTRACT_NOT_COMPATIBLE();
 
@@ -88,6 +85,33 @@ contract Zap is Pausable, Ownable {
                 else if (_usdc == address(poolTokens_[i])) usdcIndex = i;
                 else if (_usdt == address(poolTokens_[i])) usdtIndex = i;
                 else revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (IReliquary(_reliquary).getPoolInfo(RELIQUARY_POOL_ID).poolToken != _poolAdd) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (ScdxUsdVaultStrategy(_strategy).want() != _poolAdd) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (ScdxUsdVaultStrategy(_strategy).vault() != _cod3xVault) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (address(Cod3xVault(_cod3xVault).token()) != _poolAdd) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (address(ScdxUsdVaultStrategy(_strategy).cdxUSD()) != _cdxUsd) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (address(ScdxUsdVaultStrategy(_strategy).reliquary()) != _reliquary) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (address(ScdxUsdVaultStrategy(_strategy).balancerVault()) != _balancerVault) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (ScdxUsdVaultStrategy(_strategy).poolId() != poolId) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
+            }
+            if (ScdxUsdVaultStrategy(_strategy).cdxUsdIndex() != cdxUsdIndex) {
+                revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
         }
 
