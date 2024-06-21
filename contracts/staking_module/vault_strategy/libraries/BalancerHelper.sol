@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "../interfaces/IBaseBalancerPool.sol";
 import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "../interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
+import "forge-std/console.sol";
 
 library BalancerHelper {
     function _joinPool(
@@ -35,12 +36,18 @@ library BalancerHelper {
         IBalancerVault _balancerVault,
         uint256 _amount,
         bytes32 _poolId,
-        IAsset[] memory _poolTokens,
+        IAsset[] memory _poolTokens, // with BPT
+        address _tokenToWithdraw,
         uint256 _tokenIndex,
         uint256 _minAmountOut
     ) internal {
-        uint256[] memory minAmountsOut_ = new uint256[](_poolTokens.length);
-        minAmountsOut_[_tokenIndex] = _minAmountOut;
+        uint256 len_ = _poolTokens.length;
+        uint256[] memory minAmountsOut_ = new uint256[](len_);
+        for (uint256 i = 0; i < len_; i++) {
+            if (address(_poolTokens[i]) == _tokenToWithdraw) {
+                minAmountsOut_[i] = _minAmountOut;
+            }
+        }
 
         IBalancerVault.ExitPoolRequest memory request;
         request.assets = _poolTokens;
@@ -57,8 +64,9 @@ library BalancerHelper {
         returns (IERC20[] memory)
     {
         IERC20[] memory arrayWithoutBpt_ = new IERC20[](_array.length - 1);
+        uint256 btpIndex_ = IBaseBalancerPool(_pool).getBptIndex();
         for (uint256 i = 0; i < arrayWithoutBpt_.length; i++) {
-            arrayWithoutBpt_[i] = _array[i < IBaseBalancerPool(_pool).getBptIndex() ? i : i + 1];
+            arrayWithoutBpt_[i] = _array[i < btpIndex_ ? i : i + 1];
         }
 
         return arrayWithoutBpt_;

@@ -14,6 +14,7 @@ import {
     ComposableStablePool
 } from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console.sol";
+import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 
@@ -21,6 +22,10 @@ contract TestBalancerInterface is TestCdxUSD {
     bytes32 public poolId;
     address public poolAdd;
     IERC20[] public assets;
+
+    uint256 public indexCdxUsd;
+    uint256 public indexUsdt;
+    uint256 public indexUsdc;
 
     function setUp() public virtual override {
         super.setUp();
@@ -33,13 +38,34 @@ contract TestBalancerInterface is TestCdxUSD {
 
         /// join Pool
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+
+        uint256 indexCdxUsdTemp;
+        uint256 indexUsdtTemp;
+        uint256 indexUsdcTemp;
+        uint256 indexBtpTemp;
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
+            if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
+            if (setupPoolTokens[i] == usdt) indexUsdtTemp = i;
+            if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
+            if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
+        }
+
         uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-        amountsToAdd[0] = INITIAL_CDXUSD_AMT;
-        amountsToAdd[1] = INITIAL_USDT_AMT;
-        amountsToAdd[2] = INITIAL_USDC_AMT;
-        amountsToAdd[3] = 0;
+        amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
+        amountsToAdd[indexUsdtTemp] = INITIAL_USDT_AMT;
+        amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
+        amountsToAdd[indexBtpTemp] = 0;
 
         joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+
+        IERC20[] memory setupPoolTokensWithoutBTP =
+            BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
+
+        for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
+            if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
+            if (setupPoolTokensWithoutBTP[i] == usdt) indexUsdt = i;
+            if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
+        }
     }
 
     function testInitialBalance() public {
@@ -94,12 +120,9 @@ contract TestBalancerInterface is TestCdxUSD {
         (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
 
         uint256[] memory amountsToAdd = new uint256[](assets.length);
-        // amountsToAdd[0] = 0;
-        // amountsToAdd[1] = amt * 10**6;
-        // amountsToAdd[2] = amt * 10**6;
-        amountsToAdd[0] = cdxUSD.balanceOf(userB);
-        amountsToAdd[1] = usdt.balanceOf(userB);
-        amountsToAdd[2] = usdc.balanceOf(userB);
+        amountsToAdd[indexCdxUsd] = cdxUSD.balanceOf(userB);
+        amountsToAdd[indexUsdt] = usdt.balanceOf(userB);
+        amountsToAdd[indexUsdc] = usdc.balanceOf(userB);
 
         joinPool(poolId, setupPoolTokens, amountsToAdd, userB, JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT);
         assertEq(0, usdc.balanceOf(userB), "01");

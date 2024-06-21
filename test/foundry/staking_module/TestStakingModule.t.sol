@@ -35,6 +35,7 @@ import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
+import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 contract TestStakingModule is TestCdxUSD, ERC721Holder {
     bytes32 public poolId;
@@ -52,6 +53,10 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     uint256 public plateau = 10 days;
     uint256 private constant RELIC_ID = 1;
 
+    uint256 public indexCdxUsd;
+    uint256 public indexUsdt;
+    uint256 public indexUsdc;
+
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(forkIdEth);
@@ -65,16 +70,37 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
             // join Pool
             (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+
+            uint256 indexCdxUsdTemp;
+            uint256 indexUsdtTemp;
+            uint256 indexUsdcTemp;
+            uint256 indexBtpTemp;
+            for (uint256 i = 0; i < setupPoolTokens.length; i++) {
+                if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
+                if (setupPoolTokens[i] == usdt) indexUsdtTemp = i;
+                if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
+                if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
+            }
+
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-            amountsToAdd[0] = INITIAL_CDXUSD_AMT;
-            amountsToAdd[1] = INITIAL_USDT_AMT;
-            amountsToAdd[2] = INITIAL_USDC_AMT;
-            amountsToAdd[3] = 0;
+            amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
+            amountsToAdd[indexUsdtTemp] = INITIAL_USDT_AMT;
+            amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
+            amountsToAdd[indexBtpTemp] = 0;
 
             joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
 
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
+
+            IERC20[] memory setupPoolTokensWithoutBTP =
+                BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
+
+            for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
+                if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
+                if (setupPoolTokensWithoutBTP[i] == usdt) indexUsdt = i;
+                if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
+            }
         }
 
         /// ========= Reliquary Deploy =========

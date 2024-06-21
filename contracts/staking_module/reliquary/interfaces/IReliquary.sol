@@ -60,6 +60,7 @@ struct PoolInfo {
     uint40 lastRewardTime;
     bool allowPartialWithdrawals;
     uint96 allocPoint;
+    address rehypothecation;
     ICurves curve;
 }
 
@@ -82,6 +83,7 @@ interface IReliquary is IERC721 {
     error Reliquary__REWARD_PRECISION_ISSUE();
     error Reliquary__CURVE_OVERFLOW();
     error Reliquary__RELIC1_PROHIBITED_ACTION();
+    error Reliquary__TREASURY_UNDEFINED();
 
     function pause() external;
 
@@ -108,6 +110,14 @@ interface IReliquary is IERC721 {
         address _nftDescriptor,
         bool _overwriteRewarder
     ) external;
+
+    function enableRehypothecation(uint256 _pid, address _rehypothecation) external;
+
+    function disableRehypothecation(uint256 _pid, bool _claimRewards) external;
+
+    function claimRehypothecation(uint256 _pid) external;
+
+    function setTreasury(address _treasury) external;
 
     function massUpdatePools() external;
 

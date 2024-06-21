@@ -12,7 +12,7 @@ contract Constants {
     address public immutable weth;
     address public immutable composableStablePoolFactory;
     address public immutable vault;
-    
+    address public immutable gaugeFactory;
 
     constructor() {
 
@@ -20,6 +20,8 @@ contract Constants {
         weth = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2); // weth
         composableStablePoolFactory = address(0x5B42eC6D40f7B7965BE5308c70e2603c0281C1E9);
         vault = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
+        gaugeFactory = address(0x4E7bBd911cf1EFa442BC1b2e9Ea01ffE785412EC);
+        // }
     }
 
 }

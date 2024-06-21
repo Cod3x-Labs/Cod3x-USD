@@ -35,9 +35,7 @@ contract Zap is Pausable, Ownable {
     IERC20 public immutable usdt;
 
     IAsset[] private poolTokens;
-    uint256 private immutable cdxUsdIndex;
-    uint256 private immutable usdcIndex;
-    uint256 private immutable usdtIndex;
+    mapping(address => uint256) private tokenToIndex;
     bytes32 private immutable poolId;
 
     /// Errors
@@ -74,18 +72,15 @@ contract Zap is Pausable, Ownable {
 
         (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
         poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd);
-
         poolAdd = IERC20(_poolAdd);
 
+        for (uint256 i = 0; i < poolTokens_.length; i++) {
+            tokenToIndex[address(poolTokens_[i])] = i;
+        }
+
+        // Compatibility checks
         {
             if (poolTokens_.length != NB_BALANCER_POOL_ASSET) revert Zap__CONTRACT_NOT_COMPATIBLE();
-
-            for (uint256 i = 0; i < poolTokens_.length; i++) {
-                if (_cdxUsd == address(poolTokens_[i])) cdxUsdIndex = i;
-                else if (_usdc == address(poolTokens_[i])) usdcIndex = i;
-                else if (_usdt == address(poolTokens_[i])) usdtIndex = i;
-                else revert Zap__CONTRACT_NOT_COMPATIBLE();
-            }
             if (IReliquary(_reliquary).getPoolInfo(RELIQUARY_POOL_ID).poolToken != _poolAdd) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
@@ -110,18 +105,20 @@ contract Zap is Pausable, Ownable {
             if (ScdxUsdVaultStrategy(_strategy).poolId() != poolId) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
-            if (ScdxUsdVaultStrategy(_strategy).cdxUsdIndex() != cdxUsdIndex) {
+            if (ScdxUsdVaultStrategy(_strategy).cdxUsdIndex() != tokenToIndex[address(cdxUsd)]) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
         }
 
         // Approvals
-        IERC20(_cdxUsd).approve(_balancerVault, type(uint256).max);
-        IERC20(_usdc).approve(_balancerVault, type(uint256).max);
-        IERC20(_usdt).approve(_balancerVault, type(uint256).max);
-        IERC20(_poolAdd).approve(_cod3xVault, type(uint256).max);
-        IERC20(_poolAdd).approve(_reliquary, type(uint256).max);
-        IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
+        {
+            IERC20(_cdxUsd).approve(_balancerVault, type(uint256).max);
+            IERC20(_usdc).approve(_balancerVault, type(uint256).max);
+            IERC20(_usdt).approve(_balancerVault, type(uint256).max);
+            IERC20(_poolAdd).approve(_cod3xVault, type(uint256).max);
+            IERC20(_poolAdd).approve(_reliquary, type(uint256).max);
+            IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
+        }
     }
 
     /// =============== Admin ===============
@@ -166,9 +163,9 @@ contract Zap is Pausable, Ownable {
 
         /// Join pool
         uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
-        amountsToAdd_[cdxUsdIndex] = _cdxUsdAmt;
-        amountsToAdd_[usdcIndex] = _usdcAmt;
-        amountsToAdd_[usdtIndex] = _usdtAmt;
+        amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
+        amountsToAdd_[tokenToIndex[address(usdc)]] = _usdcAmt;
+        amountsToAdd_[tokenToIndex[address(usdt)]] = _usdtAmt;
 
         BalancerHelper._joinPool(
             balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
@@ -190,21 +187,20 @@ contract Zap is Pausable, Ownable {
      *         - send token(s) to user
      * @dev Users must first approve the amount they wish to send.
      * @param _scdxUsdAmount scdxUSD amount to withdraw.
-     * @param _tokenIndex index of the token to be withdrawn.
+     * @param _tokenToWithdraw address of the token to be withdrawn.
      * @param _minAmountOut slippage protection.
      * @param _to address receiving tokens.
      */
     function zapOutStakedCdxUSD(
         uint256 _scdxUsdAmount,
-        uint256 _tokenIndex,
+        address _tokenToWithdraw,
         uint256 _minAmountOut,
         address _to
     ) external whenNotPaused {
-        if (_scdxUsdAmount == 0 || _tokenIndex > 2 || _minAmountOut == 0 || _to == address(0)) {
+        if (_scdxUsdAmount == 0 || _minAmountOut == 0 || _to == address(0)) {
             revert Zap__WRONG_INPUT();
         }
 
-        IERC20 tokenToWithdraw_ = IERC20(address(poolTokens[_tokenIndex]));
         cod3xVault.transferFrom(msg.sender, address(this), _scdxUsdAmount);
 
         /// Cod3x Vault withdraw
@@ -216,12 +212,13 @@ contract Zap is Pausable, Ownable {
             poolAdd.balanceOf(address(this)),
             poolId,
             poolTokens,
-            _tokenIndex,
+            _tokenToWithdraw,
+            tokenToIndex[_tokenToWithdraw],
             _minAmountOut
         );
 
         /// Send token
-        tokenToWithdraw_.transfer(_to, tokenToWithdraw_.balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
     }
 
     /// ================ Relic ================
@@ -261,9 +258,9 @@ contract Zap is Pausable, Ownable {
 
         /// Join pool
         uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
-        amountsToAdd_[cdxUsdIndex] = _cdxUsdAmt;
-        amountsToAdd_[usdcIndex] = _usdcAmt;
-        amountsToAdd_[usdtIndex] = _usdtAmt;
+        amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
+        amountsToAdd_[tokenToIndex[address(usdc)]] = _usdcAmt;
+        amountsToAdd_[tokenToIndex[address(usdt)]] = _usdtAmt;
 
         BalancerHelper._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
 
@@ -288,29 +285,24 @@ contract Zap is Pausable, Ownable {
      * @dev Users must first approve the amount they wish to send.
      * @param _relicId Id of the relic to withdraw from.
      * @param _amountBtpToWithdraw amount of token to withdraw.
-     * @param _tokenIndex index of the token to be withdrawn.
+     * @param _tokenToWithdraw address of the token to be withdrawn.
      * @param _minAmountOut slippage protection.
      * @param _to address receiving tokens. (harvest rewards and principal)
      */
     function zapOutRelic(
         uint256 _relicId,
         uint256 _amountBtpToWithdraw,
-        uint256 _tokenIndex,
+        address _tokenToWithdraw,
         uint256 _minAmountOut,
         address _to
     ) external whenNotPaused {
-        if (
-            _relicId == 0 || _amountBtpToWithdraw == 0 || _tokenIndex > 2 || _minAmountOut == 0
-                || _to == address(0)
-        ) {
+        if (_relicId == 0 || _amountBtpToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
             revert Zap__WRONG_INPUT();
         }
 
         if (!reliquary.isApprovedOrOwner(msg.sender, _relicId)) {
             revert Zap__RELIC_NOT_OWNED();
         }
-
-        IERC20 tokenToWithdraw_ = IERC20(address(poolTokens[_tokenIndex]));
 
         /// Reliquary withdraw
         reliquary.withdraw(_amountBtpToWithdraw, _relicId, address(_to));
@@ -321,11 +313,12 @@ contract Zap is Pausable, Ownable {
             poolAdd.balanceOf(address(this)),
             poolId,
             poolTokens,
-            _tokenIndex,
+            _tokenToWithdraw,
+            tokenToIndex[_tokenToWithdraw],
             _minAmountOut
         );
 
         /// Send Relic
-        tokenToWithdraw_.transfer(_to, tokenToWithdraw_.balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
     }
 }

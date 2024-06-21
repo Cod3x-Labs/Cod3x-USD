@@ -56,6 +56,10 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     uint256 public plateau = 10 days;
     uint256 private constant RELIC_ID = 1;
 
+    uint256 public indexCdxUsd;
+    uint256 public indexUsdt;
+    uint256 public indexUsdc;
+
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(forkIdEth);
@@ -69,13 +73,34 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
             // join Pool
             (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+
+            uint256 indexCdxUsdTemp;
+            uint256 indexUsdtTemp;
+            uint256 indexUsdcTemp;
+            uint256 indexBtpTemp;
+            for (uint256 i = 0; i < setupPoolTokens.length; i++) {
+                if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
+                if (setupPoolTokens[i] == usdt) indexUsdtTemp = i;
+                if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
+                if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
+            }
+
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-            amountsToAdd[0] = INITIAL_CDXUSD_AMT;
-            amountsToAdd[1] = INITIAL_USDT_AMT;
-            amountsToAdd[2] = INITIAL_USDC_AMT;
-            amountsToAdd[3] = 0;
+            amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
+            amountsToAdd[indexUsdtTemp] = INITIAL_USDT_AMT;
+            amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
+            amountsToAdd[indexBtpTemp] = 0;
 
             joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+
+            IERC20[] memory setupPoolTokensWithoutBTP =
+                BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
+
+            for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
+                if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
+                if (setupPoolTokensWithoutBTP[i] == usdt) indexUsdt = i;
+                if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
+            }
 
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
@@ -239,14 +264,16 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 2);
 
         IERC20 tokenToWithdraw;
-        if (tokenIndex == 0) tokenToWithdraw = cdxUSD;
-        else if (tokenIndex == 1) tokenToWithdraw = usdt;
-        else if (tokenIndex == 2) tokenToWithdraw = usdc;
+        if (tokenIndex == indexCdxUsd) tokenToWithdraw = cdxUSD;
+        else if (tokenIndex == indexUsdt) tokenToWithdraw = usdt;
+        else if (tokenIndex == indexUsdc) tokenToWithdraw = usdc;
 
         vm.prank(userB);
         zap.zapInStakedCdxUSD(amtCdxusd, amtUsdc, amtUsdt, userC, 1);
         vm.startPrank(userC);
-        zap.zapOutStakedCdxUSD(cod3xVault.balanceOf(userC) / 10, tokenIndex, 1, address(999));
+        zap.zapOutStakedCdxUSD(
+            cod3xVault.balanceOf(userC) / 10, address(tokenToWithdraw), 1, address(999)
+        );
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -356,8 +383,6 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         assertEq(reliquary.balanceOf(userB), 1);
 
         checkBalanceInvariant();
-
-        // revert();
     }
 
     function testZapInRelicOwnedRevert2(
@@ -386,8 +411,6 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         vm.stopPrank();
 
         checkBalanceInvariant();
-
-        // revert();
     }
 
     function testZapOutRelicOwned(uint256 _seedInitialRelicAmt, uint256 _seedTokenIndex) public {
@@ -396,9 +419,9 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 0);
 
         IERC20 tokenToWithdraw;
-        if (tokenIndex == 0) tokenToWithdraw = cdxUSD;
-        else if (tokenIndex == 1) tokenToWithdraw = usdt;
-        else if (tokenIndex == 2) tokenToWithdraw = usdc;
+        if (tokenIndex == indexCdxUsd) tokenToWithdraw = cdxUSD;
+        else if (tokenIndex == indexUsdt) tokenToWithdraw = usdt;
+        else if (tokenIndex == indexUsdc) tokenToWithdraw = usdc;
 
         // uint256 initialBlalance = IERC20(poolAdd).balanceOf(userA);
         // uint256 balanceBeforeUsdc = IERC20(usdc).balanceOf(userB);
@@ -411,7 +434,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         vm.startPrank(userA);
         reliquary.approve(address(zap), 2);
-        zap.zapOutRelic(2, initialRelicAmt, tokenIndex, 1, userA);
+        zap.zapOutRelic(2, initialRelicAmt, address(tokenToWithdraw), 1, userA);
         vm.stopPrank();
 
         // assertApproxEqRel(initialRelicAmt, tokenToWithdraw.balanceOf(userA), 1e15);
@@ -431,11 +454,6 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB) / 10);
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 2);
 
-        IERC20 tokenToWithdraw;
-        if (tokenIndex == 0) tokenToWithdraw = cdxUSD;
-        else if (tokenIndex == 1) tokenToWithdraw = usdt;
-        else if (tokenIndex == 2) tokenToWithdraw = usdc;
-
         uint256 initialBlalance1 = cdxUSD.balanceOf(userB);
         uint256 initialBlalance2 = scaleDecimal(usdt.balanceOf(userB));
         uint256 initialBlalance3 = scaleDecimal(usdc.balanceOf(userB));
@@ -453,7 +471,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         vm.startPrank(userB);
         reliquary.approve(address(zap), 2);
-        zap.zapOutRelic(2, reliquary.getAmountInRelic(2), tokenIndex, 1, userB);
+        zap.zapOutRelic(2, reliquary.getAmountInRelic(2), address(assets[tokenIndex]), 1, userB);
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -484,7 +502,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     //     else if (tokenIndex == 2) tokenToWithdraw = usdc;
 
     //     vm.prank(userB);
-    //     zap.zapInRelic(amtCdxusd, amtUsdc, amtUsdt, userB, 0, 1);
+    //     zap.zapInRelic(0, amtCdxusd, amtUsdc, amtUsdt, userB, 1);
 
     //     assertEq(reliquary.balanceOf(userB), 1);
 
@@ -499,7 +517,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     //     vm.stopPrank();
 
     //     vm.expectRevert(Zap.Zap__RELIC_NOT_OWNED.selector);
-    //     zap.zapOutRelic(2, reliquary.getAmountInRelic(2), tokenIndex, 1, userC);
+    //     zap.zapOutRelic(2, reliquary.getAmountInRelic(2), address(assets[tokenIndex]), 1, userC);
 
     //     checkBalanceInvariant();
     // }
