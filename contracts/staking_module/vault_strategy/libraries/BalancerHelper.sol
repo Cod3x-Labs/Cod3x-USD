@@ -8,6 +8,14 @@ import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/
 import "forge-std/console.sol";
 
 library BalancerHelper {
+    /**
+     * Help to join a balancer pool.
+     * @param _balancerVault balancer vault.
+     * @param _amounts sorted array of amounts to join. (without BPT)
+     * @param _poolId pool index to join.
+     * @param _poolTokens sorted array of the pool. (with BPT)
+     * @param _minBPTAmountOut slippage protection. (in BPT)
+     */
     function _joinPool(
         IBalancerVault _balancerVault,
         uint256[] memory _amounts,
@@ -32,11 +40,21 @@ library BalancerHelper {
         _balancerVault.joinPool(_poolId, address(this), address(this), request);
     }
 
+    /**
+     * Help to exit a balancer pool.
+     * @param _balancerVault balancer vault.
+     * @param _amount exact BPT amount to exit.
+     * @param _poolId pool index to join.
+     * @param _poolTokens sorted array of the pool. (with BPT)
+     * @param _tokenToWithdraw token to withdraw.
+     * @param _tokenIndex index of `_tokenToWithdraw` in the sorted array. (without BPT)
+     * @param _minAmountOut slippage protection. (in _tokenToWithdraw)
+     */
     function _exitPool(
         IBalancerVault _balancerVault,
         uint256 _amount,
         bytes32 _poolId,
-        IAsset[] memory _poolTokens, // with BPT
+        IAsset[] memory _poolTokens,
         address _tokenToWithdraw,
         uint256 _tokenIndex,
         uint256 _minAmountOut
@@ -46,6 +64,7 @@ library BalancerHelper {
         for (uint256 i = 0; i < len_; i++) {
             if (address(_poolTokens[i]) == _tokenToWithdraw) {
                 minAmountsOut_[i] = _minAmountOut;
+                break;
             }
         }
 
@@ -58,6 +77,11 @@ library BalancerHelper {
         _balancerVault.exitPool(_poolId, address(this), payable(address(this)), request);
     }
 
+    /**
+     * Take a IERC20 array and return it without BPT.
+     * @param _array IERC20 array to process.
+     * @param _pool address of the pool.
+     */
     function _dropBptItem(IERC20[] memory _array, address _pool)
         internal
         view

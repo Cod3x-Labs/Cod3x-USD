@@ -227,6 +227,16 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         _burn(_from, amountReceivedLD_);
     }
 
+    /**
+     * @dev Internal function to mock the amount mutation from a OFT debit() operation.
+     * @param _amountLD The amount to send in local decimals.
+     * @param _minAmountLD The minimum amount to send in local decimals.
+     * @param _dstEid Destination chain endpoint ID.
+     * @return amountSentLD_ The amount sent, in local decimals.
+     * @return amountReceivedLD_ The amount to be received on the remote chain, in local decimals.
+     *
+     * @dev Fees would be calculated and deducted from the amount to be received on the remote.
+     */
     function _debitView(uint256 _amountLD, uint256 _minAmountLD, uint32 _dstEid)
         internal
         view

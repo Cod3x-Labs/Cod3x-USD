@@ -104,6 +104,10 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
     /// ----------- Admin functions -----------
 
+    /**
+     * Set a new reliquary address.
+     * @param _reliquary new reliquary address.
+     */
     function setReliquary(address _reliquary) public {
         _atLeastRole(ADMIN);
         if (_reliquary == address(0)) {
