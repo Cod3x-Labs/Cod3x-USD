@@ -576,6 +576,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.balanceOf(treasury), tokensToSend - tokensToSendWithFee);
         assertEq(aOFT.balanceOf(userA), initialBalance - tokensToSend);
         assertEq(bOFT.balanceOf(userB), _removeDust(initialBalance + tokensToSendWithFee));
+        assertEq(bOFT.balanceOf(userB) + aOFT.balanceOf(treasury) - initialBalance, tokensToSend);
     }
 
     function testHourlyBridgingLimit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend) public {
