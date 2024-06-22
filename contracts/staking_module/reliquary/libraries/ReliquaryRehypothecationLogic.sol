@@ -23,7 +23,7 @@ library ReliquaryRehypothecationLogic {
     ) internal {
         address rehypothecation_ = pool.rehypothecation;
         if (rehypothecation_ != address(0)) {
-            uint256 balance_ = IRehypothecation(rehypothecation_).balanceOf(address(this));
+            uint256 balance_ = IRehypothecation(rehypothecation_).balance();
             _withdraw(pool, balance_);
 
             if (_claimRewards) _claim(pool, _rewardReceiver);
@@ -52,12 +52,7 @@ library ReliquaryRehypothecationLogic {
     function _claim(PoolInfo storage pool, address _rewardReceiver) internal {
         address rehypothecation_ = pool.rehypothecation;
         if (rehypothecation_ != address(0)) {
-            IRehypothecation(rehypothecation_).claim();
-            address[] memory rewardTokens = IRehypothecation(rehypothecation_).getRewardTokens();
-            for (uint256 i = 0; i < rewardTokens.length; i++) {
-                IERC20 token = IERC20(rewardTokens[i]);
-                token.safeTransfer(_rewardReceiver, token.balanceOf(address(this)));
-            }
+            IRehypothecation(rehypothecation_).claim(_rewardReceiver);
         }
     }
 }
