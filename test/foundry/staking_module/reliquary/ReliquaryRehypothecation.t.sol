@@ -9,8 +9,7 @@ import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
 import "test/helpers/mocks/ERC20Mock.sol";
-import "contracts/staking_module/reliquary/rehypothecation_adapters/GaugeBalancerV1.sol";
-import "contracts/staking_module/reliquary/rehypothecation_adapters/GaugeBalancerV2.sol";
+import "contracts/staking_module/reliquary/rehypothecation_adapters/GaugeBalancer.sol";
 
 contract TestReliquaryRehypothecation is ERC721Holder, Test {
     using Strings for address;
@@ -20,8 +19,7 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
     LinearPlateauCurve linearPlateauCurve;
     ERC20Mock oath;
     ERC20Mock testToken;
-    GaugeBalancerV1 gaugeBalancerV1;
-    GaugeBalancerV2 gaugeBalancerV2;
+    GaugeBalancer gaugeBalancer;
     address nftDescriptor;
     address treasury = address(0xccc);
     uint256 emissionRate = 1e17;
@@ -32,16 +30,16 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
     uint256 plateau = 10 days;
     int256[] public coeff = [int256(100e18), int256(1e18), int256(5e15), int256(-1e13), int256(5e9)];
 
-    uint256 forkIdEth;
-    address ezETHwETHPool = address(0x596192bB6e41802428Ac943D2f1476C1Af25CC0E);
-    address ezETHwETHGauge = address(0xa8B309a75f0D64ED632d45A003c68A30e59A1D8b);
+    uint256 forkIdPolygon;
+    address wmatic = address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270);
     address balToken = address(0xba100000625a3754423978a60c9317c58a424e3D);
-    address ezEthToken = address(0xbf5495Efe5DB9ce00f80364C8B423567e58d2110);
+    address triPool = address(0x4B7586A4F49841447150D3d92d9E9e000f766c30);
+    address gauge = address(0x07dAcD2229824D6Ff928181563745a573b026B3d);
+    address dai = address(0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063);
 
     function setUp() public {
-        string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20133690);
-        vm.selectFork(forkIdEth);
+        forkIdPolygon = vm.createFork(vm.envString("POLYGON_RPC_URL"), 58870669);
+        vm.selectFork(forkIdPolygon);
 
         int256[] memory coeffDynamic = new int256[](5);
         for (uint256 i = 0; i < 5; i++) {
@@ -57,11 +55,11 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
         nftDescriptor = address(new NFTDescriptor(address(reliquary)));
 
         reliquary.grantRole(keccak256("OPERATOR"), address(this));
-        deal(ezETHwETHPool, address(this), 100_000_000 ether);
-        IERC20(ezETHwETHPool).approve(address(reliquary), 1);
+        deal(triPool, address(this), 100_000_000 ether);
+        IERC20(triPool).approve(address(reliquary), 1);
         reliquary.addPool(
             100,
-            ezETHwETHPool,
+            triPool,
             address(0),
             linearPlateauCurve,
             "ETH Pool",
@@ -70,55 +68,41 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
             address(this)
         );
 
-        address[] memory tokensToClaim_ = new address[](2);
-        tokensToClaim_[0] = balToken;
-        tokensToClaim_[1] = ezEthToken;
+        gaugeBalancer = new GaugeBalancer(address(reliquary), gauge, triPool);
 
-        gaugeBalancerV1 = new GaugeBalancerV1(
-            address(reliquary), ezETHwETHGauge, ezETHwETHPool, address(this), tokensToClaim_
-        );
+        IERC20(triPool).approve(address(gaugeBalancer), type(uint256).max);
+        IERC20(triPool).approve(address(reliquary), type(uint256).max);
 
-        IERC20(ezETHwETHPool).approve(address(gaugeBalancerV1), type(uint256).max);
-        IERC20(ezETHwETHPool).approve(address(reliquary), type(uint256).max);
         reliquary.setTreasury(treasury);
-        reliquary.enableRehypothecation(0, address(gaugeBalancerV1));
+        reliquary.enableRehypothecation(0, address(gaugeBalancer));
     }
 
     function testGaugeBalancerDirectly(uint256 _seedAmt) public {
-        address[] memory tokensToClaim_ = new address[](2);
-        tokensToClaim_[0] = balToken;
-        tokensToClaim_[1] = ezEthToken;
+        GaugeBalancer gaugeBalancerTemp = new GaugeBalancer(address(this), gauge, triPool);
 
-        GaugeBalancerV1 gaugeBalancerV1Temp = new GaugeBalancerV1(
-            address(this), ezETHwETHGauge, ezETHwETHPool, address(this), tokensToClaim_
-        );
-
-        IERC20(ezETHwETHPool).approve(address(gaugeBalancerV1Temp), type(uint256).max);
-        IERC20(ezETHwETHPool).approve(address(reliquary), type(uint256).max);
+        IERC20(triPool).approve(address(gaugeBalancerTemp), type(uint256).max);
+        IERC20(triPool).approve(address(reliquary), type(uint256).max);
         reliquary.setTreasury(treasury);
-        reliquary.enableRehypothecation(0, address(gaugeBalancerV1Temp));
+        reliquary.enableRehypothecation(0, address(gaugeBalancerTemp));
 
-        uint256 balanceBeforeBPT = IERC20(ezETHwETHPool).balanceOf(address(this));
+        uint256 balanceBeforeBPT = IERC20(triPool).balanceOf(address(this));
         uint256 amt = bound(_seedAmt, 1000, balanceBeforeBPT);
-        gaugeBalancerV1Temp.deposit(amt);
+        gaugeBalancerTemp.deposit(amt);
         skip(1 weeks);
-        assertEq(balanceBeforeBPT - amt, IERC20(ezETHwETHPool).balanceOf(address(this)));
 
-        // uint256 balanceBeforeEzEth = IERC20(ezEthToken).balanceOf(address(this));
-        // uint256 balanceBeforeBal = IERC20(balToken).balanceOf(address(this));
+        assertEq(balanceBeforeBPT - amt, IERC20(triPool).balanceOf(address(this)));
 
-        // console.log(IERC20(ezEthToken).balanceOf(address(gaugeBalancerV1Temp)));
-        // console.log(IERC20(balToken).balanceOf(address(gaugeBalancerV1Temp)));
+        uint256 balanceBeforeWmatic = IERC20(wmatic).balanceOf(address(this));
 
-        // gaugeBalancerV1Temp.claim(address(this));
+        console.log(IERC20(wmatic).balanceOf(address(this)));
 
-        // console.log(IERC20(ezEthToken).balanceOf(address(gaugeBalancerV1Temp)));
-        // console.log(IERC20(balToken).balanceOf(address(gaugeBalancerV1Temp)));
+        gaugeBalancerTemp.claim(address(this));
 
-        // assertGt(IERC20(ezEthToken).balanceOf(address(this)), balanceBeforeEzEth);
-        // assertGt(IERC20(balToken).balanceOf(address(this)), balanceBeforeBal);
+        console.log(IERC20(wmatic).balanceOf(address(this)));
 
-        gaugeBalancerV1Temp.withdraw(amt);
-        assertEq(balanceBeforeBPT, IERC20(ezETHwETHPool).balanceOf(address(this)));
+        assertGt(IERC20(wmatic).balanceOf(address(this)), balanceBeforeWmatic);
+
+        gaugeBalancerTemp.withdraw(amt);
+        assertEq(balanceBeforeBPT, IERC20(triPool).balanceOf(address(this)));
     }
 }

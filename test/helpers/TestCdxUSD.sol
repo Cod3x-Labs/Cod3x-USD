@@ -73,12 +73,13 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     IERC20 public usdt;
 
     uint256 public forkIdEth;
+    uint256 public forkIdPolygon;
 
     function setUp() public virtual override {
         super.setUp();
 
         string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20133690);
+        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20219106);
 
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);

@@ -22,11 +22,7 @@ interface IRehypothecation {
     function claim(address _receiver) external;
 
     /**
-     * Get the balance rehypothecated of `msg.sender`.
+     * Get the amount rehypothecated of `address(this)`.
      */
-    function balance() external view returns (uint256);
-    /**
-     * Get the total claimable reward.
-     */
-    function getRewardTokens() external view returns (address[] memory);
+    function balance() external returns (uint256);
 }

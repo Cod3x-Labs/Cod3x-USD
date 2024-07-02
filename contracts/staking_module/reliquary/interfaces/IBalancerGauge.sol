@@ -24,4 +24,10 @@ interface IBalancerGauge {
     function claimable_tokens(address _user) external view returns (uint256);
 
     function is_killed() external view returns (bool);
+
+    function reward_count() external returns (uint256);
+
+    function MAX_REWARDS() external returns (uint256);
+
+    function balanceOf(address _user) external returns (uint256);
 }
