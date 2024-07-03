@@ -18,7 +18,6 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
     Reliquary reliquary;
     LinearPlateauCurve linearPlateauCurve;
     ERC20Mock oath;
-    ERC20Mock testToken;
     GaugeBalancer gaugeBalancer;
     address nftDescriptor;
     address treasury = address(0xccc);
@@ -28,7 +27,6 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
     uint256 slope = 100; // Increase of multiplier every second
     uint256 minMultiplier = 365 days * 100; // Arbitrary (but should be coherent with slope)
     uint256 plateau = 10 days;
-    int256[] public coeff = [int256(100e18), int256(1e18), int256(5e15), int256(-1e13), int256(5e9)];
 
     uint256 forkIdPolygon;
     address wmatic = address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270);
@@ -40,11 +38,6 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
     function setUp() public {
         forkIdPolygon = vm.createFork(vm.envString("POLYGON_RPC_URL"), 58870669);
         vm.selectFork(forkIdPolygon);
-
-        int256[] memory coeffDynamic = new int256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            coeffDynamic[i] = coeff[i];
-        }
 
         oath = new ERC20Mock(18);
         reliquary = new Reliquary(address(oath), emissionRate, "Reliquary Deposit", "RELIC");

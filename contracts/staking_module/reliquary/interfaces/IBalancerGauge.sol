@@ -14,7 +14,7 @@ interface IBalancerGauge {
 
     function claim_rewards() external;
 
-    function get_reward() external;
+    function get_rewards() external;
 
     function claimable_reward(address _rewardToken, address _user)
         external

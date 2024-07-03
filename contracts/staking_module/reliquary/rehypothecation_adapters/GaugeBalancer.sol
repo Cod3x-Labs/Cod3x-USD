@@ -8,7 +8,9 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @dev GaugeBalancer is for Ethereum. // TODO Check is BAL works
+// TODO needs to be perfectly adapted depending on the gauge version.
+//! this version of `GaugeBalancer` may not be able to claim BAL tokens.
+/// @dev `GaugeBalancer` is for Ethereum.
 contract GaugeBalancer is IRehypothecation, Ownable {
     using SafeERC20 for IERC20;
 
@@ -28,13 +30,13 @@ contract GaugeBalancer is IRehypothecation, Ownable {
     /// ============= Externals =============
 
     function deposit(uint256 _amt) external onlyOwner {
-        token.transferFrom(msg.sender, address(this), _amt);
+        token.safeTransferFrom(msg.sender, address(this), _amt);
         gauge.deposit(_amt);
     }
 
     function withdraw(uint256 _amt) external onlyOwner {
         gauge.withdraw(_amt);
-        token.transfer(msg.sender, _amt);
+        token.safeTransfer(msg.sender, _amt);
     }
 
     function claim(address _receiver) external onlyOwner {
