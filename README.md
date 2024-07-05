@@ -88,7 +88,9 @@ Please use `forge fmt` before commiting.
 
 ## TODOs
 
-- Evaluate risk on Reliquary__TOKEN_NOT_COMPATIBLE() comment
+- Evaluate risk on Reliquary__TOKEN_NOT_COMPATIBLE() comment.
+- Adjust the rehypothecation BlancerGauge adapter to the correct gauge version.
+- Migrate Cod3x-Lend module from ByteMasons repo to Conclave Repo.
 
 <br>
 

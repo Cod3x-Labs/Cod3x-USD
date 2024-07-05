@@ -1,3 +1,7 @@
 [submodule "lib/Cod3x-Vault"]
 	path = lib/Cod3x-Vault
 	url = https://github.com/Cod3x-Labs/Cod3x-Vault
+[submodule "lib/granary-v2"]
+	path = lib/granary-v2
+	url = https://github.com/The-Granary/granary-v2
+	branch = pid
