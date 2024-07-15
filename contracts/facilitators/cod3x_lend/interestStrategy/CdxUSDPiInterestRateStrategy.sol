@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
 /// Cod3x Lend imports
@@ -16,7 +16,6 @@ import {ILendingPool} from "lib/granary-v2/contracts/interfaces/ILendingPool.sol
 import {DataTypes} from "lib/granary-v2/contracts/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from
     "lib/granary-v2/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
-import {Ownable} from "lib/granary-v2/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
 
 /// Balancer Imports
 import {
@@ -32,10 +31,12 @@ import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 // OZ imports
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /// TODOs
 // - change code convention to this repo
 // - interest reduction for stakers
+// - tests
 
 /**
  * @title CdxUSDPiInterestRateStrategy contract
@@ -100,8 +101,9 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         int256 minControllerError,
         int256 maxITimeAmp,
         uint256 kp,
-        uint256 ki
-    ) Ownable(msg.sender) {
+        uint256 ki,
+        address admin
+    ) Ownable(admin) {
         /// Cod3x Lend
         _asset = asset;
         _assetReserveType = assetReserveType;
