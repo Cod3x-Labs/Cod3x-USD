@@ -5,7 +5,7 @@ pragma solidity ^0.8.10;
  * @title CdxUSDOracle
  * @notice Price feed for CdxUSD (USD denominated)
  * @dev Price fixed at 1 USD, Chainlink format with 8 decimals
- * @author Cod3x Labs - Beirao
+ * @author Cod3x - Beirao
  */
 contract CdxUSDOracle {
     int256 public constant CDXUSD_PRICE = 1e8;

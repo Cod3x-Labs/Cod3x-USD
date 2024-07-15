@@ -49,7 +49,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * Reference: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4844212
  * @dev ATTENTION, this contract must no be used as a library. One CdxUSDPiInterestRateStrategy
  * needs to be associated with only one market.
- * @author Cod3x Labs - Beirao
+ * @author Cod3x - Beirao
  */
 contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     using WadRayMath for uint256;

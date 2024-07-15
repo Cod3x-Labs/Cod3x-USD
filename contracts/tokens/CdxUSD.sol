@@ -7,7 +7,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 /**
  * @title CdxUSD Contract
- * @author Cod3X Labs - Beirao
+ * @author Cod3x - Beirao
  * Reference: https://github.com/aave/gho-core/blob/main/src/contracts/gho/GhoToken.sol
  */
 contract CdxUSD is ICdxUSD, OFTExtended {

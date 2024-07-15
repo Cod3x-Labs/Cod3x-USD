@@ -10,7 +10,7 @@ import {OFTCore} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 
 /**
  * @title OFTExtended Contract
- * @author Cod3X Labs - Beirao
+ * @author Cod3x - Beirao
  * @dev OFT token that extends the functionality of the OFTCore contract by adding some features:
  *          - Possibility to pause bridge transactions
  *          - Limit bridging rate

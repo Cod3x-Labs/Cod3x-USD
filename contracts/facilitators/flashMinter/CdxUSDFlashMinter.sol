@@ -9,7 +9,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title CdxUSDFlashMinter
- * @author Cod3x Labs - Beirao
+ * @author Cod3x - Beirao
  * @notice Contract that enables FlashMinting of cdxUSD.
  * @dev Based heavily on the EIP3156 reference implementation.
  * Based on: https://github.com/aave/gho-core/blob/main/src/contracts/facilitators/flashMinter/GhoFlashMinter.sol

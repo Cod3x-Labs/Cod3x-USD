@@ -11,7 +11,7 @@ import "./libraries/BalancerHelper.sol";
 
 /**
  * @title ScdxUsdVaultStrategy Contract
- * @author Cod3X Labs - Beirao
+ * @author Cod3x - Beirao
  * @notice This contract is Cod3x Vault strategy that define the Staked cdxUSD logic.
  * @dev Keepers needs to call `setMinBPTAmountOut()` + `harvest()` every days.
  */
