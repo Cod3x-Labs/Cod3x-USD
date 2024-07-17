@@ -22,7 +22,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 /**
  * @title Zap
  * @author Cod3x - Beirao
- * @notice Zap all possible scdxUSD operations. 
+ * @notice Zap all possible scdxUSD operations.
  */
 contract Zap is Pausable, Ownable {
     using SafeERC20 for IERC20;
