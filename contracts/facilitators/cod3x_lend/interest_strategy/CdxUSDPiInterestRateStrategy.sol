@@ -34,8 +34,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /// TODOs
-// - change code convention to this repo
-// - interest reduction for stakers
+// - getCdxUsdStablePoolReserveUtilization() must read usdc and usdt oracle price
 // - tests
 
 /**
