@@ -30,5 +30,7 @@ remappings = [
     '@openzeppelin/=node_modules/@openzeppelin/',
 ]
 
+fs_permissions = [{ access = "read-write", path = "./"}]
+
 [fmt]
 line_length = 100

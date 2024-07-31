@@ -33,6 +33,8 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "forge-std/console.sol";
+
 /// TODOs
 // - change code convention to this repo
 // - interest reduction for stakers
@@ -120,8 +122,15 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         _balancerVault = IBalancerVault(balancerVault);
         _poolId = poolId;
         (IERC20[] memory tokens,,) = IBalancerVault(balancerVault).getPoolTokens(poolId); //? is returning an array with BPT token?
-        (address pool,) = IBalancerVault(balancerVault).getPool(poolId);
-        tokens = BalancerHelper._dropBptItem(tokens, pool);
+        console.log("Length: ", tokens.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            console.log("First tokens: ", address(tokens[i]));
+        }
+        // (address pool,) = IBalancerVault(balancerVault).getPool(poolId);
+        // tokens = BalancerHelper._dropBptItem(tokens, pool);
+        // for (uint256 i = 0; i < tokens.length; i++) {
+        //     console.log("Second tokens: ", address(tokens[i]));
+        // }
         for (uint256 i = 0; i < tokens.length; i++) {
             IERC20 token_ = tokens[i];
             stablePoolTokens.push(token_);
@@ -191,7 +200,15 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
 
         /// PID state update
         int256 err = getNormalizedError(stablePoolReserveUtilization);
+        console.log("err: ", uint256(err));
+        int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
+        console.log("time delta: ", block.timestamp - _lastTimestamp);
+        console.log(
+            "addition: ",
+            uint256(int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp)))
+        );
         _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
+        console.log("errI: ", uint256(_errI));
         if (_errI < _maxErrIAmp) _errI = _maxErrIAmp; // Limit _errI negative accumulation.
         _lastTimestamp = block.timestamp;
 
@@ -214,13 +231,11 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @return utilizationRate
      */
     function getCurrentInterestRates() external view returns (uint256, uint256, uint256) {
-        return (
-            0,
-            transferFunction(
-                getControllerError(getNormalizedError(getCdxUsdStablePoolReserveUtilization()))
-            ),
-            0
-        );
+        // console.log("Utilization rate: ", getCdxUsdStablePoolReserveUtilization());
+        uint256 utilizationRate = getCdxUsdStablePoolReserveUtilization();
+        int256 normalizedError = getNormalizedError(utilizationRate);
+        console.log("Normalized: ", normalizedError);
+        return (0, transferFunction(getControllerError(normalizedError)), utilizationRate);
     }
 
     function baseVariableBorrowRate() public view override returns (uint256) {
@@ -243,12 +258,15 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         for (uint256 i = 0; i < stablePoolTokens.length; i++) {
             IERC20 token_ = stablePoolTokens[i];
             (uint256 cash_,,,) = IBalancerVault(_balancerVault).getPoolTokenInfo(_poolId, token_);
+            console.log("Cash for %s: %s", address(token_), cash_);
             cash_ = scaleDecimals(cash_, token_);
             totalInPool_ += cash_;
 
             if (address(token_) == _asset) cdxUsdAmtInPool_ = cash_;
         }
-
+        console.log("totalInPool_: ", totalInPool_);
+        console.log("cdxUsdAmtInPool_: ", cdxUsdAmtInPool_);
+        console.log("utilization rate: ", cdxUsdAmtInPool_ * uint256(RAY) / totalInPool_);
         return cdxUsdAmtInPool_ * uint256(RAY) / totalInPool_;
     }
 
@@ -259,6 +277,11 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @return The scaled amount.
      */
     function scaleDecimals(uint256 amount, IERC20 token) internal view returns (uint256) {
+        console.log("Decimals: ", ERC20(address(token)).decimals());
+        console.log("Multiplications: ", (SCALING_DECIMAL - ERC20(address(token)).decimals()));
+        console.log(
+            "Returning: ", amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals())
+        );
         return amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals());
     }
 
@@ -273,12 +296,25 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         view
         returns (int256)
     {
+        console.log(
+            "_optimalStablePoolReserveUtilization %s vs stablePoolReserveUtilization %s",
+            _optimalStablePoolReserveUtilization,
+            stablePoolReserveUtilization
+        );
         int256 err =
             int256(stablePoolReserveUtilization) - int256(_optimalStablePoolReserveUtilization);
-
+        console.log("ERROR: ", uint256(err));
         if (int256(stablePoolReserveUtilization) < int256(_optimalStablePoolReserveUtilization)) {
+            console.log(
+                "Return err 1: ",
+                uint256(err.rayDivInt(int256(_optimalStablePoolReserveUtilization)))
+            );
             return err.rayDivInt(int256(_optimalStablePoolReserveUtilization));
         } else {
+            console.log(
+                "Return err 2: ",
+                uint256(err.rayDivInt(RAY - int256(_optimalStablePoolReserveUtilization)))
+            );
             return err.rayDivInt(RAY - int256(_optimalStablePoolReserveUtilization));
         }
     }
@@ -286,12 +322,17 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     /// @dev Process the controller error from the normalized error.
     function getControllerError(int256 err) internal view returns (int256) {
         int256 errP = int256(_kp).rayMulInt(err);
+        console.log("errP: ", uint256(errP));
+        console.log("errI: ", uint256(_errI));
+        console.log("Sum: ", uint256(errP + _errI));
         return errP + _errI;
     }
 
     /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/dj5puy23wz)
     function transferFunction(int256 controllerError) public view returns (uint256) {
         int256 ce = controllerError > _minControllerError ? controllerError : _minControllerError;
+        console.log("ce: ", uint256(ce));
+        console.log("RAY - ce: ", uint256(RAY - ce));
         return uint256(ALPHA.rayMulInt(ce.rayDivInt(RAY - ce)));
     }
 }
