@@ -151,10 +151,9 @@ contract Zap is Pausable, Ownable {
         address _to,
         uint256 _minScdxUsdOut
     ) external whenNotPaused {
-        if (
-            _cdxUsdAmt == 0 && _caAmt == 0 || _minScdxUsdOut == 0
-                || _to == address(0)
-        ) revert Zap__WRONG_INPUT();
+        if (_cdxUsdAmt == 0 && _caAmt == 0 || _minScdxUsdOut == 0 || _to == address(0)) {
+            revert Zap__WRONG_INPUT();
+        }
 
         if (_cdxUsdAmt != 0) cdxUsd.transferFrom(msg.sender, address(this), _cdxUsdAmt);
         if (_caAmt != 0) counterAsset.safeTransferFrom(msg.sender, address(this), _caAmt);
@@ -240,10 +239,7 @@ contract Zap is Pausable, Ownable {
         address _to,
         uint256 _minBPTAmountOut
     ) external whenNotPaused {
-        if (
-            _cdxUsdAmt == 0 && _caAmt == 0 || _to == address(0)
-                || _minBPTAmountOut == 0
-        ) {
+        if (_cdxUsdAmt == 0 && _caAmt == 0 || _to == address(0) || _minBPTAmountOut == 0) {
             revert Zap__WRONG_INPUT();
         }
 

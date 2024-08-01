@@ -159,10 +159,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param user The address of the user
      * @param amount The value to be decrease
      */
-    function decreaseBalanceFromInterest(address user, uint256 amount)
-        external
-        onlyAToken
-    {}
+    function decreaseBalanceFromInterest(address user, uint256 amount) external onlyAToken {}
 
     /**
      * @dev Returns the amount of interests accumulated by the user

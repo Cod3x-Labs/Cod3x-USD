@@ -216,10 +216,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         }
     }
 
-    function testZapInStakedCdxUSD(
-        uint256 _seedAmtCdxusd,
-        uint256 _seedAmtUsdc
-    ) public {
+    function testZapInStakedCdxUSD(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
 
@@ -229,11 +226,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         vm.prank(userB);
         zap.zapInStakedCdxUSD(amtCdxusd, amtUsdc, userC, 1);
 
-        assertApproxEqRel(
-            cod3xVault.balanceOf(userC),
-            amtCdxusd + scaleDecimal(amtUsdc),
-            1e15
-        ); // 0,1%
+        assertApproxEqRel(cod3xVault.balanceOf(userC), amtCdxusd + scaleDecimal(amtUsdc), 1e15); // 0,1%
 
         assertEq(IERC20(cdxUSD).balanceOf(userB), balanceBeforeCdxusd - amtCdxusd);
         assertEq(IERC20(usdc).balanceOf(userB), balanceBeforeUsdc - amtUsdc);
@@ -273,10 +266,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         checkBalanceInvariant();
     }
 
-    function testZapInRelicCreate(
-        uint256 _seedAmtCdxusd,
-        uint256 _seedAmtUsdc
-    ) public {
+    function testZapInRelicCreate(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
 
@@ -288,11 +278,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         assertEq(reliquary.balanceOf(userC), 1);
 
-        assertApproxEqRel(
-            amtCdxusd + scaleDecimal(amtUsdc),
-            reliquary.getAmountInRelic(2),
-            1e15
-        ); // relic 2
+        assertApproxEqRel(amtCdxusd + scaleDecimal(amtUsdc), reliquary.getAmountInRelic(2), 1e15); // relic 2
 
         assertEq(IERC20(cdxUSD).balanceOf(userB), balanceBeforeCdxusd - amtCdxusd);
         assertEq(IERC20(usdc).balanceOf(userB), balanceBeforeUsdc - amtUsdc);
@@ -300,9 +286,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         checkBalanceInvariant();
     }
 
-    function testZapInRelicOwned(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc)
-        public
-    {
+    function testZapInRelicOwned(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
 
@@ -325,9 +309,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         assertEq(reliquary.balanceOf(userB), 1);
 
         assertApproxEqRel(
-            amtCdxusd + scaleDecimal(amtUsdc) + initialRelicAmt,
-            reliquary.getAmountInRelic(2),
-            1e15
+            amtCdxusd + scaleDecimal(amtUsdc) + initialRelicAmt, reliquary.getAmountInRelic(2), 1e15
         ); // relic 2
 
         assertEq(IERC20(cdxUSD).balanceOf(userB), balanceBeforeCdxusd - amtCdxusd);
@@ -336,10 +318,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         checkBalanceInvariant();
     }
 
-    function testZapInRelicOwnedRevert1(
-        uint256 _seedAmtCdxusd,
-        uint256 _seedAmtUsdc
-    ) public {
+    function testZapInRelicOwnedRevert1(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
 
@@ -362,10 +341,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         checkBalanceInvariant();
     }
 
-    function testZapInRelicOwnedRevert2(
-        uint256 _seedAmtCdxusd,
-        uint256 _seedAmtUsdc
-    ) public {
+    function testZapInRelicOwnedRevert2(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
         uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
 
@@ -433,11 +409,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         assertEq(reliquary.balanceOf(userB), 1);
 
-        assertApproxEqRel(
-            amtCdxusd + scaleDecimal(amtUsdc),
-            reliquary.getAmountInRelic(2),
-            1e15
-        ); // relic 2
+        assertApproxEqRel(amtCdxusd + scaleDecimal(amtUsdc), reliquary.getAmountInRelic(2), 1e15); // relic 2
 
         vm.startPrank(userB);
         reliquary.approve(address(zap), 2);
@@ -446,15 +418,13 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         assertApproxEqRel(
             initialBlalance1 + initialBlalance3,
-            cdxUSD.balanceOf(userB)
-                + scaleDecimal(usdc.balanceOf(userB)),
+            cdxUSD.balanceOf(userB) + scaleDecimal(usdc.balanceOf(userB)),
             5e15
         );
         assertEq(0, reliquary.getAmountInRelic(2));
 
         checkBalanceInvariant();
     }
-
 
     // function testZapOutRelicOwnedRevert(
     //     uint256 _seedAmtCdxusd,

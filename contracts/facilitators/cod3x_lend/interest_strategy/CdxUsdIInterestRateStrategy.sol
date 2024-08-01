@@ -33,24 +33,27 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+// Chainlink
+import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
+
 /// TODOs
-// - getCdxUsdStablePoolReserveUtilization() must read usdc and usdt oracle price
+// - getCdxUsdStablePoolReserveUtilization() must read counterasset oracle price
 // - tests
 
 /**
- * @title CdxUSDPiInterestRateStrategy contract
+ * @title CdxUsdIInterestRateStrategy contract
  * @notice Implements the calculation of the interest rates using control theory.
  * @dev The model of interest rate is based Proportional Integrator (PI).
  * Admin needs to set an optimal utilization rate and this strategy will automatically
- * automatically adjust the interest rate according to the `Kp` and `Ki` variables.
+ * automatically adjust the interest rate according to the `Ki` variable.
  * The controller error is calculated using the balance of the Balancer stable swap
  * incentivized by the sdcxUSD staking module. (see staking_module/)
  * Reference: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4844212
- * @dev ATTENTION, this contract must no be used as a library. One CdxUSDPiInterestRateStrategy
+ * @dev ATTENTION, this contract must no be used as a library. One CdxUsdIInterestRateStrategy
  * needs to be associated with only one market.
  * @author Cod3x - Beirao
  */
-contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
+contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     using WadRayMath for uint256;
     using WadRayMath for int256;
     using PercentageMath for uint256;
@@ -71,8 +74,11 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     int256 public _maxErrIAmp;
     uint256 public _optimalStablePoolReserveUtilization;
 
-    // P
-    uint256 public _kp; // in RAY
+    // Oracle
+    IAggregatorV3Interface public _counterAssetPriceFeed;
+    int256 public _priceFeedReference;
+    uint256 public _pegMargin;
+    uint256 public _timeout;
 
     // I
     uint256 public _ki; // in RAY
@@ -84,13 +90,14 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
 
     // Events
-    event PidLog(
+    event PidLog( // if stablePoolReserveUtilization == 0 => counter asset deppeged.
         uint256 currentVariableBorrowRate,
         uint256 stablePoolReserveUtilization,
         int256 err,
         int256 controllerErr
     );
 
+    /// @dev `setOracleValues()` needs to be called at contracts creation.
     constructor(
         address provider,
         address asset, // cdxUSD
@@ -99,7 +106,6 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         bytes32 poolId,
         int256 minControllerError,
         int256 maxITimeAmp,
-        uint256 kp,
         uint256 ki,
         address admin
     ) Ownable(admin) {
@@ -109,7 +115,6 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         _addressesProvider = ILendingPoolAddressesProvider(provider);
 
         /// PID values
-        _kp = kp;
         _ki = ki;
         _lastTimestamp = block.timestamp;
         _minControllerError = minControllerError;
@@ -135,7 +140,7 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         // TODO checks
         // - _balancerVault and poolId compatibility with other contracts.
         // - check minium pool balance
-        // - check the pool is fairly balanced (33%, 33%, 33%)
+        // - check the pool is fairly balanced (50/50)
     }
 
     modifier onlyLendingPool() {
@@ -147,6 +152,11 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
 
     // ----------- admin -----------
 
+    /**
+     * @notice Sets the minimum controller error.
+     * @dev Only the admin can call this function.
+     * @param minControllerError The new minimum controller error value.
+     */
     function setMinControllerError(int256 minControllerError) external onlyOwner {
         _minControllerError = minControllerError;
         if (transferFunction(type(int256).min) < 0) {
@@ -154,10 +164,35 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         }
     }
 
-    function setPidValues(uint256 kp, uint256 ki, int256 maxITimeAmp) external onlyOwner {
-        _kp = kp;
+    /**
+     * @notice Sets the PID values for the controller.
+     * @dev Only the admin can call this function.
+     * @param ki The proportional gain value.
+     * @param maxITimeAmp The maximum integral time amplification value.
+     */
+    function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyOwner {
         _ki = ki;
         _maxErrIAmp = int256(_ki).rayMulInt(-RAY * maxITimeAmp);
+    }
+
+    /**
+     * @notice Sets the oracle values for the controller.
+     * @dev Only the admin can call this function.
+     * @param counterAssetPriceFeed The address of the price feed contract.
+     * @param priceFeedDecimals The number of decimals used by the price feed.
+     * @param pegMargin The margin for the peg value in RAY.
+     * @param timeout Pricefeed timeout to know if the price feed is frozen.
+     */
+    function setOracleValues(
+        address counterAssetPriceFeed,
+        uint256 priceFeedDecimals,
+        uint256 pegMargin,
+        uint256 timeout
+    ) external onlyOwner {
+        _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
+        _priceFeedReference = int256(10 ** priceFeedDecimals);
+        _pegMargin = pegMargin;
+        _timeout = timeout;
     }
 
     // ----------- external -----------
@@ -185,19 +220,22 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         internal
         returns (uint256, uint256)
     {
-        /// Calculate the cdxUSD stablePool reserve utilization
-        uint256 stablePoolReserveUtilization = getCdxUsdStablePoolReserveUtilization();
+        uint256 stablePoolReserveUtilization;
 
-        /// PID state update
-        int256 err = getNormalizedError(stablePoolReserveUtilization);
-        _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
-        if (_errI < _maxErrIAmp) _errI = _maxErrIAmp; // Limit _errI negative accumulation.
-        _lastTimestamp = block.timestamp;
+        if (address(_counterAssetPriceFeed) == address(0) || isCounterAssetPegged()) {
+            /// Calculate the cdxUSD stablePool reserve utilization
+            stablePoolReserveUtilization = getCdxUsdStablePoolReserveUtilization();
 
-        int256 controllerErr = getControllerError(err);
-        uint256 currentVariableBorrowRate = transferFunction(controllerErr);
+            /// PID state update
+            int256 err = getNormalizedError(stablePoolReserveUtilization);
+            _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
+            if (_errI < _maxErrIAmp) _errI = _maxErrIAmp; // Limit _errI negative accumulation.
+            _lastTimestamp = block.timestamp;
+        }
 
-        emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, err, controllerErr);
+        uint256 currentVariableBorrowRate = transferFunction(_errI);
+
+        emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, _errI, _errI);
 
         return (0, currentVariableBorrowRate);
     }
@@ -215,9 +253,7 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     function getCurrentInterestRates() external view returns (uint256, uint256, uint256) {
         return (
             0,
-            transferFunction(
-                getControllerError(getNormalizedError(getCdxUsdStablePoolReserveUtilization()))
-            ),
+            transferFunction(_errI), // _errI == controler error
             0
         );
     }
@@ -282,15 +318,35 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         }
     }
 
-    /// @dev Process the controller error from the normalized error.
-    function getControllerError(int256 err) internal view returns (int256) {
-        int256 errP = int256(_kp).rayMulInt(err);
-        return errP + _errI;
-    }
-
     /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/dj5puy23wz)
     function transferFunction(int256 controllerError) public view returns (uint256) {
         int256 ce = controllerError > _minControllerError ? controllerError : _minControllerError;
         return uint256(ALPHA.rayMulInt(ce.rayDivInt(RAY - ce)));
+    }
+
+    /// @dev Return `true` if the counter asset is pegged. Uses the `_pegMargin` to determine.
+    function isCounterAssetPegged() public returns (bool) {
+        try _counterAssetPriceFeed.latestRoundData() returns (
+            uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
+        ) {
+            // Chainlink integrity checks
+            if (
+                roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
+                    || startedAt == 0 || block.timestamp - timestamp > _timeout
+            ) {
+                return false;
+            }
+
+            // Peg check
+            if (abs(RAY - answer * RAY / _priceFeedReference) > _pegMargin) return false;
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function abs(int256 x) private pure returns (uint256) {
+        return x < 0 ? uint256(-x) : uint256(x);
     }
 }
