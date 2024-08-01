@@ -135,12 +135,12 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
 
         tokens = sort(assets);
 
-        IRateProvider[] memory rateProviders = new IRateProvider[](3);
+        IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
         for (uint i = 0; i < assets.length; i++) {
             rateProviders[i] = IRateProvider(address(0));
         }   
 
-        uint256[] memory tokenRateCacheDurations = new uint256[](3);
+        uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
         for (uint i = 0; i < assets.length; i++) {
             tokenRateCacheDurations[i] = uint256(0);
         }

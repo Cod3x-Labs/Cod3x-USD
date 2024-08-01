@@ -61,7 +61,7 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
 
     IBalancerVault public immutable _balancerVault; //? make it non immutable
     bytes32 public immutable _poolId; //? make it non immutable
-    IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC, USDT] (order can change)
+    IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC/USDT] (order can change)
 
     int256 public constant ALPHA = 15e25; // 15e(-2)
     int256 private constant RAY = 1e27;
@@ -94,7 +94,7 @@ contract CdxUSDPiInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     constructor(
         address provider,
         address asset, // cdxUSD
-        bool assetReserveType,
+        bool assetReserveType, // true
         address balancerVault,
         bytes32 poolId,
         int256 minControllerError,

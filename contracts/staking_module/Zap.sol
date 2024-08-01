@@ -27,7 +27,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract Zap is Pausable, Ownable {
     using SafeERC20 for IERC20;
 
-    uint256 private NB_BALANCER_POOL_ASSET = 3;
+    uint256 private NB_BALANCER_POOL_ASSET = 2;
     uint8 private RELIQUARY_POOL_ID = 0;
 
     IBalancerVault public immutable balancerVault;
@@ -36,8 +36,7 @@ contract Zap is Pausable, Ownable {
     IReliquary public immutable reliquary;
     IERC20 public immutable poolAdd;
     IERC20 public immutable cdxUsd;
-    IERC20 public immutable usdc;
-    IERC20 public immutable usdt;
+    IERC20 public immutable counterAsset; // most likely usdc/usdt
 
     IAsset[] private poolTokens;
     mapping(address => uint256) private tokenToIndex;
@@ -55,8 +54,7 @@ contract Zap is Pausable, Ownable {
         address _strategy,
         address _reliquary,
         address _cdxUsd,
-        address _usdc,
-        address _usdt,
+        address _counterAsset,
         address _initialOwner
     ) Ownable(_initialOwner) {
         balancerVault = IBalancerVault(_balancerVault);
@@ -64,8 +62,7 @@ contract Zap is Pausable, Ownable {
         strategy = ScdxUsdVaultStrategy(_strategy);
         reliquary = IReliquary(_reliquary);
         cdxUsd = IERC20(_cdxUsd);
-        usdc = IERC20(_usdc);
-        usdt = IERC20(_usdt);
+        counterAsset = IERC20(_counterAsset);
 
         poolId = ScdxUsdVaultStrategy(_strategy).poolId();
 
@@ -118,8 +115,7 @@ contract Zap is Pausable, Ownable {
         // Approvals
         {
             IERC20(_cdxUsd).approve(_balancerVault, type(uint256).max);
-            IERC20(_usdc).approve(_balancerVault, type(uint256).max);
-            IERC20(_usdt).approve(_balancerVault, type(uint256).max);
+            IERC20(_counterAsset).approve(_balancerVault, type(uint256).max);
             IERC20(_poolAdd).approve(_cod3xVault, type(uint256).max);
             IERC20(_poolAdd).approve(_reliquary, type(uint256).max);
             IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
@@ -145,32 +141,28 @@ contract Zap is Pausable, Ownable {
      *         - send scdxUSD to user
      * @dev Users must first approve the amount they wish to send.
      * @param _cdxUsdAmt cdxUSD amount to supply.
-     * @param _usdcAmt usdc amount to supply.
-     * @param _usdtAmt usdt amount to supply.
+     * @param _caAmt counter asset amount to supply.
      * @param _minScdxUsdOut slippage protection.
      * @param _to address receiving scdxUSD.
      */
     function zapInStakedCdxUSD(
         uint256 _cdxUsdAmt,
-        uint256 _usdcAmt,
-        uint256 _usdtAmt,
+        uint256 _caAmt,
         address _to,
         uint256 _minScdxUsdOut
     ) external whenNotPaused {
         if (
-            _cdxUsdAmt == 0 && _usdcAmt == 0 && _usdtAmt == 0 || _minScdxUsdOut == 0
+            _cdxUsdAmt == 0 && _caAmt == 0 || _minScdxUsdOut == 0
                 || _to == address(0)
         ) revert Zap__WRONG_INPUT();
 
         if (_cdxUsdAmt != 0) cdxUsd.transferFrom(msg.sender, address(this), _cdxUsdAmt);
-        if (_usdcAmt != 0) usdc.safeTransferFrom(msg.sender, address(this), _usdcAmt);
-        if (_usdtAmt != 0) usdt.safeTransferFrom(msg.sender, address(this), _usdtAmt);
+        if (_caAmt != 0) counterAsset.safeTransferFrom(msg.sender, address(this), _caAmt);
 
         /// Join pool
         uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
-        amountsToAdd_[tokenToIndex[address(usdc)]] = _usdcAmt;
-        amountsToAdd_[tokenToIndex[address(usdt)]] = _usdtAmt;
+        amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
         BalancerHelper._joinPool(
             balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
@@ -237,35 +229,31 @@ contract Zap is Pausable, Ownable {
      *      he must first approve this contract.
      * @param _relicId Id of the relic to deposit, 0 will create a new relic.
      * @param _cdxUsdAmt cdxUSD amount to supply.
-     * @param _usdcAmt usdc amount to supply.
-     * @param _usdtAmt usdt amount to supply.
+     * @param _caAmt counter asset amount to supply.
      * @param _to address receiving the relic.
      * @param _minBPTAmountOut slippage protection.
      */
     function zapInRelic(
         uint256 _relicId,
         uint256 _cdxUsdAmt,
-        uint256 _usdcAmt,
-        uint256 _usdtAmt,
+        uint256 _caAmt,
         address _to,
         uint256 _minBPTAmountOut
     ) external whenNotPaused {
         if (
-            _cdxUsdAmt == 0 && _usdcAmt == 0 && _usdtAmt == 0 || _to == address(0)
+            _cdxUsdAmt == 0 && _caAmt == 0 || _to == address(0)
                 || _minBPTAmountOut == 0
         ) {
             revert Zap__WRONG_INPUT();
         }
 
         if (_cdxUsdAmt != 0) cdxUsd.safeTransferFrom(msg.sender, address(this), _cdxUsdAmt);
-        if (_usdcAmt != 0) usdc.safeTransferFrom(msg.sender, address(this), _usdcAmt);
-        if (_usdtAmt != 0) usdt.safeTransferFrom(msg.sender, address(this), _usdtAmt);
+        if (_caAmt != 0) counterAsset.safeTransferFrom(msg.sender, address(this), _caAmt);
 
         /// Join pool
         uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
-        amountsToAdd_[tokenToIndex[address(usdc)]] = _usdcAmt;
-        amountsToAdd_[tokenToIndex[address(usdt)]] = _usdtAmt;
+        amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
         BalancerHelper._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
 
