@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {IVariableDebtToken} from "lib/granary-v2/contracts/interfaces/IVariableDebtToken.sol";
-import {WadRayMath} from "lib/granary-v2/contracts/protocol/libraries/math/WadRayMath.sol";
-import {Errors} from "lib/granary-v2/contracts/protocol/libraries/helpers/Errors.sol";
-import {DebtTokenBase} from "lib/granary-v2/contracts/protocol/tokenization/base/DebtTokenBase.sol";
-import {ILendingPool} from "lib/granary-v2/contracts/interfaces/ILendingPool.sol";
-import {IRewarder} from "lib/granary-v2/contracts/interfaces/IRewarder.sol";
+import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
+import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
+import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
+import {DebtTokenBase} from "lib/Cod3x-Lend/contracts/protocol/tokenization/base/DebtTokenBase.sol";
+import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
+import {IRewarder} from "lib/Cod3x-Lend/contracts/interfaces/IRewarder.sol";
 
 /**
  * @title CdxUsdVariableDebtToken

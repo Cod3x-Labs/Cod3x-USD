@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {ILendingPool} from "lib/granary-v2/contracts/interfaces/ILendingPool.sol";
-import {IAToken} from "lib/granary-v2/contracts/interfaces/IAToken.sol";
-import {IRewarder} from "lib/granary-v2/contracts/interfaces/IRewarder.sol";
+import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
+import {IAToken} from "lib/Cod3x-Lend/contracts/interfaces/IAToken.sol";
+import {IRewarder} from "lib/Cod3x-Lend/contracts/interfaces/IRewarder.sol";
 
-import {WadRayMath} from "lib/granary-v2/contracts/protocol/libraries/math/WadRayMath.sol";
-import {Errors} from "lib/granary-v2/contracts/protocol/libraries/helpers/Errors.sol";
+import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
+import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 import {VersionedInitializable} from
-    "lib/granary-v2/contracts/protocol/libraries/upgradeability/VersionedInitializable.sol";
+    "lib/Cod3x-Lend/contracts/protocol/libraries/upgradeability/VersionedInitializable.sol";
 import {IncentivizedERC20} from
-    "lib/granary-v2/contracts/protocol/tokenization/IncentivizedERC20.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/IncentivizedERC20.sol";
 import {ICdxUSD} from "contracts/tokens/interfaces/ICdxUSD.sol";
 import {ICdxUsdAToken} from "contracts/tokens/interfaces/ICdxUsdAToken.sol";
 import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
-import {IERC20} from "lib/granary-v2/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
+import {IERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 import {CdxUsdVariableDebtToken} from "./CdxUsdVariableDebtToken.sol";
 
 /**

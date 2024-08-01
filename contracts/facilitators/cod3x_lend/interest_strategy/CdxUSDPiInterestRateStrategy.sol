@@ -3,19 +3,19 @@ pragma solidity ^0.8.22;
 
 /// Cod3x Lend imports
 import {IReserveInterestRateStrategy} from
-    "lib/granary-v2/contracts/interfaces/IReserveInterestRateStrategy.sol";
-import {WadRayMath} from "lib/granary-v2/contracts/protocol/libraries/math/WadRayMath.sol";
-import {PercentageMath} from "lib/granary-v2/contracts/protocol/libraries/math/PercentageMath.sol";
+    "lib/Cod3x-Lend/contracts/interfaces/IReserveInterestRateStrategy.sol";
+import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
+import {PercentageMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/PercentageMath.sol";
 import {ILendingPoolAddressesProvider} from
-    "lib/granary-v2/contracts/interfaces/ILendingPoolAddressesProvider.sol";
-import {IAToken} from "lib/granary-v2/contracts/interfaces/IAToken.sol";
-import {IVariableDebtToken} from "lib/granary-v2/contracts/interfaces/IVariableDebtToken.sol";
+    "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
+import {IAToken} from "lib/Cod3x-Lend/contracts/interfaces/IAToken.sol";
+import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
 import {VariableDebtToken} from
-    "lib/granary-v2/contracts/protocol/tokenization/VariableDebtToken.sol";
-import {ILendingPool} from "lib/granary-v2/contracts/interfaces/ILendingPool.sol";
-import {DataTypes} from "lib/granary-v2/contracts/protocol/libraries/types/DataTypes.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
+import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from
-    "lib/granary-v2/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
+    "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 
 /// Balancer Imports
 import {

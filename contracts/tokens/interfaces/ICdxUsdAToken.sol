@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAToken} from "lib/granary-v2/contracts/interfaces/IAToken.sol";
+import {IAToken} from "lib/Cod3x-Lend/contracts/interfaces/IAToken.sol";
 import {ICdxUSDFacilitators} from "./ICdxUSDFacilitators.sol";
 
 /**
