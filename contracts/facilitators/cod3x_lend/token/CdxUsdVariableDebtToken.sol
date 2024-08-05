@@ -34,6 +34,22 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         uint128 previousIndex; // Previous index of the user.
     }
 
+    /// Events
+    event Mint(
+        address indexed caller,
+        address indexed onBehalfOf,
+        uint256 value,
+        uint256 balanceIncrease,
+        uint256 index
+    );
+    event Burn(
+        address indexed from,
+        address indexed target,
+        uint256 value,
+        uint256 balanceIncrease,
+        uint256 index
+    );
+
     modifier onlyAToken() {
         require(_msgSender() == _cdxUsdAToken, "CALLER_NOT_A_TOKEN");
         _;
@@ -143,7 +159,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
         uint256 amountToMint = amount + balanceIncrease;
         emit Transfer(address(0), onBehalfOf, amountToMint);
-        emit Mint(caller, onBehalfOf, amountToMint, balanceIncrease, index);
+        emit Mint(user, onBehalfOf, amountToMint, balanceIncrease, index);
 
         return previousScaledBalance == 0;
     }
@@ -180,7 +196,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         } else {
             uint256 amountToBurn = amount - balanceIncrease;
             emit Transfer(user, address(0), amountToBurn);
-            emit Burn(user, target, amountToBurn, balanceIncrease, index);
+            emit Burn(user, user, amountToBurn, balanceIncrease, index);
         }
     }
 

@@ -22,10 +22,6 @@ import {CdxUsdVariableDebtToken} from "./CdxUsdVariableDebtToken.sol";
  * @dev Implementation of the interest bearing token for the Cod3x Lend protocol
  * @author Cod3x - Beirao
  */
-
-/// TODOs
-// - onBehalfOf needs to be implemented on Cod3x Lend on handleRepayment
-// - tests
 contract CdxUsdAToken is
     ICdxUsdAToken,
     VersionedInitializable,
@@ -251,13 +247,11 @@ contract CdxUsdAToken is
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
      */
-    //! onBehalfOf needs to be implemented on Cod3x Lend
-    function handleRepayment(address user, /*, address onBehalfOf*/ uint256 amount)
+    function handleRepayment(address user, address onBehalfOf, uint256 amount)
         external
         override
         onlyLendingPool
     {
-        address onBehalfOf = user; //! test only: don't deploy
         uint256 balanceFromInterest = _cdxUsdVariableDebtToken.getBalanceFromInterest(onBehalfOf);
         if (amount <= balanceFromInterest) {
             _cdxUsdVariableDebtToken.decreaseBalanceFromInterest(onBehalfOf, amount);
