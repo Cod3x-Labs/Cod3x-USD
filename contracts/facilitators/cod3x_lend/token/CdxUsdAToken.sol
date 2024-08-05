@@ -322,6 +322,7 @@ contract CdxUsdAToken is
 
     /// @inheritdoc ICdxUSDFacilitators
     function distributeFeesToTreasury() external virtual override {
+        require(_cdxUsdTreasury != address(0), "NO_CDXUSD_TREASURY");
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
         IERC20(_underlyingAsset).transfer(_cdxUsdTreasury, balance);
         emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
