@@ -3,6 +3,7 @@ pragma solidity ^0.8.22;
 
 import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
+import {SafeCast} from "lib/Cod3x-Lend/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 import {DebtTokenBase} from "lib/Cod3x-Lend/contracts/protocol/tokenization/base/DebtTokenBase.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
@@ -16,6 +17,7 @@ import {IRewarder} from "lib/Cod3x-Lend/contracts/interfaces/IRewarder.sol";
  */
 contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     using WadRayMath for uint256;
+    using SafeCast for uint256;
 
     uint256 public constant DEBT_TOKEN_REVISION = 0x1;
 
@@ -24,6 +26,15 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     address internal _underlyingAsset;
     bool internal _reserveType;
     IRewarder internal _incentivesController;
+
+    mapping(address => CdxUsdUserState) internal _userState;
+
+    struct CdxUsdUserState {
+        // Accumulated debt interest of the user
+        uint128 accumulatedDebtInterest;
+        // Previous index of the user.
+        uint128 previousIndex;
+    }
 
     modifier onlyAToken() {
         require(_msgSender() == _cdxUsdAToken, "CALLER_NOT_A_TOKEN");
@@ -167,7 +178,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @return The amount of interests accumulated by the user
      */
     function getBalanceFromInterest(address user) external view returns (uint256) {
-        return 0;
+        return _userState[user].accumulatedDebtInterest;
     }
 
     /**
@@ -264,5 +275,27 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
     function getAToken() external view returns (address) {
         return _cdxUsdAToken;
+    }
+
+    /**
+     * @dev Accumulates debt of the user since last action.
+     * @param user The address of the user
+     * @param previousScaledBalance The previous scaled balance of the user
+     * @param index The variable debt index of the reserve
+     * @return The increase in scaled balance since the last action of `user`
+     */
+    function _accrueDebtOnAction(address user, uint256 previousScaledBalance, uint256 index)
+        internal
+        returns (uint256)
+    {
+        uint256 balanceIncrease = previousScaledBalance.rayMul(index)
+            - previousScaledBalance.rayMul(_userState[user].previousIndex);
+
+        _userState[user].previousIndex = index.toUint128();
+
+        _userState[user].accumulatedDebtInterest =
+            (balanceIncrease + _userState[user].accumulatedDebtInterest).toUint128();
+
+        return balanceIncrease;
     }
 }
