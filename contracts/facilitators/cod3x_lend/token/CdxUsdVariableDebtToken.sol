@@ -30,10 +30,8 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     mapping(address => CdxUsdUserState) internal _userState;
 
     struct CdxUsdUserState {
-        // Accumulated debt interest of the user
-        uint128 accumulatedDebtInterest;
-        // Previous index of the user.
-        uint128 previousIndex;
+        uint128 accumulatedDebtInterest; // Accumulated debt interest of the user.
+        uint128 previousIndex; // Previous index of the user.
     }
 
     modifier onlyAToken() {
@@ -75,7 +73,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
 
-        _reserveType = true; // @issue was always false, make it configurable or always true ?
+        _reserveType = false; // @issue always false? cdxUSD can't rehypothecate.
 
         emit Initialized(
             underlyingAsset,
@@ -135,16 +133,19 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
             _decreaseBorrowAllowance(onBehalfOf, user, amount);
         }
 
-        uint256 previousBalance = super.balanceOf(onBehalfOf);
+        uint256 previousScaledBalance = super.balanceOf(onBehalfOf);
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, Errors.CT_INVALID_MINT_AMOUNT);
 
+        uint256 balanceIncrease = _accrueDebtOnAction(onBehalfOf, previousScaledBalance, index);
+
         _mint(onBehalfOf, amountScaled);
 
-        emit Transfer(address(0), onBehalfOf, amount);
-        emit Mint(user, onBehalfOf, amount, index);
+        uint256 amountToMint = amount + balanceIncrease;
+        emit Transfer(address(0), onBehalfOf, amountToMint);
+        emit Mint(caller, onBehalfOf, amountToMint, balanceIncrease, index);
 
-        return previousBalance == 0;
+        return previousScaledBalance == 0;
     }
 
     /**
@@ -159,10 +160,29 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled != 0, Errors.CT_INVALID_BURN_AMOUNT);
 
-        _burn(user, amountScaled);
+        uint256 balanceBeforeBurn = balanceOf(user);
 
-        emit Transfer(user, address(0), amount);
-        emit Burn(user, amount, index);
+        uint256 previousScaledBalance = super.balanceOf(user);
+        uint256 balanceIncrease =
+            _accrueDebtOnAction(user, previousScaledBalance, index);
+
+        // TODO is this still an issue without discount mechanism?
+        // https://governance.aave.com/t/temporarily-pausing-gho-integration-in-aave/14626/11
+        if (amount == balanceBeforeBurn) {
+            _burn(user, previousScaledBalance);
+        } else {
+            _burn(user, amountScaled);
+        }
+
+        if (balanceIncrease > amount) {
+            uint256 amountToMint = balanceIncrease - amount;
+            emit Transfer(address(0), user, amountToMint);
+            emit Mint(user, user, amountToMint, balanceIncrease, index);
+        } else {
+            uint256 amountToBurn = amount - balanceIncrease;
+            emit Transfer(user, address(0), amountToBurn);
+            emit Burn(user, target, amountToBurn, balanceIncrease, index);
+        }
     }
 
     /**
@@ -170,7 +190,10 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param user The address of the user
      * @param amount The value to be decrease
      */
-    function decreaseBalanceFromInterest(address user, uint256 amount) external onlyAToken {}
+    function decreaseBalanceFromInterest(address user, uint256 amount) external onlyAToken {
+        _userState[user].accumulatedDebtInterest =
+            (_userState[user].accumulatedDebtInterest - amount).toUint128();
+    }
 
     /**
      * @dev Returns the amount of interests accumulated by the user
