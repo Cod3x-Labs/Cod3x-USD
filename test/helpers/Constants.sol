@@ -6,9 +6,6 @@ import "forge-std/console.sol";
 
 
 contract Constants {
-    /// all chain
-    ICreateX public constant createx = ICreateX(address(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed)); // all chain
-
     address public immutable weth;
     address public immutable composableStablePoolFactory;
     address public immutable vault;
