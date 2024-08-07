@@ -149,8 +149,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     address public guardian = address(0x4);
     address public treasury = address(0x5);
 
-    CdxUSD public cdxUSD;
-    IERC20 public counterAsset;
+    CdxUSD public cdxUsd;
+    ERC20 public counterAsset;
 
     address[] public aggregators;
 
@@ -264,18 +264,18 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         /// ======= cdxUSD deploy =======
         {
             setUpEndpoints(2, LibraryType.UltraLightNode);
-            cdxUSD = CdxUSD(
+            cdxUsd = CdxUSD(
                 _deployOApp(
                     type(CdxUSD).creationCode,
                     abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
                 )
             );
-            cdxUSD.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
         }
 
         /// ======= Counter Asset deployments =======
         {
-            counterAsset = IERC20(address(new ERC20Mock(18)));
+            counterAsset = ERC20(address(new ERC20Mock(18)));
 
             weth = address(new ERC20Mock(18));
             wbtc = address(new ERC20Mock(6));
@@ -308,7 +308,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 deployedContracts.lendingPoolConfigurator,
                 deployedContracts.lendingPoolAddressesProvider
             );
-            mockedVaults = fixture_deployErc4626Mocks(tokens, address(deployedContracts.treasury));
+            // mockedVaults = fixture_deployErc4626Mocks(tokens, address(deployedContracts.treasury));
             erc20Tokens = fixture_getErc20Tokens(tokens);
             fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
         }
@@ -316,9 +316,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         /// ======= Faucet and Approve =======
         {
             vm.startPrank(userA);
-            cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
-            cdxUSD.mint(userB, INITIAL_CDXUSD_AMT);
-            cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
+            cdxUsd.mint(userA, INITIAL_CDXUSD_AMT);
+            cdxUsd.mint(userB, INITIAL_CDXUSD_AMT);
+            cdxUsd.mint(address(this), INITIAL_CDXUSD_AMT);
             vm.stopPrank();
 
             ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
@@ -326,11 +326,93 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             // MAX approve "vault" by all users
             for (uint160 i = 1; i <= 3; i++) {
                 vm.startPrank(address(i)); // address(0x1) == address(1)
-                cdxUSD.approve(vault, type(uint256).max);
+                cdxUsd.approve(vault, type(uint256).max);
                 counterAsset.approve(vault, type(uint256).max);
                 vm.stopPrank();
             }
         }
+    }
+
+    // ======= Cod3x USD =======
+    function fixture_configureCdxUsd(
+        address _lendingPool,
+        address _aToken,
+        address _variableDebtToken,
+        address _cdxUsdOracle,
+        address _cdxUsd,
+        address _interestStrategy,
+        ConfigAddresses memory configAddresses,
+        LendingPoolConfigurator lendingPoolConfiguratorProxy,
+        LendingPoolAddressesProvider lendingPoolAddressesProvider
+    ) public {
+        fixture_configureReservesCdxUsd(
+            configAddresses,
+            lendingPoolConfiguratorProxy,
+            lendingPoolAddressesProvider,
+            _aToken,
+            _variableDebtToken,
+            _cdxUsd,
+            _interestStrategy
+        );
+        address[] memory asset = new address[](1);
+        address[] memory aggregator = new address[](1);
+        asset[0] = _cdxUsd;
+        aggregator[0] = _cdxUsdOracle;
+        
+        oracle.setAssetSources(asset, aggregator);
+    }
+
+    function fixture_configureReservesCdxUsd(
+        ConfigAddresses memory configAddresses,
+        LendingPoolConfigurator lendingPoolConfigurator,
+        LendingPoolAddressesProvider lendingPoolAddressesProvider,
+        address _aTokenAddress,
+        address _variableDebtToken,
+        address _cdxUsd,
+        address _interestStrategy
+    ) public {
+        ILendingPoolConfigurator.InitReserveInput[] memory initInputParams =
+            new ILendingPoolConfigurator.InitReserveInput[](1);
+        ATokensAndRatesHelper.ConfigureReserveInput[] memory inputConfigParams =
+            new ATokensAndRatesHelper.ConfigureReserveInput[](1);
+
+        string memory tmpSymbol = ERC20(_cdxUsd).symbol();
+
+        initInputParams[0] = ILendingPoolConfigurator.InitReserveInput({
+            aTokenImpl: _aTokenAddress,
+            variableDebtTokenImpl: address(_variableDebtToken),
+            underlyingAssetDecimals: ERC20(_cdxUsd).decimals(),
+            interestRateStrategyAddress: _interestStrategy,
+            underlyingAsset: _cdxUsd,
+            reserveType: true,
+            treasury: configAddresses.treasury,
+            incentivesController: configAddresses.rewarder,
+            underlyingAssetName: tmpSymbol,
+            aTokenName: string.concat("Cod3x Lend ", tmpSymbol),
+            aTokenSymbol: string.concat("cl", tmpSymbol),
+            variableDebtTokenName: string.concat("Cod3x Lend variable debt bearing ", tmpSymbol),
+            variableDebtTokenSymbol: string.concat("variableDebt", tmpSymbol),
+            params: "0x10"
+        });
+
+        vm.prank(owner);
+        lendingPoolConfigurator.batchInitReserve(initInputParams);
+
+        inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
+            asset: _cdxUsd,
+            reserveType: true,
+            baseLTV: 8000,
+            liquidationThreshold: 8500,
+            liquidationBonus: 10500,
+            reserveFactor: 0,
+            borrowingEnabled: true
+        });
+
+        lendingPoolAddressesProvider.setPoolAdmin(configAddresses.aTokensAndRatesHelper);
+        ATokensAndRatesHelper(configAddresses.aTokensAndRatesHelper).configureReserves(
+            inputConfigParams
+        );
+        lendingPoolAddressesProvider.setPoolAdmin(owner);
     }
 
     // ======= Cod3x Lend =======

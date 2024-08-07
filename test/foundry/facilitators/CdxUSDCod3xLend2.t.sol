@@ -37,6 +37,16 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
 import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
+// CdxUSD
+import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
+import {CdxUsdIInterestRateStrategy} from
+    "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
+import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUsdOracle.sol";
+import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
+import {CdxUsdVariableDebtToken} from
+    "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
+import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
+
 contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
     bytes32 public poolId;
     address public poolAdd;
@@ -56,13 +66,20 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
     uint256 public indexCdxUsd;
     uint256 public indexCounterAsset;
 
+    // CdxUSD public cdxUsd;
+    CdxUsdIInterestRateStrategy public cdxUsdInterestRateStrategy;
+    CdxUsdOracle public cdxUsdOracle;
+    CdxUsdAToken public cdxUsdAToken;
+    CdxUsdVariableDebtToken public cdxUsdVariableDebtToken;
+    MockV3Aggregator public counterAssetPriceFeed;
+
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(forkIdEth);
 
         /// ======= Balancer Pool Deploy =======
         {
-            assets = [IERC20(address(cdxUSD)), counterAsset];
+            assets = [IERC20(address(cdxUsd)), IERC20(address(counterAsset))];
 
             // balancer stable pool creation
             (poolId, poolAdd) = createStablePool(assets, 2500, userA);
@@ -74,8 +91,8 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
             uint256 indexCounterAssetTemp;
             uint256 indexBtpTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-                if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
-                if (setupPoolTokens[i] == counterAsset) indexCounterAssetTemp = i;
+                if (setupPoolTokens[i] == cdxUsd) indexCdxUsdTemp = i;
+                if (setupPoolTokens[i] == IERC20(address(counterAsset))) indexCounterAssetTemp = i;
                 if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
             }
 
@@ -93,8 +110,10 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
 
             for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
-                if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
-                if (setupPoolTokensWithoutBTP[i] == counterAsset) indexCounterAsset = i;
+                if (setupPoolTokensWithoutBTP[i] == cdxUsd) indexCdxUsd = i;
+                if (setupPoolTokensWithoutBTP[i] == IERC20(address(counterAsset))) {
+                    indexCounterAsset = i;
+                }
             }
         }
 
@@ -127,9 +146,9 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
             );
 
             rewarder =
-                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD)));
-            IERC20(cdxUSD).approve(address(reliquary), type(uint256).max);
-            IERC20(cdxUSD).approve(address(rewarder), type(uint256).max);
+                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd)));
+            IERC20(cdxUsd).approve(address(reliquary), type(uint256).max);
+            IERC20(cdxUsd).approve(address(rewarder), type(uint256).max);
         }
 
         /// ========== scdxUSD Vault Strategy Deploy ===========
@@ -168,7 +187,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 ownerArr1,
                 ownerArr,
                 ownerArr1,
-                address(cdxUSD),
+                address(cdxUsd),
                 address(reliquary),
                 address(poolAdd),
                 poolId
@@ -181,6 +200,40 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
             // console.log(address(poolAdd));
 
             cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
+        }
+
+        // ======= cdxUSD Cod3x Lend dependencies deploy and configure =======
+        {
+            cdxUsdAToken = new CdxUsdAToken();
+            cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
+            cdxUsdOracle = new CdxUsdOracle();
+            cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
+                address(deployedContracts.lendingPoolAddressesProvider),
+                address(cdxUsd),
+                true,
+                vault, // balancerVault,
+                poolId,
+                -80e25,
+                1728000,
+                13e19,
+                owner
+            );
+            counterAssetPriceFeed = new MockV3Aggregator(counterAsset.decimals(), 1e18);
+            cdxUsdInterestRateStrategy.setOracleValues(
+                address(counterAssetPriceFeed), counterAsset.decimals(), 1e26, 86400
+            );
+
+            fixture_configureCdxUsd(
+                address(deployedContracts.lendingPool),
+                address(cdxUsdAToken),
+                address(cdxUsdVariableDebtToken),
+                address(cdxUsdOracle),
+                address(cdxUsd),
+                address(cdxUsdInterestRateStrategy),
+                configAddresses,
+                deployedContracts.lendingPoolConfigurator,
+                deployedContracts.lendingPoolAddressesProvider
+            );
         }
 
         // MAX approve "cod3xVault" by all users
@@ -206,7 +259,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         assertEq(reliquary.isApprovedOrOwner(address(strategy), RELIC_ID), true);
 
         // strategy
-        assertEq(address(strategy.cdxUSD()), address(cdxUSD));
+        assertEq(address(strategy.cdxUSD()), address(cdxUsd));
         assertEq(address(strategy.reliquary()), address(reliquary));
         assertEq(address(strategy.balancerVault()), address(vault));
         assertNotEq(strategy.cdxUsdIndex(), type(uint256).max);
