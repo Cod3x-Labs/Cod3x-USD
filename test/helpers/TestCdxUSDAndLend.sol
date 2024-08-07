@@ -98,7 +98,11 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     uint32 bEid = 2;
     uint256 public forkIdEth;
 
-    address[] public tokens; // [WBTC, WETH, DAI];
+    address[] public tokens; // = [wbtc, weth, dai];
+    ERC20[] erc20Tokens;
+    DeployedContracts deployedContracts;
+    ConfigAddresses configAddresses;
+
     uint256[] public rates = [0.039e27, 0.03e27, 0.03e27]; //usdc, wbtc, eth
     uint256[] public volStrat = [
         VOLATILE_OPTIMAL_UTILIZATION_RATE,
@@ -112,8 +116,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         STABLE_VARIABLE_RATE_SLOPE_1,
         STABLE_VARIABLE_RATE_SLOPE_2
     ]; // optimalUtilizationRate, baseVariableBorrowRate, variableRateSlope1, variableRateSlope2
-    bool[] public isStableStrategy = [true, false, false, true];
-    bool[] public reserveTypes = [true, true, true, true];
+    bool[] public isStableStrategy = [false, false, true];
+    bool[] public reserveTypes = [true, true, true];
 
     // Protocol deployment variables
     uint256 providerId = 1;
@@ -155,6 +159,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     uint128 public constant DEFAULT_CAPACITY = 100_000_000e18;
     uint128 public constant INITIAL_CDXUSD_AMT = 10_000_000e18;
     uint128 public constant INITIAL_COUNTER_ASSET_AMT = 10_000_000e18;
+    uint128 public constant INITIAL_AMT = 1_000_000e18;
 
     address public constant ZERO_ADDRESS = address(0);
     address public constant BASE_CURRENCY = address(0);
@@ -189,6 +194,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         uint256 variableBorrowIndex;
         uint40 lastUpdateTimestamp;
     }
+
     struct ConfigAddresses {
         address protocolDataProvider;
         address stableStrategy;
@@ -237,21 +243,57 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         vm.deal(userB, INITIAL_ETH_MINT);
         vm.deal(userC, INITIAL_ETH_MINT);
 
-        setUpEndpoints(2, LibraryType.UltraLightNode);
-        cdxUSD = CdxUSD(
-            _deployOApp(
-                type(CdxUSD).creationCode,
-                abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
-            )
-        );
-        cdxUSD.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+        /// ======= cdxUSD deploy =======
+        {
+            setUpEndpoints(2, LibraryType.UltraLightNode);
+            cdxUSD = CdxUSD(
+                _deployOApp(
+                    type(CdxUSD).creationCode,
+                    abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
+                )
+            );
+            cdxUSD.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+        }
 
-        counterAsset = IERC20(address(new ERC20Mock{salt: "1"}(18)));
+        /// ======= Counter Asset deployments =======
+        {
+            counterAsset = IERC20(address(new ERC20Mock(18)));
 
-        /// initial mint
-        ERC20Mock(address(counterAsset)).mint(userA, INITIAL_COUNTER_ASSET_AMT);
-        ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
-        ERC20Mock(address(counterAsset)).mint(userC, INITIAL_COUNTER_ASSET_AMT);
+            weth = address(new ERC20Mock(18));
+            wbtc = address(new ERC20Mock(6));
+            dai = address(new ERC20Mock(18));
+            tokens.push(wbtc);
+            tokens.push(weth);
+            tokens.push(dai);
+
+            /// initial mint
+            ERC20Mock(address(counterAsset)).mint(userA, INITIAL_COUNTER_ASSET_AMT);
+            ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
+            ERC20Mock(address(counterAsset)).mint(userC, INITIAL_COUNTER_ASSET_AMT);
+        }
+
+        /// ======= Cod3x Lend deploy =======
+        {
+            deployedContracts = fixture_deployProtocol();
+            configAddresses = ConfigAddresses(
+                address(deployedContracts.protocolDataProvider),
+                address(deployedContracts.stableStrategy),
+                address(deployedContracts.volatileStrategy),
+                address(deployedContracts.treasury),
+                address(deployedContracts.rewarder),
+                address(deployedContracts.aTokensAndRatesHelper)
+            );
+            fixture_configureProtocol(
+                address(deployedContracts.lendingPool),
+                address(aToken),
+                configAddresses,
+                deployedContracts.lendingPoolConfigurator,
+                deployedContracts.lendingPoolAddressesProvider
+            );
+            mockedVaults = fixture_deployErc4626Mocks(tokens, address(deployedContracts.treasury));
+            erc20Tokens = fixture_getErc20Tokens(tokens);
+            fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
+        }
 
         vm.startPrank(userA); 
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
@@ -538,6 +580,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         _priceFeedMocks = new MockAggregator[](_tokens.length);
         _aggregators = new address[](_tokens.length);
         for (uint32 idx; idx < _tokens.length; idx++) {
+            console.log("tokennnnnn : ", (uint256(_tokens[idx].decimals())));
             _priceFeedMocks[idx] =
                 new MockAggregator(_prices[idx], int256(uint256(_tokens[idx].decimals())));
             _aggregators[idx] = address(_priceFeedMocks[idx]);
@@ -567,6 +610,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             console.log("_toGiveInUsd:", _toGiveInUsd);
             uint256 rawGive = (_toGiveInUsd / price) * 10 ** PRICE_FEED_DECIMALS;
             console.log("rawGive:", rawGive);
+            console.log("rawGive:", _tokens[idx].symbol());
             console.log(
                 "Distributed %s of %s",
                 rawGive / (10 ** (18 - _tokens[idx].decimals())),
