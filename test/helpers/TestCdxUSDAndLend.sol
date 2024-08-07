@@ -177,7 +177,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     uint128 public constant DEFAULT_CAPACITY = 100_000_000e18;
     uint128 public constant INITIAL_CDXUSD_AMT = 10_000_000e18;
     uint128 public constant INITIAL_COUNTER_ASSET_AMT = 10_000_000e18;
-    uint128 public constant INITIAL_AMT = 1_000_000e18;
+    uint128 public constant INITIAL_AMT = 100_000 ether;
 
     address public constant ZERO_ADDRESS = address(0);
     address public constant BASE_CURRENCY = address(0);
@@ -358,7 +358,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         address[] memory aggregator = new address[](1);
         asset[0] = _cdxUsd;
         aggregator[0] = _cdxUsdOracle;
-        
+
         oracle.setAssetSources(asset, aggregator);
     }
 
@@ -683,7 +683,6 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         _priceFeedMocks = new MockAggregator[](_tokens.length);
         _aggregators = new address[](_tokens.length);
         for (uint32 idx; idx < _tokens.length; idx++) {
-            console.log("tokennnnnn : ", (uint256(_tokens[idx].decimals())));
             _priceFeedMocks[idx] =
                 new MockAggregator(_prices[idx], int256(uint256(_tokens[idx].decimals())));
             _aggregators[idx] = address(_priceFeedMocks[idx]);

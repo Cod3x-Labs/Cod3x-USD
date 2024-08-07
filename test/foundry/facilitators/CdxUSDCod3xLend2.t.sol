@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
+// Cod3x Lend
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
+import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
+import "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+
+import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
+import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";
+// import {ReserveBorrowConfiguration} from  "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
+
+// Balancer
 import {
     IVault,
     JoinKind,
@@ -47,7 +57,26 @@ import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
 
+/// events
+event Deposit(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount);
+
+event Withdraw(address indexed reserve, address indexed user, address indexed to, uint256 amount);
+
+event Borrow(
+    address indexed reserve,
+    address user,
+    address indexed onBehalfOf,
+    uint256 amount,
+    uint256 borrowRate
+);
+
+event Repay(address indexed reserve, address indexed user, address indexed repayer, uint256 amount);
+
 contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
+    using WadRayMath for uint256;
+    // using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
+    // using ReserveBorrowConfiguration for DataTypes.ReserveBorrowConfigurationMap;
+
     bytes32 public poolId;
     address public poolAdd;
     IERC20[] public assets;
@@ -234,6 +263,12 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 deployedContracts.lendingPoolConfigurator,
                 deployedContracts.lendingPoolAddressesProvider
             );
+
+            cdxUsd.addFacilitator(
+                deployedContracts.lendingPool.getReserveData(address(cdxUsd), true).aTokenAddress,
+                "Cod3x Lend",
+                DEFAULT_CAPACITY
+            );
         }
 
         // MAX approve "cod3xVault" by all users
@@ -243,29 +278,63 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         }
     }
 
-    function testVariables() public {
-        // reliquary
-        assertEq(reliquary.emissionRate(), 0);
-        assertEq(rewarder.distributionPeriod(), 7 days);
+    // classical deposit/withdraw without cdxUSD
+    function testDepositsAndWithdrawals(uint256 amount) public {
+        address user = makeAddr("user");
 
-        // vault
-        assertEq(cod3xVault.tvlCap(), type(uint256).max);
-        assertEq(cod3xVault.managementFeeCapBPS(), 0);
-        assertEq(cod3xVault.tvlCap(), type(uint256).max);
-        assertEq(cod3xVault.totalAllocBPS(), 10_000);
-        assertEq(cod3xVault.totalAllocated(), 0);
-        assertEq(cod3xVault.emergencyShutdown(), false);
-        assertEq(address(cod3xVault.token()), poolAdd);
-        assertEq(reliquary.isApprovedOrOwner(address(strategy), RELIC_ID), true);
+        for (uint32 idx = 0; idx < aTokens.length; idx++) {
+            uint256 _userGrainBalanceBefore = aTokens[idx].balanceOf(address(user));
+            uint256 _thisBalanceTokenBefore = erc20Tokens[idx].balanceOf(address(this));
+            amount = bound(amount, 10_000, erc20Tokens[idx].balanceOf(address(this)));
 
-        // strategy
-        assertEq(address(strategy.cdxUSD()), address(cdxUsd));
-        assertEq(address(strategy.reliquary()), address(reliquary));
-        assertEq(address(strategy.balancerVault()), address(vault));
-        assertNotEq(strategy.cdxUsdIndex(), type(uint256).max);
-        assertEq(strategy.minBPTAmountOut(), 1);
-        assertEq(strategy.want(), poolAdd);
-        assertEq(strategy.vault(), address(cod3xVault));
-        assertEq(address(strategy.swapper()), address(0));
+            /* Deposit on behalf of user */
+            erc20Tokens[idx].approve(address(deployedContracts.lendingPool), amount);
+            vm.expectEmit(true, true, true, true);
+            emit Deposit(address(erc20Tokens[idx]), address(this), user, amount);
+            deployedContracts.lendingPool.deposit(address(erc20Tokens[idx]), true, amount, user);
+            assertEq(_thisBalanceTokenBefore, erc20Tokens[idx].balanceOf(address(this)) + amount);
+            assertEq(_userGrainBalanceBefore + amount, aTokens[idx].balanceOf(address(user)));
+
+            /* User shall be able to withdraw underlying tokens */
+            vm.startPrank(user);
+            vm.expectEmit(true, true, true, true);
+            emit Withdraw(address(erc20Tokens[idx]), user, user, amount);
+            deployedContracts.lendingPool.withdraw(address(erc20Tokens[idx]), true, amount, user);
+            vm.stopPrank();
+            assertEq(amount, erc20Tokens[idx].balanceOf(user));
+            assertEq(_userGrainBalanceBefore, aTokens[idx].balanceOf(address(this)));
+        }
+    }
+
+    function testCdxUsdBorrow() public {
+        address user = makeAddr("user");
+        uint256 amount = 1e18;
+
+        uint256 _userAWethBalanceBefore = aTokens[1].balanceOf(address(user));
+        uint256 _thisWethBalanceBefore = erc20Tokens[1].balanceOf(address(this));
+
+        // Deposit weth on behalf of user
+        erc20Tokens[1].approve(address(deployedContracts.lendingPool), amount);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(address(erc20Tokens[1]), address(this), user, amount);
+        deployedContracts.lendingPool.deposit(address(erc20Tokens[1]), true, amount, user);
+
+        assertEq(_thisWethBalanceBefore, erc20Tokens[1].balanceOf(address(this)) + amount);
+        assertEq(_userAWethBalanceBefore + amount, aTokens[1].balanceOf(address(user)));
+
+        // Borrow/Mint cdxUSD
+        uint256 amountMintCdxUsd = 1000e18;
+        vm.startPrank(user);
+        deployedContracts.lendingPool.borrow(address(cdxUsd), true, amountMintCdxUsd, user);
+        assertEq(amountMintCdxUsd, cdxUsd.balanceOf(user));
+
+        // /* User shall be able to withdraw underlying tokens */
+        // vm.startPrank(user);
+        // vm.expectEmit(true, true, true, true);
+        // emit Withdraw(address(erc20Tokens[idx]), user, user, amount);
+        // deployedContracts.lendingPool.withdraw(address(erc20Tokens[idx]), true, amount, user);
+        // vm.stopPrank();
+        // assertEq(amount, erc20Tokens[idx].balanceOf(user));
+        // assertEq(_userGrainBalanceBefore, aTokens[idx].balanceOf(address(this)));
     }
 }
