@@ -47,7 +47,12 @@ import {
     ComposableStablePool
 } from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+import {
+    IVault,
+    JoinKind,
+    ExitKind,
+    SwapKind
+} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
 import "forge-std/console.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
@@ -107,7 +112,7 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         ERC20Mock(address(usdc)).mint(userC, INITIAL_USDC_AMT);
         ERC20Mock(address(usdt)).mint(userC, INITIAL_USDT_AMT);
 
-        vm.startPrank(userA); 
+        vm.startPrank(userA);
         cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
         cdxUSD.mint(userB, INITIAL_CDXUSD_AMT);
         cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
@@ -125,23 +130,23 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
             vm.stopPrank();
         }
     }
-    function createStablePool(        
-        IERC20[] memory assets,
-        uint256 amplificationParameter,
-        address owner
-    ) public returns (bytes32, address) {
+
+    function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
+        public
+        returns (bytes32, address)
+    {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
         tokens = sort(assets);
 
         IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
-        for (uint i = 0; i < assets.length; i++) {
+        for (uint256 i = 0; i < assets.length; i++) {
             rateProviders[i] = IRateProvider(address(0));
-        }   
+        }
 
         uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
-        for (uint i = 0; i < assets.length; i++) {
+        for (uint256 i = 0; i < assets.length; i++) {
             tokenRateCacheDurations[i] = uint256(0);
         }
 
@@ -163,8 +168,17 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         return (stablePool.getPoolId(), address(stablePool));
     }
 
-    function joinPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256[] memory amounts, address user, JoinKind kind) public {
-        require(kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, "Operation not supported");
+    function joinPool(
+        bytes32 poolId,
+        IERC20[] memory setupPoolTokens,
+        uint256[] memory amounts,
+        address user,
+        JoinKind kind
+    ) public {
+        require(
+            kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
+            "Operation not supported"
+        );
 
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
         uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
@@ -172,12 +186,12 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
 
         IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             assetsIAsset[i] = IAsset(address(tokens[i]));
         }
-        
+
         uint256[] memory maxAmounts = new uint256[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             maxAmounts[i] = type(uint256).max;
         }
 
@@ -185,16 +199,23 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         request.assets = assetsIAsset;
         request.maxAmountsIn = maxAmounts;
         request.fromInternalBalance = false;
-        if (kind == JoinKind.INIT)
+        if (kind == JoinKind.INIT) {
             request.userData = abi.encode(kind, amountsToAdd);
-        else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT)
+        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
             request.userData = abi.encode(kind, amountsToAdd, 0);
-        
+        }
+
         vm.prank(user);
         IVault(vault).joinPool(poolId, user, user, request);
     }
 
-    function exitPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256 amount, address user, ExitKind kind) public {
+    function exitPool(
+        bytes32 poolId,
+        IERC20[] memory setupPoolTokens,
+        uint256 amount,
+        address user,
+        ExitKind kind
+    ) public {
         require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
 
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
@@ -202,12 +223,12 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         tokens = sort(setupPoolTokens);
 
         IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             assetsIAsset[i] = IAsset(address(tokens[i]));
         }
-        
+
         uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             minAmountsOut[i] = 0;
         }
 
@@ -221,7 +242,16 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         IVault(vault).exitPool(poolId, user, payable(user), request);
     }
 
-    function swap(bytes32 poolId, address user, address assetIn, address assetOut, uint256 amount, uint256 limit, uint256 deadline, SwapKind kind) public {
+    function swap(
+        bytes32 poolId,
+        address user,
+        address assetIn,
+        address assetOut,
+        uint256 amount,
+        uint256 limit,
+        uint256 deadline,
+        SwapKind kind
+    ) public {
         require(kind == SwapKind.GIVEN_IN, "Operation not supported");
 
         IVault.SingleSwap memory singleSwap;
@@ -241,5 +271,4 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         vm.prank(user);
         IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
     }
-
 }

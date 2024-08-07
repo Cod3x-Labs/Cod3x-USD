@@ -44,7 +44,6 @@ import
 import "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
 import "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolCollateralManager.sol";
 
-
 struct ReserveDataParams {
     uint256 availableLiquidity;
     uint256 totalVariableDebt;

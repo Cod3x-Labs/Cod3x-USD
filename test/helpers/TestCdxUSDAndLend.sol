@@ -11,32 +11,45 @@ import {UiPoolDataProviderV2} from "lib/Cod3x-Lend/contracts/misc/UiPoolDataProv
 import {WETHGateway} from "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
 import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ReserveLogic.sol";
 import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/libraries/logic/GenericLogic.sol";
-import {ValidationLogic} from "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ValidationLogic.sol";
-import {LendingPoolAddressesProvider} from "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
-import {LendingPoolAddressesProviderRegistry} from "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
-import {DefaultReserveInterestRateStrategy} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
+import {ValidationLogic} from
+    "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ValidationLogic.sol";
+import {LendingPoolAddressesProvider} from
+    "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
+import {LendingPoolAddressesProviderRegistry} from
+    "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
+import {DefaultReserveInterestRateStrategy} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
 import {LendingPool} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPool.sol";
-import {LendingPoolCollateralManager} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolCollateralManager.sol";
-import {LendingPoolConfigurator} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolConfigurator.sol";
+import {LendingPoolCollateralManager} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolCollateralManager.sol";
+import {LendingPoolConfigurator} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolConfigurator.sol";
 import {MiniPool} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPool.sol";
-import {MiniPoolAddressesProvider} from "lib/Cod3x-Lend/contracts/protocol/configuration/MiniPoolAddressProvider.sol";
-import {MiniPoolConfigurator} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolConfigurator.sol";
+import {MiniPoolAddressesProvider} from
+    "lib/Cod3x-Lend/contracts/protocol/configuration/MiniPoolAddressProvider.sol";
+import {MiniPoolConfigurator} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolConfigurator.sol";
 import {flowLimiter} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/FlowLimiter.sol";
 import {ATokensAndRatesHelper} from "lib/Cod3x-Lend/contracts/deployments/ATokensAndRatesHelper.sol";
 import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
-import {ATokenERC6909} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC6909/ATokenERC6909.sol";
-import {VariableDebtToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+import {ATokenERC6909} from
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC6909/ATokenERC6909.sol";
+import {VariableDebtToken} from
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
 import {MintableERC20} from "lib/Cod3x-Lend/contracts/mocks/tokens/MintableERC20.sol";
 import {WETH9Mocked} from "lib/Cod3x-Lend/contracts/mocks/tokens/WETH9Mocked.sol";
-import {MockAggregator} from "lib/Cod3x-Lend/contracts/mocks/oracle/CLAggregators/MockAggregator.sol";
+import {MockAggregator} from
+    "lib/Cod3x-Lend/contracts/mocks/oracle/CLAggregators/MockAggregator.sol";
 import {MockERC4626} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
 import {ExternalContract} from "lib/Cod3x-Lend/contracts/mocks/tokens/ExternalContract.sol";
 import {IStrategy} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IStrategy.sol";
 import {IExternalContract} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IExternalContract.sol";
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
-import {MiniPoolDefaultReserveInterestRateStrategy} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolDefaultReserveInterestRate.sol";
+import {MiniPoolDefaultReserveInterestRateStrategy} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolDefaultReserveInterestRate.sol";
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
-import {MiniPoolCollateralManager} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolCollateralManager.sol";
+import {MiniPoolCollateralManager} from
+    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolCollateralManager.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
@@ -88,7 +101,12 @@ import {
     ComposableStablePool
 } from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+import {
+    IVault,
+    JoinKind,
+    ExitKind,
+    SwapKind
+} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
 import "forge-std/console.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
@@ -295,20 +313,23 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
         }
 
-        vm.startPrank(userA); 
-        cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
-        cdxUSD.mint(userB, INITIAL_CDXUSD_AMT);
-        cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
-        vm.stopPrank();
-
-        ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
-
-        // MAX approve "vault" by all users
-        for (uint160 i = 1; i <= 3; i++) {
-            vm.startPrank(address(i)); // address(0x1) == address(1)
-            cdxUSD.approve(vault, type(uint256).max);
-            counterAsset.approve(vault, type(uint256).max);
+        /// ======= Faucet and Approve =======
+        {
+            vm.startPrank(userA);
+            cdxUSD.mint(userA, INITIAL_CDXUSD_AMT);
+            cdxUSD.mint(userB, INITIAL_CDXUSD_AMT);
+            cdxUSD.mint(address(this), INITIAL_CDXUSD_AMT);
             vm.stopPrank();
+
+            ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
+
+            // MAX approve "vault" by all users
+            for (uint160 i = 1; i <= 3; i++) {
+                vm.startPrank(address(i)); // address(0x1) == address(1)
+                cdxUSD.approve(vault, type(uint256).max);
+                counterAsset.approve(vault, type(uint256).max);
+                vm.stopPrank();
+            }
         }
     }
 
@@ -849,23 +870,22 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     }
 
     // ======= Balancer =======
-    function createStablePool(        
-        IERC20[] memory assets,
-        uint256 amplificationParameter,
-        address owner
-    ) public returns (bytes32, address) {
+    function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
+        public
+        returns (bytes32, address)
+    {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
         tokens = sort(assets);
 
         IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
-        for (uint i = 0; i < assets.length; i++) {
+        for (uint256 i = 0; i < assets.length; i++) {
             rateProviders[i] = IRateProvider(address(0));
-        }   
+        }
 
         uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
-        for (uint i = 0; i < assets.length; i++) {
+        for (uint256 i = 0; i < assets.length; i++) {
             tokenRateCacheDurations[i] = uint256(0);
         }
 
@@ -887,8 +907,17 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         return (stablePool.getPoolId(), address(stablePool));
     }
 
-    function joinPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256[] memory amounts, address user, JoinKind kind) public {
-        require(kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT, "Operation not supported");
+    function joinPool(
+        bytes32 poolId,
+        IERC20[] memory setupPoolTokens,
+        uint256[] memory amounts,
+        address user,
+        JoinKind kind
+    ) public {
+        require(
+            kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
+            "Operation not supported"
+        );
 
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
         uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
@@ -896,12 +925,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
 
         IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             assetsIAsset[i] = IAsset(address(tokens[i]));
         }
-        
+
         uint256[] memory maxAmounts = new uint256[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             maxAmounts[i] = type(uint256).max;
         }
 
@@ -909,16 +938,23 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         request.assets = assetsIAsset;
         request.maxAmountsIn = maxAmounts;
         request.fromInternalBalance = false;
-        if (kind == JoinKind.INIT)
+        if (kind == JoinKind.INIT) {
             request.userData = abi.encode(kind, amountsToAdd);
-        else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT)
+        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
             request.userData = abi.encode(kind, amountsToAdd, 0);
-        
+        }
+
         vm.prank(user);
         IVault(vault).joinPool(poolId, user, user, request);
     }
 
-    function exitPool(bytes32 poolId, IERC20[] memory setupPoolTokens, uint256 amount, address user, ExitKind kind) public {
+    function exitPool(
+        bytes32 poolId,
+        IERC20[] memory setupPoolTokens,
+        uint256 amount,
+        address user,
+        ExitKind kind
+    ) public {
         require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
 
         IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
@@ -926,12 +962,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         tokens = sort(setupPoolTokens);
 
         IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             assetsIAsset[i] = IAsset(address(tokens[i]));
         }
-        
+
         uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
-        for (uint i = 0; i < setupPoolTokens.length; i++) {
+        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
             minAmountsOut[i] = 0;
         }
 
@@ -945,7 +981,16 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         IVault(vault).exitPool(poolId, user, payable(user), request);
     }
 
-    function swap(bytes32 poolId, address user, address assetIn, address assetOut, uint256 amount, uint256 limit, uint256 deadline, SwapKind kind) public {
+    function swap(
+        bytes32 poolId,
+        address user,
+        address assetIn,
+        address assetOut,
+        uint256 amount,
+        uint256 limit,
+        uint256 deadline,
+        SwapKind kind
+    ) public {
         require(kind == SwapKind.GIVEN_IN, "Operation not supported");
 
         IVault.SingleSwap memory singleSwap;
@@ -965,5 +1010,4 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         vm.prank(user);
         IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
     }
-
 }
