@@ -137,6 +137,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
         }
 
+        // _errI = 13e19 * 1000000;
         // TODO checks
         // - _balancerVault and poolId compatibility with other contracts.
         // - check minium pool balance

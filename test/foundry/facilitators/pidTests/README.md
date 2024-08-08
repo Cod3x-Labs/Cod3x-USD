@@ -37,22 +37,4 @@ sudo chmod +x execSimualtion.sh
 ```
 
 ## Tune
-Stablecoin market:
-M_FACTOR = 120e25; // x * y = k, 80 * 120 = 9600
-N_FACTOR = 4;
-
--80e25, // minControllerError // negative amplitude of optimal (more volatile = lower optimal = high minimum)
-80e25, // optimalUtilizationRate // guides the tune
-1e27, // Kp
-13e19, // Ki
-0 // Kd
-
-Volatile market:
-M_FACTOR = 192e25; // y = k / x, 9600 / 50 = 192
-N_FACTOR = 4; // remains constant
-
--50e25, // minControllerError // negative amplitude of optimal
-50e25, // optimalUtilizationRate // guides the tune
-1e27, // Kp // remains 1e27
-13e19, // Ki // can remain constant tbh, otherwise x * y = k applies also
-0 // Kd
+TODO

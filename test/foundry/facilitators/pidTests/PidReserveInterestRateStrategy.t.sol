@@ -23,13 +23,23 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         super.setUp();
 
         /// users
-        for (uint256 i = 0; i < 4; i++) {
+        for (uint256 i = 0; i < nbUsers; i++) {
             users.push(vm.addr(i + 1));
             for (uint256 j = 0; j < erc20Tokens.length; j++) {
                 if (address(erc20Tokens[j]) != address(cdxUsd)) {
                     deal(address(erc20Tokens[j]), users[i], initialAmt);
                 }
             }
+        }
+
+        /// Mint counter asset and approve Balancer vault
+        for (uint256 i = 0; i < nbUsers; i++) {
+            ERC20Mock(address(counterAsset)).mint(users[i], initialAmt);
+            vm.startPrank(users[i]);
+            ERC20Mock(address(counterAsset)).approve(vault, type(uint256).max);
+            ERC20Mock(address(cdxUsd)).approve(vault, type(uint256).max);
+            vm.stopPrank();
+
         }
 
         /// file setup
@@ -56,15 +66,15 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         ERC20 cdxusd = erc20Tokens[3]; // daiPrice =  1,00000000$
 
         deposit(users[0], wbtc, 2e8);
-        deposit(users[1], wbtc, 20e8);
+        deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], cdxusd, 5000e18);
+        borrow(users[1], cdxusd, 9_000_000e18);
         plateau(200);
         borrow(users[1], cdxusd, 500e18);
+        swapBalancer(users[1], cdxusd, 9_000_000e18);
         plateau(200);
         repay(users[1], cdxusd, 500e18);
-
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -116,6 +126,19 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             borrow(users[0], erc20Tokens[3], 1);
             repay(users[0], erc20Tokens[3], 1);
         }
+    }
+
+    function swapBalancer(address user, ERC20 assetIn, uint256 amt) public {
+        swap(
+            poolId,
+            user,
+            address(assetIn),
+            address(assetIn) == address(cdxUsd) ? address(counterAsset) : address(cdxUsd),
+            amt,
+            0,
+            block.timestamp,
+            SwapKind.GIVEN_IN
+        );
     }
 
     function logg(address user, uint256 action, address asset) public {
