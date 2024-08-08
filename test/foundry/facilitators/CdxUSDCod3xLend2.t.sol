@@ -6,6 +6,9 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
+import {VariableDebtToken} from
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
 
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";
@@ -247,7 +250,8 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 13e19,
                 owner
             );
-            counterAssetPriceFeed = new MockV3Aggregator(counterAsset.decimals(), int256(1 * 10 ** PRICE_FEED_DECIMALS));
+            counterAssetPriceFeed =
+                new MockV3Aggregator(counterAsset.decimals(), int256(1 * 10 ** PRICE_FEED_DECIMALS));
             cdxUsdInterestRateStrategy.setOracleValues(
                 address(counterAssetPriceFeed), counterAsset.decimals(), 1e26, 86400
             );
@@ -269,6 +273,18 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 "Cod3x Lend",
                 DEFAULT_CAPACITY
             );
+
+            tokens.push(address(cdxUsd));
+            erc20Tokens.push(ERC20(address(cdxUsd)));
+            // console.log("Index: ", idx);
+            (address _aTokenAddress,) = deployedContracts
+                .protocolDataProvider
+                .getReserveTokensAddresses(address(cdxUsd), true);
+            aTokens.push(AToken(_aTokenAddress));
+            (, address _variableDebtToken) = deployedContracts
+                .protocolDataProvider
+                .getReserveTokensAddresses(address(cdxUsd), true);
+            variableDebtTokens.push(VariableDebtToken(_variableDebtToken));
         }
 
         // MAX approve "cod3xVault" by all users
@@ -282,7 +298,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
     function testDepositsAndWithdrawals(uint256 amount) public {
         address user = makeAddr("user");
 
-        for (uint32 idx = 0; idx < aTokens.length; idx++) {
+        for (uint32 idx = 0; idx < aTokens.length - 1; idx++) {
             uint256 _userGrainBalanceBefore = aTokens[idx].balanceOf(address(user));
             uint256 _thisBalanceTokenBefore = erc20Tokens[idx].balanceOf(address(this));
             amount = bound(amount, 10_000, erc20Tokens[idx].balanceOf(address(this)));
@@ -370,9 +386,6 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         assertEq(amountMintCdxUsd, balanceUserBefore);
         (uint256 totalCollateralETH, uint256 totalDebtETH,,,, uint256 healthFactor1) =
             deployedContracts.lendingPool.getUserAccountData(user);
-        console.log("totalCollateralETH = ", totalCollateralETH);
-        console.log("totalDebtETH = ", totalDebtETH);
-        console.log("getReservesCount = ", deployedContracts.lendingPool.getReservesCount());
 
         vm.startPrank(user);
         cdxUsd.approve(address(deployedContracts.lendingPool), type(uint256).max);
@@ -380,5 +393,84 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         (,,,,, uint256 healthFactor2) = deployedContracts.lendingPool.getUserAccountData(user);
         assertGt(healthFactor2, healthFactor1);
         assertGt(balanceUserBefore, cdxUsd.balanceOf(user));
+    }
+
+    function testBorrowRepay() public {
+        address user = makeAddr("user");
+
+        ERC20 dai = erc20Tokens[2];
+        ERC20 wbtc = erc20Tokens[1];
+        uint256 daiDepositAmount = 5000e18; /* $5k */ // consider fuzzing here
+
+        uint256 wbtcPrice = oracle.getAssetPrice(address(wbtc));
+        uint256 daiPrice = oracle.getAssetPrice(address(dai));
+        uint256 daiDepositValue = daiDepositAmount * daiPrice / (10 ** PRICE_FEED_DECIMALS);
+        (, uint256 daiLtv,,,,,,,) =
+            deployedContracts.protocolDataProvider.getReserveConfigurationData(address(dai), true);
+        uint256 wbtcMaxBorrowAmountWithDaiCollateral;
+        {
+            uint256 daiMaxBorrowValue = daiLtv * daiDepositValue / 10_000;
+
+            uint256 wbtcMaxBorrowAmountRay = daiMaxBorrowValue.rayDiv(wbtcPrice);
+            wbtcMaxBorrowAmountWithDaiCollateral = fixture_preciseConvertWithDecimals(
+                wbtcMaxBorrowAmountRay, dai.decimals(), wbtc.decimals()
+            );
+            // (daiMaxBorrowValue * 10 ** PRICE_FEED_DECIMALS) / wbtcPrice;
+        }
+        require(
+            wbtc.balanceOf(address(this)) > wbtcMaxBorrowAmountWithDaiCollateral, "Too less wbtc"
+        );
+        uint256 wbtcDepositAmount = wbtcMaxBorrowAmountWithDaiCollateral * 15 / 10;
+
+        /* Main user deposits Dai and wants to borrow */
+        dai.approve(address(deployedContracts.lendingPool), daiDepositAmount);
+        deployedContracts.lendingPool.deposit(address(dai), true, daiDepositAmount, address(this));
+
+        /* Other user deposits wbtc thanks to that there is enough funds to borrow */
+        wbtc.approve(address(deployedContracts.lendingPool), wbtcDepositAmount);
+        deployedContracts.lendingPool.deposit(address(wbtc), true, wbtcDepositAmount, user);
+
+        uint256 wbtcBalanceBeforeBorrow = wbtc.balanceOf(address(this));
+
+        (,,,, uint256 reserveFactors,,,,) =
+            deployedContracts.protocolDataProvider.getReserveConfigurationData(address(wbtc), true);
+        (, uint256 expectedBorrowRate) = deployedContracts.volatileStrategy.calculateInterestRates(
+            address(wbtc),
+            address(aTokens[1]),
+            0,
+            wbtcMaxBorrowAmountWithDaiCollateral,
+            wbtcMaxBorrowAmountWithDaiCollateral,
+            reserveFactors
+        );
+
+        /* Main user borrows maxPossible amount of wbtc */
+        vm.expectEmit(true, true, true, true);
+        emit Borrow(
+            address(wbtc),
+            address(this),
+            address(this),
+            wbtcMaxBorrowAmountWithDaiCollateral,
+            expectedBorrowRate
+        );
+        deployedContracts.lendingPool.borrow(
+            address(wbtc), true, wbtcMaxBorrowAmountWithDaiCollateral, address(this)
+        );
+        /* Main user's balance should be: initial amount + borrowed amount */
+        assertEq(
+            wbtcBalanceBeforeBorrow + wbtcMaxBorrowAmountWithDaiCollateral,
+            wbtc.balanceOf(address(this))
+        );
+
+        /* Main user repays his debt */
+        wbtc.approve(address(deployedContracts.lendingPool), wbtcMaxBorrowAmountWithDaiCollateral);
+        vm.expectEmit(true, true, true, true);
+        emit Repay(
+            address(wbtc), address(this), address(this), wbtcMaxBorrowAmountWithDaiCollateral
+        );
+        deployedContracts.lendingPool.repay(
+            address(wbtc), true, wbtcMaxBorrowAmountWithDaiCollateral, address(this)
+        );
+        /* Main user's balance should be the same as before borrowing */
+        assertEq(wbtcBalanceBeforeBorrow, wbtc.balanceOf(address(this)));
     }
 }

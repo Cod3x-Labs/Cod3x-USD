@@ -57,7 +57,6 @@ import "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 
-
 // Mock imports
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
 import {ERC20Mock} from "../helpers/mocks/ERC20Mock.sol";
@@ -357,7 +356,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         aggregator[0] = _cdxUsdOracle;
 
         oracle.setAssetSources(asset, aggregator);
-        
+
         fixture_configureReservesCdxUsd(
             configAddresses,
             lendingPoolConfiguratorProxy,
@@ -368,9 +367,14 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             _interestStrategy
         );
 
-        DataTypes.ReserveData memory reserveDataTemp = deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
-        CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(reserveDataTemp.variableDebtTokenAddress);
-        CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(reserveDataTemp.aTokenAddress);
+        DataTypes.ReserveData memory reserveDataTemp =
+            deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
+            reserveDataTemp.variableDebtTokenAddress
+        );
+        CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
+            reserveDataTemp.aTokenAddress
+        );
     }
 
     function fixture_configureReservesCdxUsd(
