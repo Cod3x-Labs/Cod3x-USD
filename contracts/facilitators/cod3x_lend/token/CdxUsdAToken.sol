@@ -53,7 +53,7 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev Initializes the aToken
+     * @dev Initializes the aToken. MUST also call setVariableDebtToken() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
      * @param treasury The address of the Aave treasury, receiving the fees on this aToken
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
@@ -93,6 +93,19 @@ contract CdxUsdAToken is
             aTokenSymbol,
             params
         );
+    }
+
+    /// @inheritdoc ICdxUsdAToken
+    function setVariableDebtToken(address cdxUsdVariableDebtToken)
+        external
+        override
+        onlyPoolAdmin
+    {
+        require(address(_cdxUsdVariableDebtToken) == address(0), "VARIABLE_DEBT_TOKEN_ALREADY_SET");
+        require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
+
+        _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
+        emit VariableDebtTokenSet(cdxUsdVariableDebtToken);
     }
 
     /**
@@ -294,19 +307,6 @@ contract CdxUsdAToken is
 
     function getRevision() internal pure virtual override returns (uint256) {
         return ATOKEN_REVISION;
-    }
-
-    /// @inheritdoc ICdxUsdAToken
-    function setVariableDebtToken(address cdxUsdVariableDebtToken)
-        external
-        override
-        onlyPoolAdmin
-    {
-        require(address(_cdxUsdVariableDebtToken) == address(0), "VARIABLE_DEBT_TOKEN_ALREADY_SET");
-        require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
-
-        _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
-        emit VariableDebtTokenSet(cdxUsdVariableDebtToken);
     }
 
     /// @inheritdoc ICdxUsdAToken

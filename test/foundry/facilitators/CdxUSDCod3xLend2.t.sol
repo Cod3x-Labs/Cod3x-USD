@@ -247,7 +247,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
                 13e19,
                 owner
             );
-            counterAssetPriceFeed = new MockV3Aggregator(counterAsset.decimals(), 1e18);
+            counterAssetPriceFeed = new MockV3Aggregator(counterAsset.decimals(), int256(1 * 10 ** PRICE_FEED_DECIMALS));
             cdxUsdInterestRateStrategy.setOracleValues(
                 address(counterAssetPriceFeed), counterAsset.decimals(), 1e26, 86400
             );
@@ -306,6 +306,46 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         }
     }
 
+    function testDaiBorrow() public {
+        address user = makeAddr("user");
+        uint256 amount = 1e18;
+
+        uint256 _userAWethBalanceBefore = aTokens[1].balanceOf(address(user));
+        uint256 _thisWethBalanceBefore = erc20Tokens[1].balanceOf(address(this));
+
+        // Deposit weth on behalf of user
+        erc20Tokens[1].approve(address(deployedContracts.lendingPool), amount);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(address(erc20Tokens[1]), address(this), user, amount);
+        deployedContracts.lendingPool.deposit(address(erc20Tokens[1]), true, amount, user);
+
+        assertEq(_thisWethBalanceBefore, erc20Tokens[1].balanceOf(address(this)) + amount);
+        assertEq(_userAWethBalanceBefore + amount, aTokens[1].balanceOf(address(user)));
+
+        // Deposit dai on behalf of user
+        erc20Tokens[2].approve(address(deployedContracts.lendingPool), type(uint256).max);
+        deployedContracts.lendingPool.deposit(address(erc20Tokens[2]), true, 10000e18, user);
+
+        // Borrow/Mint cdxUSD
+        uint256 amountMintDai = 1000e18;
+        vm.startPrank(user);
+        deployedContracts.lendingPool.borrow(address(erc20Tokens[2]), true, amountMintDai, user);
+        uint256 balanceUserBefore = erc20Tokens[2].balanceOf(user);
+        assertEq(amountMintDai, balanceUserBefore);
+        (uint256 totalCollateralETH, uint256 totalDebtETH,,,, uint256 healthFactor1) =
+            deployedContracts.lendingPool.getUserAccountData(user);
+        console.log("totalCollateralETH = ", totalCollateralETH);
+        console.log("totalDebtETH = ", totalDebtETH);
+        console.log("getReservesCount = ", deployedContracts.lendingPool.getReservesCount());
+
+        vm.startPrank(user);
+        erc20Tokens[2].approve(address(deployedContracts.lendingPool), type(uint256).max);
+        deployedContracts.lendingPool.repay(address(erc20Tokens[2]), true, amountMintDai / 2, user);
+        (,,,,, uint256 healthFactor2) = deployedContracts.lendingPool.getUserAccountData(user);
+        assertGt(healthFactor2, healthFactor1);
+        assertGt(balanceUserBefore, cdxUsd.balanceOf(user));
+    }
+
     function testCdxUsdBorrow() public {
         address user = makeAddr("user");
         uint256 amount = 1e18;
@@ -326,15 +366,19 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLend, ERC721Holder {
         uint256 amountMintCdxUsd = 1000e18;
         vm.startPrank(user);
         deployedContracts.lendingPool.borrow(address(cdxUsd), true, amountMintCdxUsd, user);
-        assertEq(amountMintCdxUsd, cdxUsd.balanceOf(user));
+        uint256 balanceUserBefore = cdxUsd.balanceOf(user);
+        assertEq(amountMintCdxUsd, balanceUserBefore);
+        (uint256 totalCollateralETH, uint256 totalDebtETH,,,, uint256 healthFactor1) =
+            deployedContracts.lendingPool.getUserAccountData(user);
+        console.log("totalCollateralETH = ", totalCollateralETH);
+        console.log("totalDebtETH = ", totalDebtETH);
+        console.log("getReservesCount = ", deployedContracts.lendingPool.getReservesCount());
 
-        // /* User shall be able to withdraw underlying tokens */
-        // vm.startPrank(user);
-        // vm.expectEmit(true, true, true, true);
-        // emit Withdraw(address(erc20Tokens[idx]), user, user, amount);
-        // deployedContracts.lendingPool.withdraw(address(erc20Tokens[idx]), true, amount, user);
-        // vm.stopPrank();
-        // assertEq(amount, erc20Tokens[idx].balanceOf(user));
-        // assertEq(_userGrainBalanceBefore, aTokens[idx].balanceOf(address(this)));
+        vm.startPrank(user);
+        cdxUsd.approve(address(deployedContracts.lendingPool), type(uint256).max);
+        deployedContracts.lendingPool.repay(address(cdxUsd), true, amountMintCdxUsd / 2, user);
+        (,,,,, uint256 healthFactor2) = deployedContracts.lendingPool.getUserAccountData(user);
+        assertGt(healthFactor2, healthFactor1);
+        assertGt(balanceUserBefore, cdxUsd.balanceOf(user));
     }
 }

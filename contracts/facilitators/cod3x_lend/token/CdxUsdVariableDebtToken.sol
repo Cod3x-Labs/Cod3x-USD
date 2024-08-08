@@ -64,7 +64,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     }
 
     /**
-     * @dev Initializes the debt token.
+     * @dev Initializes the debt token. MUST also call setAToken() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @param incentivesController The smart contract managing potential incentives distribution
@@ -89,7 +89,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
 
-        _reserveType = false; // @issue always false? cdxUSD can't rehypothecate.
+        _reserveType = true; // @issue always false? cdxUSD can't rehypothecate.
 
         emit Initialized(
             underlyingAsset,
@@ -100,6 +100,12 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
             debtTokenSymbol,
             params
         );
+    }
+
+    function setAToken(address cdxUsdAToken) external onlyPoolAdmin {
+        require(_cdxUsdAToken == address(0), "ATOKEN_ALREADY_SET");
+        require(cdxUsdAToken != address(0), "ZERO_ADDRESS_NOT_VALID");
+        _cdxUsdAToken = cdxUsdAToken;
     }
 
     /**
@@ -303,12 +309,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     function setIncentivesController(address newController) external onlyLendingPool {
         require(newController != address(0), "INVALID_CONTROLLER");
         _incentivesController = IRewarder(newController);
-    }
-
-    function setAToken(address cdxUsdAToken) external onlyPoolAdmin {
-        require(_cdxUsdAToken == address(0), "ATOKEN_ALREADY_SET");
-        require(cdxUsdAToken != address(0), "ZERO_ADDRESS_NOT_VALID");
-        _cdxUsdAToken = cdxUsdAToken;
     }
 
     function getAToken() external view returns (address) {

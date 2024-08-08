@@ -55,6 +55,8 @@ import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
+import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+
 
 // Mock imports
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
@@ -107,6 +109,10 @@ import {
     ExitKind,
     SwapKind
 } from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
+import {CdxUsdVariableDebtToken} from
+    "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
+
 import "forge-std/console.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
@@ -345,6 +351,13 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         LendingPoolConfigurator lendingPoolConfiguratorProxy,
         LendingPoolAddressesProvider lendingPoolAddressesProvider
     ) public {
+        address[] memory asset = new address[](1);
+        address[] memory aggregator = new address[](1);
+        asset[0] = _cdxUsd;
+        aggregator[0] = _cdxUsdOracle;
+
+        oracle.setAssetSources(asset, aggregator);
+        
         fixture_configureReservesCdxUsd(
             configAddresses,
             lendingPoolConfiguratorProxy,
@@ -354,12 +367,10 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             _cdxUsd,
             _interestStrategy
         );
-        address[] memory asset = new address[](1);
-        address[] memory aggregator = new address[](1);
-        asset[0] = _cdxUsd;
-        aggregator[0] = _cdxUsdOracle;
 
-        oracle.setAssetSources(asset, aggregator);
+        DataTypes.ReserveData memory reserveDataTemp = deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(reserveDataTemp.variableDebtTokenAddress);
+        CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(reserveDataTemp.aTokenAddress);
     }
 
     function fixture_configureReservesCdxUsd(
