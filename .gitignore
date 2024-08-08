@@ -37,3 +37,6 @@ corpus/
 **/crytic-compile
 **/crytic-export
 **/corpus
+
+# Python
+pyenv
