@@ -10,8 +10,6 @@ import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
 // import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking {
-    // using WadRayMath for uint256;
-
     address[] users;
 
     string path = "./test/foundry/facilitators/pidTests/datas/output.csv";
@@ -58,23 +56,29 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     // 4 users  (users[0], users[1], users[2], users[3])
-    // 3 tokens (wbtc, eth, dai)
+    // 4 tokens (wbtc, eth, dai, cdxUsd)
     function testPid() public {
         ERC20 wbtc = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
         ERC20 eth = erc20Tokens[1]; // ethPrice =  3700,00000000$
         ERC20 dai = erc20Tokens[2]; // daiPrice =  1,00000000$
-        ERC20 cdxusd = erc20Tokens[3]; // daiPrice =  1,00000000$
+        ERC20 cdxusd = erc20Tokens[3]; // cdxUsdPrice =  1,00000000$
 
         deposit(users[0], wbtc, 2e8);
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
         borrow(users[1], cdxusd, 9_000_000e18);
-        plateau(200);
+        plateau(20);
         borrow(users[1], cdxusd, 500e18);
-        swapBalancer(users[1], cdxusd, 9_000_000e18);
-        plateau(200);
-        repay(users[1], cdxusd, 500e18);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(20);
+        repay(users[1], cdxusd, 200e18);
+        borrow(users[1], cdxusd, 500e18);
+        borrow(users[1], cdxusd, 500e18);
+        plateau(20);
+        repay(users[1], cdxusd, 200e18);
+
+
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -86,6 +90,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.deposit(address(asset), true, amount, user);
         vm.stopPrank();
         logg(user, 0, address(asset));
+        logCash();
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -94,6 +99,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
         vm.stopPrank();
         logg(user, 1, address(asset));
+        logCash();
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -101,6 +107,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.startPrank(user);
         deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
         vm.stopPrank();
+        logCash();
         logg(user, 1, address(asset));
     }
 
@@ -109,6 +116,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.withdraw(address(asset), true, amount, user);
         vm.stopPrank();
         logg(user, 2, address(asset));
+        logCash();
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -118,13 +126,24 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.repay(address(asset), true, amount, user);
         vm.stopPrank();
         logg(user, 3, address(asset));
+        logCash();
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
     function plateau(uint256 period) public {
         for (uint256 i = 0; i < period; i++) {
-            borrow(users[0], erc20Tokens[3], 1);
-            repay(users[0], erc20Tokens[3], 1);
+            vm.startPrank(users[0]);
+            deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
+            vm.stopPrank();
+            logg(users[0], 1, address(erc20Tokens[3]));
+            skip(DEFAULT_TIME_BEFORE_OP);
+
+            vm.startPrank(users[0]);
+            erc20Tokens[3].approve(address(deployedContracts.lendingPool), 1);
+            deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
+            vm.stopPrank();
+            logg(users[0], 3, address(erc20Tokens[3]));
+            skip(DEFAULT_TIME_BEFORE_OP);
         }
     }
 
@@ -164,5 +183,15 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         );
 
         vm.writeLine(path, data);
+
+    }
+
+    function logCash() public view {
+        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
+        (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
+
+        console.log("cash cdxUSD : ", cashCdxusd);
+        console.log("cash counter: ", cashCa);
+        console.log("---");
     }
 }

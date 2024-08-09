@@ -236,9 +236,9 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 owner
             );
             counterAssetPriceFeed =
-                new MockV3Aggregator(counterAsset.decimals(), int256(1 * 10 ** PRICE_FEED_DECIMALS));
+                new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
             cdxUsdInterestRateStrategy.setOracleValues(
-                address(counterAssetPriceFeed), counterAsset.decimals(), 1e26, 86400
+                address(counterAssetPriceFeed), 1e26 /* 10% */, 86400
             );
 
             fixture_configureCdxUsd(

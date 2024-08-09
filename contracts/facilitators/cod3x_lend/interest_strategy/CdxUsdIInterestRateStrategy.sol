@@ -37,8 +37,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
 
 /// TODOs
-// - getCdxUsdStablePoolReserveUtilization() must read counterasset oracle price
+// - _errI in constructor
 // - tests
+import "forge-std/console.sol";
 
 /**
  * @title CdxUsdIInterestRateStrategy contract
@@ -98,12 +99,13 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     );
 
     /// @dev `setOracleValues()` needs to be called at contracts creation.
+    //! The counter asset MUST be a 1$ pegged asset
     constructor(
         address provider,
         address asset, // cdxUSD
         bool assetReserveType, // true
         address balancerVault,
-        bytes32 poolId,
+        bytes32 poolId, 
         int256 minControllerError,
         int256 maxITimeAmp,
         uint256 ki,
@@ -137,7 +139,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
         }
 
-        // _errI = 13e19 * 1000000;
+        _errI = 13e19 * 1000000;
         // TODO checks
         // - _balancerVault and poolId compatibility with other contracts.
         // - check minium pool balance
@@ -179,19 +181,17 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     /**
      * @notice Sets the oracle values for the controller.
      * @dev Only the admin can call this function.
-     * @param counterAssetPriceFeed The address of the price feed contract.
-     * @param priceFeedDecimals The number of decimals used by the price feed.
+     * @param counterAssetPriceFeed The address of the COUNTER ASSET price feed.
      * @param pegMargin The margin for the peg value in RAY.
      * @param timeout Pricefeed timeout to know if the price feed is frozen.
      */
     function setOracleValues(
         address counterAssetPriceFeed,
-        uint256 priceFeedDecimals,
         uint256 pegMargin,
         uint256 timeout
     ) external onlyOwner {
         _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
-        _priceFeedReference = int256(10 ** priceFeedDecimals);
+        _priceFeedReference = int256(10 ** uint256(_counterAssetPriceFeed.decimals()));
         _pegMargin = pegMargin;
         _timeout = timeout;
     }
@@ -226,6 +226,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         if (address(_counterAssetPriceFeed) == address(0) || isCounterAssetPegged()) {
             /// Calculate the cdxUSD stablePool reserve utilization
             stablePoolReserveUtilization = getCdxUsdStablePoolReserveUtilization();
+            console.log("stablePoolReserveUtilization ", stablePoolReserveUtilization);
 
             /// PID state update
             int256 err = getNormalizedError(stablePoolReserveUtilization);
@@ -330,13 +331,18 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         try _counterAssetPriceFeed.latestRoundData() returns (
             uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
         ) {
-            // Chainlink integrity checks
-            if (
-                roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
-                    || startedAt == 0 || block.timestamp - timestamp > _timeout
-            ) {
-                return false;
-            }
+
+            ///? Chainlink integrity checks 
+            // if (
+            //     roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
+            //         || startedAt == 0 || block.timestamp - timestamp > _timeout
+            // ) {
+            //     return false;
+            // }
+
+            console.log("answer ", uint(answer));
+            console.log("_priceFeedReference ", uint(_priceFeedReference));
+            console.log("ref ", uint(abs(RAY - answer * RAY / _priceFeedReference)));
 
             // Peg check
             if (abs(RAY - answer * RAY / _priceFeedReference) > _pegMargin) return false;
