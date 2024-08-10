@@ -37,14 +37,12 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             ERC20Mock(address(counterAsset)).approve(vault, type(uint256).max);
             ERC20Mock(address(cdxUsd)).approve(vault, type(uint256).max);
             vm.stopPrank();
-
         }
 
         /// file setup
         if (vm.exists(path)) vm.removeFile(path);
         vm.writeLine(
-            path,
-            "timestamp,user,action,asset,utilizationRate,currentLiquidityRate,currentVariableBorrowRate"
+            path, "timestamp,user,action,asset,stablePoolBalance,currentVariableBorrowRate"
         );
     }
 
@@ -77,8 +75,16 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         borrow(users[1], cdxusd, 500e18);
         plateau(20);
         repay(users[1], cdxusd, 200e18);
-
-
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        repay(users[1], cdxusd, 200e18);
+        plateau(20);
+        borrow(users[1], cdxusd, 500e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        plateau(20);
+        repay(users[1], cdxusd, 200e18);
+        plateau(20);
+        borrow(users[1], cdxusd, 500e18);
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -161,8 +167,15 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function logg(address user, uint256 action, address asset) public {
-        (uint256 currentLiquidityRate, uint256 currentVariableBorrowRate, uint256 utilizationRate) =
+        (, uint256 currentVariableBorrowRate,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
+
+        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
+        (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
+        uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
+        console.log("JHJGFJKLMPOIJHUGJYHFTYJHUIO");
+        console.log(cashCdxusd);
+        console.log(INITIAL_CDXUSD_AMT);
 
         string memory data = string(
             abi.encodePacked(
@@ -174,16 +187,13 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
                 ",",
                 Strings.toHexString(asset),
                 ",",
-                Strings.toString(utilizationRate),
-                ",",
-                Strings.toString(currentLiquidityRate),
+                Strings.toString(stablePoolBalance), //!
                 ",",
                 Strings.toString(currentVariableBorrowRate)
             )
         );
 
         vm.writeLine(path, data);
-
     }
 
     function logCash() public view {

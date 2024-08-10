@@ -232,13 +232,14 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 poolId,
                 -80e25,
                 1728000,
+                13e25, // starts at 2% interest rate
                 13e19,
                 owner
             );
             counterAssetPriceFeed =
                 new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
             cdxUsdInterestRateStrategy.setOracleValues(
-                address(counterAssetPriceFeed), 1e26 /* 10% */, 86400
+                address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
             );
 
             fixture_configureCdxUsd(
