@@ -66,7 +66,9 @@ interface IOFTExtended is IOFT, IERC20 /*, IERC20Permit */ {
 
     function setGuardian(address _guardian) external;
 
-    function toggleBridgePause() external;
+    function pauseBridge() external;
+    
+    function unpauseBridge() external;
 
     function getBridgeConfig(uint32 _dstEid) external view returns (BridgeConfig memory);
 
