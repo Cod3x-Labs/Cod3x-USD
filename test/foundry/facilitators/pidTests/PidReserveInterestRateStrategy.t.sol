@@ -16,6 +16,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     uint256 nbUsers = 4;
     uint256 initialAmt = 1e12 ether;
     uint256 DEFAULT_TIME_BEFORE_OP = 6 hours;
+    int256 counterAssetPrice = int256(1 * 10 ** PRICE_FEED_DECIMALS);
 
     function setUp() public override {
         super.setUp();
@@ -78,6 +79,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         swapBalancer(users[1], counterAsset, 5_000_000e18);
         repay(users[1], cdxusd, 200e18);
         plateau(20);
+        // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
         borrow(users[1], cdxusd, 500e18);
         plateau(20);
         swapBalancer(users[1], counterAsset, 5_000_000e18);
@@ -97,6 +99,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 0, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -106,6 +109,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 1, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -114,6 +118,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
         vm.stopPrank();
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         logg(user, 1, address(asset));
     }
 
@@ -123,6 +128,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 2, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -133,6 +139,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 3, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -142,6 +149,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
             vm.stopPrank();
             logg(users[0], 1, address(erc20Tokens[3]));
+            counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
             skip(DEFAULT_TIME_BEFORE_OP);
 
             vm.startPrank(users[0]);
@@ -149,6 +157,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
             vm.stopPrank();
             logg(users[0], 3, address(erc20Tokens[3]));
+            counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
             skip(DEFAULT_TIME_BEFORE_OP);
         }
     }
@@ -171,11 +180,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
         (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
-        (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
         uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
-        console.log("JHJGFJKLMPOIJHUGJYHFTYJHUIO");
-        console.log(cashCdxusd);
-        console.log(INITIAL_CDXUSD_AMT);
 
         string memory data = string(
             abi.encodePacked(
