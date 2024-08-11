@@ -84,7 +84,7 @@ npx hardhat lz:deploy --help
 
 ### Formating
 
-Please use `forge fmt` before commiting.
+Please use `yarn fmt` before commiting.
 
 ## TODOs
 

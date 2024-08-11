@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import "contracts/facilitators/flash_minter/CdxUSDFlashMinter.sol";
 import {MockFlashBorrower} from "../../helpers/mocks/MockFlashBorrower.sol";
+import "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
 
 contract TestCdxUSDFlashMinter is TestCdxUSD {
     uint256 public constant DEFAULT_FLASH_FEE = 200;
@@ -24,7 +25,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
 
     function testConstructor() public {
         vm.expectEmit(true, true, false, false);
-        emit CdxUsdTreasuryUpdated(address(0), treasury);
+        emit ICdxUSDFacilitators.CdxUsdTreasuryUpdated(address(0), treasury);
         vm.expectEmit(false, false, false, true);
         emit FeeUpdated(0, DEFAULT_FLASH_FEE);
         CdxUSDFlashMinter flashMinterTemp =
@@ -130,7 +131,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
         );
 
         vm.expectEmit(true, true, false, true, address(flashMinter));
-        emit FeesDistributedToTreasury(treasury, address(cdxUSD), 100e18);
+        emit ICdxUSDFacilitators.FeesDistributedToTreasury(treasury, address(cdxUSD), 100e18);
         flashMinter.distributeFeesToTreasury();
 
         assertEq(
@@ -157,7 +158,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
         assertEq(flashMinter.getCdxUsdTreasury(), treasury, "Flashminter non-default TREASURY");
         assertTrue(treasury != address(this));
         vm.expectEmit(true, true, false, false, address(flashMinter));
-        emit CdxUsdTreasuryUpdated(treasury, address(this));
+        emit ICdxUSDFacilitators.CdxUsdTreasuryUpdated(treasury, address(this));
         flashMinter.updateCdxUsdTreasury(address(this));
     }
 

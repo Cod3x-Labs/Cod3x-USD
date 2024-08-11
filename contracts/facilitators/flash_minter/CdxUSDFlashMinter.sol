@@ -1,28 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {PercentageMath} from "lib/granary-v2/contracts/protocol/libraries/math/PercentageMath.sol";
+import {PercentageMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/PercentageMath.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
 import {ICdxUSD} from "contracts/tokens/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
-/// Events
-event FeeUpdated(uint256 oldFee, uint256 newFee);
-
-event FlashMint(
-    address indexed receiver,
-    address indexed initiator,
-    address asset,
-    uint256 indexed amount,
-    uint256 fee
-);
-
-event FeesDistributedToTreasury(
-    address indexed cdxUsdTreasury, address indexed asset, uint256 amount
-);
-
-event CdxUsdTreasuryUpdated(address indexed oldGhoTreasury, address indexed newGhoTreasury);
+import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
 
 /**
  * @title CdxUSDFlashMinter
@@ -31,7 +15,7 @@ event CdxUsdTreasuryUpdated(address indexed oldGhoTreasury, address indexed newG
  * @dev Based heavily on the EIP3156 reference implementation.
  * Based on: https://github.com/aave/gho-core/blob/main/src/contracts/facilitators/flashMinter/GhoFlashMinter.sol
  */
-contract CdxUSDFlashMinter is IERC3156FlashLender, Ownable {
+contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable {
     using PercentageMath for uint256;
 
     bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
@@ -50,6 +34,17 @@ contract CdxUSDFlashMinter is IERC3156FlashLender, Ownable {
     error CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
     error CdxUSDFlashMinter__UNSUPPORTED_ASSET();
     error CdxUSDFlashMinter__CALLBACK_FAILED();
+
+    /// Events
+    event FlashMint(
+        address indexed receiver,
+        address indexed initiator,
+        address asset,
+        uint256 indexed amount,
+        uint256 fee
+    );
+
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
 
     /**
      * @dev Constructor

@@ -42,3 +42,5 @@ corpus/
 # Test outputs
 /test/**/*.csv
 /test/**/*.png
+# Python
+pyenv
