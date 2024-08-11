@@ -70,7 +70,6 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         plateau(20);
         borrow(users[1], dai, 1);
 
-
         borrow(users[1], cdxusd, 10000e18);
         plateau(20);
         borrow(users[1], cdxusd, 1);

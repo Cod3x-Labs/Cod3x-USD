@@ -373,9 +373,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(
-            cdxUsdTreasury
-        );
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(cdxUsdTreasury);
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
         );

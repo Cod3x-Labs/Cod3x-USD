@@ -53,7 +53,7 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev Initializes the aToken. 
+     * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.
      * @notice MUST also call updateCdxUsdTreasury() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
