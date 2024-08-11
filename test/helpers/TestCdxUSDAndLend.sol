@@ -153,6 +153,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     address public owner = address(this);
     address public guardian = address(0x4);
     address public treasury = address(0x5);
+    address public cdxUsdTreasury = address(0x6);
 
     CdxUSD public cdxUsd;
     ERC20 public counterAsset;
@@ -371,6 +372,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
+        );
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(
+            cdxUsdTreasury
         );
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress

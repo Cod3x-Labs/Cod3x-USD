@@ -66,27 +66,43 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], cdxusd, 9_000_000e18);
+        borrow(users[1], dai, 10000e18);
         plateau(20);
-        borrow(users[1], cdxusd, 500e18);
-        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        borrow(users[1], dai, 1);
+
+
+        borrow(users[1], cdxusd, 10000e18);
         plateau(20);
-        repay(users[1], cdxusd, 200e18);
-        borrow(users[1], cdxusd, 500e18);
-        borrow(users[1], cdxusd, 500e18);
-        plateau(20);
-        repay(users[1], cdxusd, 200e18);
+        borrow(users[1], cdxusd, 1);
+        // borrow(users[1], cdxusd, 9_000_000e18);
+        // plateau(20);
+        // borrow(users[1], cdxusd, 500e18);
+        // swapBalancer(users[1], cdxusd, 5_000_000e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
+        // borrow(users[1], cdxusd, 500e18);
+        // borrow(users[1], cdxusd, 500e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
         swapBalancer(users[1], counterAsset, 5_000_000e18);
-        repay(users[1], cdxusd, 200e18);
-        plateau(20);
-        // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
-        borrow(users[1], cdxusd, 500e18);
-        plateau(20);
-        swapBalancer(users[1], counterAsset, 5_000_000e18);
-        plateau(20);
-        repay(users[1], cdxusd, 200e18);
-        plateau(20);
-        borrow(users[1], cdxusd, 500e18);
+        // repay(users[1], cdxusd, 200e18);
+        // plateau(20);
+        // // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
+        // borrow(users[1], cdxusd, 500e18);
+        // plateau(20);
+        // swapBalancer(users[1], counterAsset, 5_000_000e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
+        // plateau(20);
+        repay(users[1], cdxusd, 100e18);
+
+        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
+        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
+
+        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
+
+        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
+        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -205,8 +221,8 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
         (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
 
-        console.log("cash cdxUSD : ", cashCdxusd);
-        console.log("cash counter: ", cashCa);
-        console.log("---");
+        // console.log("cash cdxUSD : ", cashCdxusd);
+        // console.log("cash counter: ", cashCa);
+        // console.log("---");
     }
 }
