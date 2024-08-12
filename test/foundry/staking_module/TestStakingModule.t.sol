@@ -131,8 +131,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
                 address(this) // can send to the strategy directly.
             );
 
-            rewarder =
-                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD)));
+            rewarder = RollingRewarder(
+                ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD), address(this))
+            );
             IERC20(cdxUSD).approve(address(reliquary), type(uint256).max);
             IERC20(cdxUSD).approve(address(rewarder), type(uint256).max);
         }

@@ -112,6 +112,8 @@ import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 
+import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
+
 import "forge-std/console.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
@@ -347,6 +349,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         address _cdxUsdOracle,
         address _cdxUsd,
         address _interestStrategy,
+        address _reliquaryCdxusdRewarder,
         ConfigAddresses memory configAddresses,
         LendingPoolConfigurator lendingPoolConfiguratorProxy,
         LendingPoolAddressesProvider lendingPoolAddressesProvider
@@ -374,6 +377,13 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             reserveDataTemp.variableDebtTokenAddress
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(cdxUsdTreasury);
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
+            _reliquaryCdxusdRewarder, 8000 /* 80% */
+        );
+        DataTypes.ReserveData memory reserve =
+            ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
+        RollingRewarder(_reliquaryCdxusdRewarder).updateChildFunder(reserve.aTokenAddress);
+
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
         );

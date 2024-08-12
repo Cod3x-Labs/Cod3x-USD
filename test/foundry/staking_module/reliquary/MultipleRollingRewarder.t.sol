@@ -74,7 +74,7 @@ contract MultipleRollingRewarder is ERC721Holder, Test {
 
         for (uint256 i = 0; i < nbChildRewarder; i++) {
             address rewardTokenTemp = address(new ERC20Mock(18));
-            address rewarderTemp = parentRewarder.createChild(rewardTokenTemp);
+            address rewarderTemp = parentRewarder.createChild(rewardTokenTemp, address(this));
             rewardTokens.push(ERC20Mock(rewardTokenTemp));
             childRewarders.push(RollingRewarder(rewarderTemp));
             ERC20Mock(rewardTokenTemp).mint(address(this), initialMint);

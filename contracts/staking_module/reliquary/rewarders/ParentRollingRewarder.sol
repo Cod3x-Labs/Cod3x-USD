@@ -51,8 +51,12 @@ contract ParentRollingRewarder is IParentRollingRewarder, Ownable {
      * @param _rewardToken Address of token rewards are distributed in.
      * @return child_ Address of the new ChildRewarder.
      */
-    function createChild(address _rewardToken) external onlyOwner returns (address child_) {
-        child_ = address(new RollingRewarder(_rewardToken, reliquary, poolId));
+    function createChild(address _rewardToken, address _childFunder)
+        external
+        onlyOwner
+        returns (address child_)
+    {
+        child_ = address(new RollingRewarder(_rewardToken, reliquary, _childFunder, poolId));
         childrenRewarders.add(child_);
         emit ChildCreated(child_, address(_rewardToken));
     }

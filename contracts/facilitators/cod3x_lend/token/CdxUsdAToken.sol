@@ -16,6 +16,7 @@ import {ICdxUsdAToken} from "contracts/tokens/interfaces/ICdxUsdAToken.sol";
 import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
 import {IERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 import {CdxUsdVariableDebtToken} from "./CdxUsdVariableDebtToken.sol";
+import {IRollingRewarder} from "contracts/staking_module/reliquary/interfaces/IRollingRewarder.sol";
 
 /**
  * @title CdxUSD A ERC20 AToken
@@ -30,6 +31,7 @@ contract CdxUsdAToken is
     using WadRayMath for uint256;
 
     uint256 public constant ATOKEN_REVISION = 0x1;
+    uint256 internal constant BPS = 10_000;
 
     ILendingPool internal _pool;
     CdxUsdVariableDebtToken internal _cdxUsdVariableDebtToken;
@@ -38,6 +40,9 @@ contract CdxUsdAToken is
     address internal _underlyingAsset;
     bool internal _reserveType;
     IRewarder internal _incentivesController;
+
+    IRollingRewarder public _reliquaryCdxusdRewarder;
+    uint256 public _reliquaryAllocation; // In BPS.
 
     modifier onlyLendingPool() {
         require(_msgSender() == address(_pool), Errors.CT_CALLER_MUST_BE_LENDING_POOL);
@@ -56,6 +61,7 @@ contract CdxUsdAToken is
      * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.
      * @notice MUST also call updateCdxUsdTreasury() at initialization.
+     * @notice MUST also call setReliquaryInfo() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
      * @param treasury The address of the Aave treasury, receiving the fees on this aToken
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
@@ -107,7 +113,29 @@ contract CdxUsdAToken is
         require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
 
         _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
-        emit VariableDebtTokenSet(cdxUsdVariableDebtToken);
+    }
+
+    /// @inheritdoc ICdxUSDFacilitators
+    function updateCdxUsdTreasury(address newCdxUsdTreasury) external override onlyPoolAdmin {
+        require(newCdxUsdTreasury != address(0), "ZERO_INPUT");
+        address oldCdxUsdTreasury = _cdxUsdTreasury;
+        _cdxUsdTreasury = newCdxUsdTreasury;
+        emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury, newCdxUsdTreasury);
+    }
+
+    /// @inheritdoc ICdxUsdAToken
+    function setReliquaryInfo(address reliquaryCdxusdRewarder, uint256 reliquaryAllocation)
+        external
+        override
+        onlyPoolAdmin
+    {
+        require(reliquaryCdxusdRewarder != address(0), "ZERO_INPUT");
+        require(reliquaryAllocation <= BPS, "RELIQUARY_ALLOCATION_MORE_THAN_100%");
+
+        _reliquaryCdxusdRewarder = IRollingRewarder(reliquaryCdxusdRewarder);
+        _reliquaryAllocation = reliquaryAllocation;
+
+        IERC20(_underlyingAsset).approve(reliquaryCdxusdRewarder, type(uint256).max);
     }
 
     /**
@@ -320,16 +348,13 @@ contract CdxUsdAToken is
     function distributeFeesToTreasury() external virtual override {
         require(_cdxUsdTreasury != address(0), "NO_CDXUSD_TREASURY");
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
-        IERC20(_underlyingAsset).transfer(_cdxUsdTreasury, balance);
-        emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
-    }
 
-    /// @inheritdoc ICdxUSDFacilitators
-    function updateCdxUsdTreasury(address newCdxUsdTreasury) external override onlyPoolAdmin {
-        require(newCdxUsdTreasury != address(0), "ZERO_INPUT");
-        address oldCdxUsdTreasury = _cdxUsdTreasury;
-        _cdxUsdTreasury = newCdxUsdTreasury;
-        emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury, newCdxUsdTreasury);
+        _reliquaryCdxusdRewarder.fund(_reliquaryAllocation * balance / BPS);
+
+        IERC20(_underlyingAsset).transfer(
+            _cdxUsdTreasury, IERC20(_underlyingAsset).balanceOf(address(this))
+        );
+        emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
     }
 
     function setTreasury(address newTreasury) external override onlyLendingPool {
