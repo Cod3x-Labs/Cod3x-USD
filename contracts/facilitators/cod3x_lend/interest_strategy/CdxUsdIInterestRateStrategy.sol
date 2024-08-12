@@ -81,6 +81,9 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     uint256 public _pegMargin;
     uint256 public _timeout;
 
+    // P - to disable
+    uint256 public _kp;
+
     // I
     uint256 public _ki; // in RAY
     uint256 public _lastTimestamp;
@@ -105,7 +108,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         address asset, // cdxUSD
         bool assetReserveType, // true
         address balancerVault,
-        bytes32 poolId, 
+        bytes32 poolId,
         int256 minControllerError,
         int256 maxITimeAmp,
         uint256 ki,
@@ -117,6 +120,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         _addressesProvider = ILendingPoolAddressesProvider(provider);
 
         /// PID values
+        _kp = 0;
         _ki = ki;
         _lastTimestamp = block.timestamp;
         _minControllerError = minControllerError;
@@ -192,11 +196,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @param pegMargin The margin for the peg value in RAY.
      * @param timeout Pricefeed timeout to know if the price feed is frozen.
      */
-    function setOracleValues(
-        address counterAssetPriceFeed,
-        uint256 pegMargin,
-        uint256 timeout
-    ) external onlyOwner {
+    function setOracleValues(address counterAssetPriceFeed, uint256 pegMargin, uint256 timeout)
+        external
+        onlyOwner
+    {
         _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
         _priceFeedReference = int256(10 ** uint256(_counterAssetPriceFeed.decimals()));
         _pegMargin = pegMargin;
@@ -263,7 +266,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         // console.log("Utilization rate: ", getCdxUsdStablePoolReserveUtilization());
         uint256 utilizationRate = getCdxUsdStablePoolReserveUtilization();
         int256 normalizedError = getNormalizedError(utilizationRate);
-        console.log("Normalized: ", normalizedError);
+        console.log("Normalized: ", uint256(normalizedError));
         return (0, transferFunction(getControllerError(normalizedError)), utilizationRate);
     }
 
@@ -370,8 +373,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         try _counterAssetPriceFeed.latestRoundData() returns (
             uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
         ) {
-
-            ///? Chainlink integrity checks 
+            ///? Chainlink integrity checks
             // if (
             //     roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
             //         || startedAt == 0 || block.timestamp - timestamp > _timeout
@@ -379,9 +381,9 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
             //     return false;
             // }
 
-            console.log("answer ", uint(answer));
-            console.log("_priceFeedReference ", uint(_priceFeedReference));
-            console.log("ref ", uint(abs(RAY - answer * RAY / _priceFeedReference)));
+            console.log("answer ", uint256(answer));
+            console.log("_priceFeedReference ", uint256(_priceFeedReference));
+            console.log("ref ", uint256(abs(RAY - answer * RAY / _priceFeedReference)));
 
             // Peg check
             if (abs(RAY - answer * RAY / _priceFeedReference) > _pegMargin) return false;

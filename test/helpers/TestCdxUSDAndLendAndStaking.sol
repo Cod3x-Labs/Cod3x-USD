@@ -84,7 +84,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
     uint256 public indexCounterAsset;
 
     // CdxUSD public cdxUsd;
-    CdxUsdIInterestRateStrategy public cdxUsdInterestRateStrategy;
+    CdxUsdIInterestRateStrategy public cdxUsdIInterestRateStrategy;
     CdxUsdOracle public cdxUsdOracle;
     CdxUsdAToken public cdxUsdAToken;
     CdxUsdVariableDebtToken public cdxUsdVariableDebtToken;
@@ -224,7 +224,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             cdxUsdAToken = new CdxUsdAToken();
             cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
             cdxUsdOracle = new CdxUsdOracle();
-            cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
+            cdxUsdIInterestRateStrategy = new CdxUsdIInterestRateStrategy(
                 address(deployedContracts.lendingPoolAddressesProvider),
                 address(cdxUsd),
                 true,
@@ -237,8 +237,8 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             );
             counterAssetPriceFeed =
                 new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
-            cdxUsdInterestRateStrategy.setOracleValues(
-                address(counterAssetPriceFeed), 1e26 /* 10% */, 86400
+            cdxUsdIInterestRateStrategy.setOracleValues(
+                address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
             );
 
             fixture_configureCdxUsd(
@@ -247,7 +247,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(cdxUsdVariableDebtToken),
                 address(cdxUsdOracle),
                 address(cdxUsd),
-                address(cdxUsdInterestRateStrategy),
+                address(cdxUsdIInterestRateStrategy),
                 configAddresses,
                 deployedContracts.lendingPoolConfigurator,
                 deployedContracts.lendingPoolAddressesProvider

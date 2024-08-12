@@ -37,7 +37,6 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             ERC20Mock(address(counterAsset)).approve(vault, type(uint256).max);
             ERC20Mock(address(cdxUsd)).approve(vault, type(uint256).max);
             vm.stopPrank();
-
         }
 
         /// file setup
@@ -51,7 +50,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     function testTF() public view {
         console.log(
             "transferFunction == ",
-            cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)
+            cdxUsdIInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)
         ); // bps
     }
 
@@ -77,8 +76,6 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         borrow(users[1], cdxusd, 500e18);
         plateau(20);
         repay(users[1], cdxusd, 200e18);
-
-
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -162,7 +159,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     function logg(address user, uint256 action, address asset) public {
         (uint256 currentLiquidityRate, uint256 currentVariableBorrowRate, uint256 utilizationRate) =
-            cdxUsdInterestRateStrategy.getCurrentInterestRates();
+            cdxUsdIInterestRateStrategy.getCurrentInterestRates();
 
         string memory data = string(
             abi.encodePacked(
@@ -183,7 +180,6 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         );
 
         vm.writeLine(path, data);
-
     }
 
     function logCash() public view {
