@@ -2,7 +2,7 @@
 # solc-version = '0.8.22'
 auto_detect_solc = true
 optimizer = true
-optimizer_runs = 800
+optimizer_runs = 150
 src = 'contracts'
 out = 'out'
 test = 'test/foundry'
