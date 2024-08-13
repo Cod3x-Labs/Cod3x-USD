@@ -12,7 +12,7 @@ import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
 contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking {
     address[] users;
 
-    string path = "./test/foundry/facilitators/pidTests/datas/output.csv";
+    string path = "./test/foundry/facilitators/pid_tests/datas/output.csv";
     uint256 nbUsers = 4;
     uint256 initialAmt = 1e12 ether;
     uint256 DEFAULT_TIME_BEFORE_OP = 6 hours;
