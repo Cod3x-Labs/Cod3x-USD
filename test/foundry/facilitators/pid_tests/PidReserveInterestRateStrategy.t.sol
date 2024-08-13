@@ -56,6 +56,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     // 4 users  (users[0], users[1], users[2], users[3])
     // 4 tokens (wbtc, eth, dai, cdxUsd)
+    // Initial Balancer Pool cdxUSD/CounterAsseter balance is 10M/10M.
     function testPid() public {
         ERC20 wbtc = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
         ERC20 eth = erc20Tokens[1]; // ethPrice =  3700,00000000$
@@ -66,35 +67,23 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], dai, 10000e18);
-        plateau(20);
-        borrow(users[1], dai, 1);
+        borrow(users[1], cdxusd, 9_000_000e18);
 
-        borrow(users[1], cdxusd, 10000e18);
         plateau(20);
-        borrow(users[1], cdxusd, 1);
-        // borrow(users[1], cdxusd, 9_000_000e18);
-        // plateau(20);
-        // borrow(users[1], cdxusd, 500e18);
-        // swapBalancer(users[1], cdxusd, 5_000_000e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
-        // borrow(users[1], cdxusd, 500e18);
-        // borrow(users[1], cdxusd, 500e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
-        swapBalancer(users[1], counterAsset, 5_000_000e18);
-        // repay(users[1], cdxusd, 200e18);
-        // plateau(20);
-        // // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
-        // borrow(users[1], cdxusd, 500e18);
-        // plateau(20);
-        // swapBalancer(users[1], counterAsset, 5_000_000e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
-        // plateau(20);
-        repay(users[1], cdxusd, 100e18);
+        swapBalancer(users[1], cdxusd, 2_000_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_200_000e18);
+        plateau(20);
 
+        repay(users[1], cdxusd, 100_000e18);
         console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
         console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
 
@@ -102,6 +91,8 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
         console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
         console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
+
+        // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
     }
     // ------------------------------
     // ---------- Helpers -----------
