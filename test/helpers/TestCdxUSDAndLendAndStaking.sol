@@ -234,8 +234,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 -80e25,
                 1728000,
                 13e25, // starts at 2% interest rate
-                13e19,
-                owner
+                13e19
             );
             counterAssetPriceFeed =
                 new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));

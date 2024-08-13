@@ -31,7 +31,6 @@ import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 // OZ imports
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 // Chainlink
 import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
@@ -49,7 +48,7 @@ import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
  * needs to be associated with only one market.
  * @author Cod3x - Beirao
  */
-contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
+contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     using WadRayMath for uint256;
     using WadRayMath for int256;
     using PercentageMath for uint256;
@@ -83,6 +82,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
 
     // Errors
     error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
+    error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
     error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
 
     // Events
@@ -104,9 +104,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         int256 minControllerError,
         int256 maxITimeAmp,
         int256 initialErrIValue,
-        uint256 ki,
-        address admin
-    ) Ownable(admin) {
+        uint256 ki
+    ) {
         /// Cod3x Lend
         _asset = asset;
         _assetReserveType = assetReserveType;
@@ -142,6 +141,13 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
             // - check the pool is fairly balanced (50/50)
     }
 
+    modifier onlyPoolAdmin() {
+        if (msg.sender != _addressesProvider.getPoolAdmin()) {
+            revert PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
+        }
+        _;
+    }
+
     modifier onlyLendingPool() {
         if (msg.sender != _addressesProvider.getLendingPool()) {
             revert PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
@@ -156,7 +162,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @dev Only the admin can call this function.
      * @param minControllerError The new minimum controller error value.
      */
-    function setMinControllerError(int256 minControllerError) external onlyOwner {
+    function setMinControllerError(int256 minControllerError) external onlyPoolAdmin {
         _minControllerError = minControllerError;
         if (transferFunction(type(int256).min) < 0) {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
@@ -169,7 +175,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @param ki The proportional gain value.
      * @param maxITimeAmp The maximum integral time amplification value.
      */
-    function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyOwner {
+    function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyPoolAdmin {
         _ki = ki;
         _maxErrIAmp = int256(_ki).rayMulInt(-RAY * maxITimeAmp);
     }
@@ -183,7 +189,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      */
     function setOracleValues(address counterAssetPriceFeed, uint256 pegMargin, uint256 timeout)
         external
-        onlyOwner
+        onlyPoolAdmin
     {
         _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
         _priceFeedReference = int256(10 ** uint256(_counterAssetPriceFeed.decimals()));

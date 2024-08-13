@@ -63,8 +63,7 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
             20 days, //maxITimeAmp
             // 1e27, //kp
             13e25, // starts at 2% interest rate
-            13e19, // ki
-            admin
+            13e19 // ki
         );
 
         if (vm.exists(path1)) vm.removeFile(path1);
