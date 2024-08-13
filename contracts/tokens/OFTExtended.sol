@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
 import {IOFTExtended} from "./interfaces/IOFTExtended.sol";
@@ -36,8 +36,8 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
     /// @notice treasury address that receives fees.
     address public treasury;
 
-    modifier onlyGuardianOrOwner() {
-        if (msg.sender != guardian && msg.sender != owner()) {
+    modifier onlyGuardian() {
+        if (msg.sender != guardian) {
             revert OFTExtended__ONLY_ADMINS();
         }
         _;
@@ -134,12 +134,21 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
     }
 
     /**
-     * @notice toggle pause on the `send()` function.
-     * @dev restricted to guardian and owner.
+     * @notice Pause on the `send()` function.
+     * @dev restricted to guardian.
      */
-    function toggleBridgePause() external onlyGuardianOrOwner {
-        lzPause = !lzPause;
-        emit ToggleBridgePause(lzPause);
+    function pauseBridge() external onlyGuardian {
+        lzPause = true;
+        emit ToggleBridgePause(true);
+    }
+
+    /**
+     * @notice Unpause on the `send()` function.
+     * @dev restricted to guardian.
+     */
+    function unpauseBridge() external onlyOwner {
+        lzPause = false;
+        emit ToggleBridgePause(false);
     }
 
     // ======================= LayerZero override Functions ================================

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.0;
 
 import {IOFT} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -66,7 +66,9 @@ interface IOFTExtended is IOFT, IERC20 /*, IERC20Permit */ {
 
     function setGuardian(address _guardian) external;
 
-    function toggleBridgePause() external;
+    function pauseBridge() external;
+
+    function unpauseBridge() external;
 
     function getBridgeConfig(uint32 _dstEid) external view returns (BridgeConfig memory);
 

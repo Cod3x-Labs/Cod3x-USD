@@ -47,15 +47,20 @@ interface ICreateX {
         address refundAddress
     ) external payable returns (address newContract);
 
-    function deployCreateAndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values
-    ) external payable returns (address newContract);
+    function deployCreateAndInit(bytes memory initCode, bytes memory data, Values memory values)
+        external
+        payable
+        returns (address newContract);
 
-    function deployCreateClone(address implementation, bytes memory data) external payable returns (address proxy);
+    function deployCreateClone(address implementation, bytes memory data)
+        external
+        payable
+        returns (address proxy);
 
-    function computeCreateAddress(address deployer, uint256 nonce) external view returns (address computedAddress);
+    function computeCreateAddress(address deployer, uint256 nonce)
+        external
+        view
+        returns (address computedAddress);
 
     function computeCreateAddress(uint256 nonce) external view returns (address computedAddress);
 
@@ -63,7 +68,10 @@ interface ICreateX {
     /*                           CREATE2                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function deployCreate2(bytes32 salt, bytes memory initCode) external payable returns (address newContract);
+    function deployCreate2(bytes32 salt, bytes memory initCode)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate2(bytes memory initCode) external payable returns (address newContract);
 
@@ -89,33 +97,39 @@ interface ICreateX {
         address refundAddress
     ) external payable returns (address newContract);
 
-    function deployCreate2AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values
-    ) external payable returns (address newContract);
+    function deployCreate2AndInit(bytes memory initCode, bytes memory data, Values memory values)
+        external
+        payable
+        returns (address newContract);
 
-    function deployCreate2Clone(
-        bytes32 salt,
-        address implementation,
-        bytes memory data
-    ) external payable returns (address proxy);
+    function deployCreate2Clone(bytes32 salt, address implementation, bytes memory data)
+        external
+        payable
+        returns (address proxy);
 
-    function deployCreate2Clone(address implementation, bytes memory data) external payable returns (address proxy);
+    function deployCreate2Clone(address implementation, bytes memory data)
+        external
+        payable
+        returns (address proxy);
 
-    function computeCreate2Address(
-        bytes32 salt,
-        bytes32 initCodeHash,
-        address deployer
-    ) external pure returns (address computedAddress);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash, address deployer)
+        external
+        pure
+        returns (address computedAddress);
 
-    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) external view returns (address computedAddress);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash)
+        external
+        view
+        returns (address computedAddress);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           CREATE3                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function deployCreate3(bytes32 salt, bytes memory initCode) external payable returns (address newContract);
+    function deployCreate3(bytes32 salt, bytes memory initCode)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate3(bytes memory initCode) external payable returns (address newContract);
 
@@ -141,13 +155,15 @@ interface ICreateX {
         address refundAddress
     ) external payable returns (address newContract);
 
-    function deployCreate3AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values
-    ) external payable returns (address newContract);
+    function deployCreate3AndInit(bytes memory initCode, bytes memory data, Values memory values)
+        external
+        payable
+        returns (address newContract);
 
-    function computeCreate3Address(bytes32 salt, address deployer) external pure returns (address computedAddress);
+    function computeCreate3Address(bytes32 salt, address deployer)
+        external
+        pure
+        returns (address computedAddress);
 
     function computeCreate3Address(bytes32 salt) external view returns (address computedAddress);
 }

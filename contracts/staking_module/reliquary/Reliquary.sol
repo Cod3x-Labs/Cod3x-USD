@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.23;
 
 import "./interfaces/IReliquary.sol";
 import "./interfaces/IParentRollingRewarder.sol";
@@ -9,7 +9,7 @@ import "./libraries/ReliquaryLogic.sol";
 import "./libraries/ReliquaryEvents.sol";
 import "./libraries/ReliquaryRehypothecationLogic.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -19,7 +19,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title Reliquary
- * @author Justin Bebis, Zokunei, Beirao & the Byte Masons team
+ * @author Cod3x - Justin Bebis, Zokunei, Beirao, Goober
  *
  * @notice This system is designed to manage incentives for deposited assets such that
  * behaviors can be programmed on a per-pool basis using maturity levels. Stake in a
@@ -33,7 +33,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 contract Reliquary is
     IReliquary,
     // Multicall,
-    ERC721,
+    ERC721Enumerable,
     AccessControlEnumerable,
     ReentrancyGuard,
     Pausable
@@ -840,7 +840,7 @@ contract Reliquary is
     function supportsInterface(bytes4 _interfaceId)
         public
         view
-        override(IERC165, ERC721, AccessControlEnumerable)
+        override(IERC165, ERC721Enumerable, AccessControlEnumerable)
         returns (bool)
     {
         return _interfaceId == type(IReliquary).interfaceId || super.supportsInterface(_interfaceId);

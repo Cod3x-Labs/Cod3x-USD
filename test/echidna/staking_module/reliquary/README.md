@@ -2,6 +2,14 @@
 
 Echidna is a program designed for fuzzing/property-based testing of Ethereum smart contracts. Please refer to the doc for [installation](https://github.com/crytic/echidna#installation).
 
+Install solidity version with [solc-select](https://github.com/crytic/solc-select):
+
+```sh
+pip3 install solc-select
+solc-select install 0.8.23
+solc-select use 0.8.23 
+```
+
 Run with:
 
 ```sh

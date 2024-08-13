@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.23;
 
 import "./IRewarder.sol";
 
 interface IRollingRewarder is IRewarder {
     function fund(uint256 _amount) external;
+
+    function updateDistributionPeriod(uint256 _newDistributionPeriod) external;
+
+    function updateChildFunder(address _childFunder) external;
 }
