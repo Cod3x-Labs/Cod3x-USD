@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
 /// Cod3x Lend imports
@@ -35,11 +35,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 // Chainlink
 import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
-
-/// TODOs
-// - _errI in constructor
-// - tests
-import "forge-std/console.sol";
 
 /**
  * @title CdxUsdIInterestRateStrategy contract
@@ -111,6 +106,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         bytes32 poolId,
         int256 minControllerError,
         int256 maxITimeAmp,
+        int256 initialErrIValue,
         uint256 ki,
         address admin
     ) Ownable(admin) {
@@ -150,11 +146,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
         }
 
-        _errI = 13e19 * 1000000;
-        // TODO checks
-        // - _balancerVault and poolId compatibility with other contracts.
-        // - check minium pool balance
-        // - check the pool is fairly balanced (50/50)
+        _errI = initialErrIValue; // 13e19 * 1000000;
+            // TODO checks
+            // - _balancerVault and poolId compatibility with other contracts.
+            // - check minium pool balance
+            // - check the pool is fairly balanced (50/50)
     }
 
     modifier onlyLendingPool() {
@@ -236,7 +232,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         if (address(_counterAssetPriceFeed) == address(0) || isCounterAssetPegged()) {
             /// Calculate the cdxUSD stablePool reserve utilization
             stablePoolReserveUtilization = getCdxUsdStablePoolReserveUtilization();
-            console.log("stablePoolReserveUtilization ", stablePoolReserveUtilization);
 
             /// PID state update
             int256 err = getNormalizedError(stablePoolReserveUtilization);
@@ -373,17 +368,13 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         try _counterAssetPriceFeed.latestRoundData() returns (
             uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
         ) {
-            ///? Chainlink integrity checks
-            // if (
-            //     roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
-            //         || startedAt == 0 || block.timestamp - timestamp > _timeout
-            // ) {
-            //     return false;
-            // }
-
-            console.log("answer ", uint256(answer));
-            console.log("_priceFeedReference ", uint256(_priceFeedReference));
-            console.log("ref ", uint256(abs(RAY - answer * RAY / _priceFeedReference)));
+            // Chainlink integrity checks
+            if (
+                roundID == 0 || timestamp == 0 || timestamp > block.timestamp || answer < 0
+                    || startedAt == 0 || block.timestamp - timestamp > _timeout
+            ) {
+                return false;
+            }
 
             // Peg check
             if (abs(RAY - answer * RAY / _priceFeedReference) > _pegMargin) return false;

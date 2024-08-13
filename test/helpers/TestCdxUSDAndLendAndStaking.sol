@@ -162,8 +162,9 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(this) // can send to the strategy directly.
             );
 
-            rewarder =
-                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd)));
+            rewarder = RollingRewarder(
+                ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd), address(this))
+            );
             IERC20(cdxUsd).approve(address(reliquary), type(uint256).max);
             IERC20(cdxUsd).approve(address(rewarder), type(uint256).max);
         }
@@ -232,6 +233,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 poolId,
                 -80e25,
                 1728000,
+                13e25, // starts at 2% interest rate
                 13e19,
                 owner
             );
@@ -248,6 +250,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(cdxUsdOracle),
                 address(cdxUsd),
                 address(cdxUsdIInterestRateStrategy),
+                address(rewarder),
                 configAddresses,
                 deployedContracts.lendingPoolConfigurator,
                 deployedContracts.lendingPoolAddressesProvider

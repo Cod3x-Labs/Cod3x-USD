@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,7 +48,8 @@ contract MockFlashBorrower is IERC3156FlashBorrower {
 
         if (action == Action.NORMAL) {
             // Intentionally left blank.
-        } else if (action == Action.OTHER) {
+        }
+        else if (action == Action.OTHER) {
             // Tests capacity change mid-flashmint.
             require(
                 _lender.flashFee(token, type(uint128).max) == 0,

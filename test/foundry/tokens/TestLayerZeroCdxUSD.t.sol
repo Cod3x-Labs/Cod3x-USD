@@ -88,7 +88,8 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
     }
 
     function testLzPause() public {
-        aOFT.toggleBridgePause();
+        vm.prank(guardian);
+        aOFT.pauseBridge();
 
         uint256 tokensToSend = 1 ether;
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
@@ -106,8 +107,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.balanceOf(userA), initialBalance);
         assertEq(bOFT.balanceOf(userB), initialBalance);
 
-        vm.prank(guardian);
-        aOFT.toggleBridgePause();
+        aOFT.unpauseBridge();
 
         testSendOftAToB();
     }

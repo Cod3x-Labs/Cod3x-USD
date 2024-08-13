@@ -112,6 +112,8 @@ import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 
+import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
+
 import "forge-std/console.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
@@ -121,12 +123,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     uint32 bEid = 2;
     uint256 public forkIdEth;
 
-    address[] public tokens; // = [wbtc, weth, dai];
+    address[] public tokens; // = [wbtc, weth, dai, cdxUsd];
     ERC20[] erc20Tokens;
     DeployedContracts deployedContracts;
     ConfigAddresses configAddresses;
 
-    uint256[] public rates = [0.039e27, 0.03e27, 0.03e27]; // = [wbtc, weth, dai]
+    uint256[] public rates = [0.039e27, 0.03e27, 0.03e27]; // = [wbtc, weth, dai, cdxUsd]
     uint256[] public volStrat = [
         VOLATILE_OPTIMAL_UTILIZATION_RATE,
         VOLATILE_BASE_VARIABLE_BORROW_RATE,
@@ -153,6 +155,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     address public owner = address(this);
     address public guardian = address(0x4);
     address public treasury = address(0x5);
+    address public cdxUsdTreasury = address(0x6);
 
     CdxUSD public cdxUsd;
     ERC20 public counterAsset;
@@ -346,6 +349,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         address _cdxUsdOracle,
         address _cdxUsd,
         address _interestStrategy,
+        address _reliquaryCdxusdRewarder,
         ConfigAddresses memory configAddresses,
         LendingPoolConfigurator lendingPoolConfiguratorProxy,
         LendingPoolAddressesProvider lendingPoolAddressesProvider
@@ -372,6 +376,14 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(cdxUsdTreasury);
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
+            _reliquaryCdxusdRewarder, 8000 /* 80% */
+        );
+        DataTypes.ReserveData memory reserve =
+            ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
+        RollingRewarder(_reliquaryCdxusdRewarder).updateChildFunder(reserve.aTokenAddress);
+
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
         );

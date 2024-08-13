@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
 import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
@@ -12,10 +12,11 @@ import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
 contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking {
     address[] users;
 
-    string path = "./test/foundry/facilitators/pidTests/datas/output.csv";
+    string path = "./test/foundry/facilitators/pid_tests/datas/output.csv";
     uint256 nbUsers = 4;
     uint256 initialAmt = 1e12 ether;
     uint256 DEFAULT_TIME_BEFORE_OP = 6 hours;
+    int256 counterAssetPrice = int256(1 * 10 ** PRICE_FEED_DECIMALS);
 
     function setUp() public override {
         super.setUp();
@@ -42,8 +43,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         /// file setup
         if (vm.exists(path)) vm.removeFile(path);
         vm.writeLine(
-            path,
-            "timestamp,user,action,asset,utilizationRate,currentLiquidityRate,currentVariableBorrowRate"
+            path, "timestamp,user,action,asset,stablePoolBalance,currentVariableBorrowRate"
         );
     }
 
@@ -66,16 +66,42 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], cdxusd, 9_000_000e18);
+        borrow(users[1], dai, 10000e18);
         plateau(20);
-        borrow(users[1], cdxusd, 500e18);
-        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        borrow(users[1], dai, 1);
+
+        borrow(users[1], cdxusd, 10000e18);
         plateau(20);
-        repay(users[1], cdxusd, 200e18);
-        borrow(users[1], cdxusd, 500e18);
-        borrow(users[1], cdxusd, 500e18);
-        plateau(20);
-        repay(users[1], cdxusd, 200e18);
+        borrow(users[1], cdxusd, 1);
+        // borrow(users[1], cdxusd, 9_000_000e18);
+        // plateau(20);
+        // borrow(users[1], cdxusd, 500e18);
+        // swapBalancer(users[1], cdxusd, 5_000_000e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
+        // borrow(users[1], cdxusd, 500e18);
+        // borrow(users[1], cdxusd, 500e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        // repay(users[1], cdxusd, 200e18);
+        // plateau(20);
+        // // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
+        // borrow(users[1], cdxusd, 500e18);
+        // plateau(20);
+        // swapBalancer(users[1], counterAsset, 5_000_000e18);
+        // plateau(20);
+        // repay(users[1], cdxusd, 200e18);
+        // plateau(20);
+        repay(users[1], cdxusd, 100e18);
+
+        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
+        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
+
+        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
+
+        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
+        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -88,6 +114,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 0, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -97,6 +124,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 1, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -105,6 +133,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
         vm.stopPrank();
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         logg(user, 1, address(asset));
     }
 
@@ -114,6 +143,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 2, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -124,6 +154,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         vm.stopPrank();
         logg(user, 3, address(asset));
         logCash();
+        counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
         skip(DEFAULT_TIME_BEFORE_OP);
     }
 
@@ -133,6 +164,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
             vm.stopPrank();
             logg(users[0], 1, address(erc20Tokens[3]));
+            counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
             skip(DEFAULT_TIME_BEFORE_OP);
 
             vm.startPrank(users[0]);
@@ -140,6 +172,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
             vm.stopPrank();
             logg(users[0], 3, address(erc20Tokens[3]));
+            counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
             skip(DEFAULT_TIME_BEFORE_OP);
         }
     }
@@ -161,6 +194,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (uint256 currentLiquidityRate, uint256 currentVariableBorrowRate, uint256 utilizationRate) =
             cdxUsdIInterestRateStrategy.getCurrentInterestRates();
 
+        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
+        uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
+
         string memory data = string(
             abi.encodePacked(
                 Strings.toString(block.timestamp),
@@ -171,9 +207,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
                 ",",
                 Strings.toHexString(asset),
                 ",",
-                Strings.toString(utilizationRate),
-                ",",
-                Strings.toString(currentLiquidityRate),
+                Strings.toString(stablePoolBalance), //!
                 ",",
                 Strings.toString(currentVariableBorrowRate)
             )
@@ -186,8 +220,8 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
         (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
 
-        console.log("cash cdxUSD : ", cashCdxusd);
-        console.log("cash counter: ", cashCa);
-        console.log("---");
+        // console.log("cash cdxUSD : ", cashCdxusd);
+        // console.log("cash counter: ", cashCa);
+        // console.log("---");
     }
 }

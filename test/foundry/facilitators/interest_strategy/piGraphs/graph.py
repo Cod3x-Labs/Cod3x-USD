@@ -7,7 +7,7 @@ log = False
 
 # Load the CSV file
 asset = "0x13aa49bac059d709dd0a18d6bb63290076a702d7"
-if "pidTests" in os.getcwd():
+if "pid_tests" in os.getcwd():
     dir = os.getcwd() + "/data"
 else:
     dir = os.getcwd() + "/test/foundry/facilitators/interest_strategy/piGraphs"

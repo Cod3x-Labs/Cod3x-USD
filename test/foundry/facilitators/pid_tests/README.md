@@ -24,13 +24,13 @@ mv .env.example .env
 ```sh
 python3 -m venv pyenv
 source pyenv/bin/activate
-pip install -r test/foundry/facilitators/pidTests/requirements.txt
+pip install -r test/foundry/facilitators/pid_tests/requirements.txt
 ```
 
 ## Execute
 
 ```sh
-cd test/foundry/facilitators/pidTests
+cd test/foundry/facilitators/pid_tests
 touch datas/output.csv
 sudo chmod +x execSimualtion.sh
 ./execSimualtion.sh

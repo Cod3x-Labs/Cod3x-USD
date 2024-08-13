@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
 import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
@@ -143,7 +143,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param amount The amount of debt being minted
      * @param index The variable debt index of the reserve
      * @return `true` if the the previous balance of the user is 0
-     *
      */
     function mint(address user, address onBehalfOf, uint256 amount, uint256 index)
         external
@@ -176,7 +175,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param user The user whose debt is getting burned
      * @param amount The amount getting burned
      * @param index The variable debt index of the reserve
-     *
      */
     function burn(address user, uint256 amount, uint256 index) external override onlyLendingPool {
         uint256 amountScaled = amount.rayDiv(index);
@@ -189,11 +187,13 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
         // TODO is this still an issue without discount mechanism?
         // https://governance.aave.com/t/temporarily-pausing-gho-integration-in-aave/14626/11
-        if (amount == balanceBeforeBurn) {
-            _burn(user, previousScaledBalance);
-        } else {
-            _burn(user, amountScaled);
-        }
+        // if (amount == balanceBeforeBurn) {
+        //     _burn(user, previousScaledBalance);
+        // } else {
+        //     _burn(user, amountScaled);
+        // }
+
+        _burn(user, amountScaled);
 
         if (balanceIncrease > amount) {
             uint256 amountToMint = balanceIncrease - amount;
@@ -228,7 +228,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     /**
      * @dev Returns the principal debt balance of the user from
      * @return The debt balance of the user since the last burn/mint action
-     *
      */
     function scaledBalanceOf(address user) public view virtual override returns (uint256) {
         return super.balanceOf(user);
@@ -237,7 +236,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     /**
      * @dev Returns the total supply of the variable debt token. Represents the total debt accrued by the users
      * @return The total supply
-     *
      */
     function totalSupply() public view virtual override returns (uint256) {
         return super.totalSupply().rayMul(
@@ -248,7 +246,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
     /**
      * @dev Returns the scaled total supply of the variable debt token. Represents sum(debt/index)
      * @return the scaled total supply
-     *
      */
     function scaledTotalSupply() public view virtual override returns (uint256) {
         return super.totalSupply();
@@ -259,7 +256,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
      * @param user The address of the user
      * @return The principal balance of the user
      * @return The principal total supply
-     *
      */
     function getScaledUserBalanceAndSupply(address user)
         external
@@ -272,7 +268,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
     /**
      * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     *
      */
     function UNDERLYING_ASSET_ADDRESS() public view returns (address) {
         return _underlyingAsset;
@@ -280,7 +275,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
     /**
      * @dev Returns the address of the incentives controller contract
-     *
      */
     function getIncentivesController() external view override returns (IRewarder) {
         return _getIncentivesController();
@@ -288,7 +282,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
 
     /**
      * @dev Returns the address of the lending pool where this aToken is used
-     *
      */
     function POOL() public view returns (ILendingPool) {
         return _pool;

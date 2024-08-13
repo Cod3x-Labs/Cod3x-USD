@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
 import {IAggregatorV3Interface} from
@@ -27,6 +27,7 @@ contract MockV3Aggregator is IAggregatorV3Interface {
     constructor(uint8 _decimals, int256 _initialAnswer) {
         decimals = _decimals;
         updateAnswer(_initialAnswer);
+        latestRound = 1;
     }
 
     function updateAnswer(int256 _answer) public {
