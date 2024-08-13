@@ -126,7 +126,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     DeployedContracts deployedContracts;
     ConfigAddresses configAddresses;
 
-    uint256[] public rates = [0.039e27, 0.03e27, 0.03e27]; //usdc, wbtc, eth
+    uint256[] public rates = [0.039e27, 0.03e27, 0.03e27]; // = [wbtc, weth, dai]
     uint256[] public volStrat = [
         VOLATILE_OPTIMAL_UTILIZATION_RATE,
         VOLATILE_BASE_VARIABLE_BORROW_RATE,
@@ -283,7 +283,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             counterAsset = ERC20(address(new ERC20Mock(18)));
 
             weth = address(new ERC20Mock(18));
-            wbtc = address(new ERC20Mock(6));
+            wbtc = address(new ERC20Mock(8));
             dai = address(new ERC20Mock(18));
             tokens.push(wbtc);
             tokens.push(weth);
