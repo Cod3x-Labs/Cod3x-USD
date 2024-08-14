@@ -77,6 +77,14 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         plateau(20);
         swapBalancer(users[1], counterAsset, 200_000e18);
         plateau(20);
+        setManualInterestRate(1e27 / 50); // 2%
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_200_000e18);
+        plateau(20);
+        setManualInterestRate(0); // stop
+        setErrI(13e25 * 2);
         swapBalancer(users[1], counterAsset, 200_000e18);
         plateau(20);
         plateau(20);
@@ -179,6 +187,14 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             block.timestamp,
             SwapKind.GIVEN_IN
         );
+    }
+
+    function setManualInterestRate(uint256 manualInterestRate) public {
+        cdxUsdInterestRateStrategy.setManualInterestRate(manualInterestRate);
+    }
+
+    function setErrI(int256 newErrI) public {
+        cdxUsdInterestRateStrategy.setErrI(newErrI);
     }
 
     function logg(address user, uint256 action, address asset) public {

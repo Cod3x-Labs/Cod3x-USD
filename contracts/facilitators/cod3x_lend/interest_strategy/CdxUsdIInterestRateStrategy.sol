@@ -68,6 +68,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     int256 public _minControllerError;
     int256 public _maxErrIAmp;
     uint256 public _optimalStablePoolReserveUtilization;
+    uint256 public _manualInterestRate;
 
     // Oracle
     IAggregatorV3Interface public _counterAssetPriceFeed;
@@ -84,6 +85,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
     error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
     error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
+    error PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
 
     // Events
     event PidLog( // if stablePoolReserveUtilization == 0 => counter asset deppeged.
@@ -132,6 +134,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         /// Checks
         if (transferFunction(type(int256).min) < 0) {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
+        }
+
+        if (transferFunction(initialErrIValue) > uint256(RAY)) {
+            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
         }
 
         _errI = initialErrIValue; // 13e19 * 1000000;
@@ -197,6 +203,31 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _timeout = timeout;
     }
 
+    /**
+     * @notice Sets the interest rate manually. When _manualInterestRate != 0, this contract
+     *         overrides the I controller.
+     * @dev Only the admin can call this function.
+     * @param manualInterestRate Manual interest rate value to be set. (in RAY)
+     */
+    function setManualInterestRate(uint256 manualInterestRate) external onlyPoolAdmin {
+        if (manualInterestRate > uint256(RAY)) {
+            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+        }
+        _manualInterestRate = manualInterestRate;
+    }
+
+    /**
+     * @notice Overrides the I controller value.
+     * @dev Only the admin can call this function.
+     * @param newErrI New _errI value. (in RAY)
+     */
+    function setErrI(int256 newErrI) external onlyPoolAdmin {
+        if (transferFunction(newErrI) > uint256(RAY)) {
+            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+        }
+        _errI = newErrI;
+    }
+
     // ----------- external -----------
 
     /**
@@ -235,7 +266,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             _lastTimestamp = block.timestamp;
         }
 
-        uint256 currentVariableBorrowRate = transferFunction(_errI);
+        uint256 currentVariableBorrowRate =
+            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI);
 
         emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, _errI, _errI);
 
@@ -255,7 +287,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     function getCurrentInterestRates() external view returns (uint256, uint256, uint256) {
         return (
             0,
-            transferFunction(_errI), // _errI == controler error
+            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI), // _errI == controler error
             0
         );
     }
