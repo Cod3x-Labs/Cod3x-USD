@@ -2,12 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
-// import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
-// import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
-// import
-//     "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/PidReserveInterestRateStrategy.sol";
-// import "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
-// import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking {
     address[] users;
