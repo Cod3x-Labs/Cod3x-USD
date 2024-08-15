@@ -57,8 +57,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     address public immutable _asset; // (cdxUSD) This strategy contract needs to be associated to a unique market.
     bool public immutable _assetReserveType; // This strategy contract needs to be associated to a unique market.
 
-    IBalancerVault public immutable _balancerVault; //? make it non immutable
-    bytes32 public immutable _poolId; //? make it non immutable
+    IBalancerVault public immutable _balancerVault;
+    bytes32 public _poolId;
     IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC/USDT] (order can change)
 
     int256 public constant ALPHA = 15e25; // 15e(-2)
@@ -140,11 +140,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
         }
 
-        _errI = initialErrIValue; // 13e19 * 1000000;
-            // TODO checks
-            // - _balancerVault and poolId compatibility with other contracts.
-            // - check minium pool balance
-            // - check the pool is fairly balanced (50/50)
+        _errI = initialErrIValue;
+
+        // TODO checks
+        // - _balancerVault and poolId compatibility with other contracts.
     }
 
     modifier onlyPoolAdmin() {
@@ -197,6 +196,18 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         external
         onlyPoolAdmin
     {
+        _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
+        _priceFeedReference = int256(1 * 10 ** uint256(_counterAssetPriceFeed.decimals()));
+        _pegMargin = pegMargin;
+        _timeout = timeout;
+    }
+
+    /**
+     * @notice Sets the poolId variable.
+     * @dev Only the admin can call this function.
+     * @param newPoolId The new Balancer pool id.
+     */
+    function setBalancerPoolId(bytes32 newPoolId) external onlyPoolAdmin {
         _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
         _priceFeedReference = int256(10 ** uint256(_counterAssetPriceFeed.decimals()));
         _pegMargin = pegMargin;
