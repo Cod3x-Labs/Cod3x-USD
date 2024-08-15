@@ -86,6 +86,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
     error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
     error PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+    error PiReserveInterestRateStrategy__ZERO_INPUT();
 
     // Events
     event PidLog( // if stablePoolReserveUtilization == 0 => counter asset deppeged.
@@ -168,6 +169,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @param minControllerError The new minimum controller error value.
      */
     function setMinControllerError(int256 minControllerError) external onlyPoolAdmin {
+        if (minControllerError == 0) {
+            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+        }
+
         _minControllerError = minControllerError;
         if (transferFunction(type(int256).min) < 0) {
             revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
@@ -181,6 +186,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @param maxITimeAmp The maximum integral time amplification value.
      */
     function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyPoolAdmin {
+        if (ki == 0 || maxITimeAmp == 0) {
+            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+        }
+
         _ki = ki;
         _maxErrIAmp = int256(_ki).rayMulInt(-RAY * maxITimeAmp);
     }
@@ -208,10 +217,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @param newPoolId The new Balancer pool id.
      */
     function setBalancerPoolId(bytes32 newPoolId) external onlyPoolAdmin {
-        _counterAssetPriceFeed = IAggregatorV3Interface(counterAssetPriceFeed);
-        _priceFeedReference = int256(10 ** uint256(_counterAssetPriceFeed.decimals()));
-        _pegMargin = pegMargin;
-        _timeout = timeout;
+        if (newPoolId == bytes32(0)) {
+            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+        }
+        _poolId = newPoolId;
     }
 
     /**
