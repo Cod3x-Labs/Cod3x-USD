@@ -53,6 +53,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     using WadRayMath for int256;
     using PercentageMath for uint256;
 
+    int256 public constant ALPHA = 15e25; // 15e(-2)
+    int256 private constant RAY = 1e27;
+    uint256 private constant SCALING_DECIMAL = 18;
+
     ILendingPoolAddressesProvider public immutable _addressesProvider;
     address public immutable _asset; // (cdxUSD) This strategy contract needs to be associated to a unique market.
     bool public immutable _assetReserveType; // This strategy contract needs to be associated to a unique market.
@@ -60,10 +64,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     IBalancerVault public immutable _balancerVault;
     bytes32 public _poolId;
     IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC/USDT] (order can change)
-
-    int256 public constant ALPHA = 15e25; // 15e(-2)
-    int256 private constant RAY = 1e27;
-    uint256 private constant SCALING_DECIMAL = 18;
 
     int256 public _minControllerError;
     int256 public _maxErrIAmp;
@@ -87,6 +87,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
     error PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
     error PiReserveInterestRateStrategy__ZERO_INPUT();
+    error PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
 
     // Events
     event PidLog( // if stablePoolReserveUtilization == 0 => counter asset deppeged.
@@ -143,8 +144,19 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         _errI = initialErrIValue;
 
-        // TODO checks
-        // - _balancerVault and poolId compatibility with other contracts.
+        (IERC20[] memory poolTokens,,) = _balancerVault.getPoolTokens(poolId);
+        
+        // 3 tokens [asset, counterAsset, BPT]
+        if (poolTokens.length != 3) {
+            revert PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+        }
+
+        if (
+            address(poolTokens[0]) != asset && address(poolTokens[1]) != asset
+                && address(poolTokens[2]) != asset
+        ) {
+            revert PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+        }
     }
 
     modifier onlyPoolAdmin() {
