@@ -327,6 +327,171 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         deployedContracts.lendingPool.flashLoan(flashloanParams, amounts, modes, params);
     }
 
+    function testLiquidationOfCdxUsd(uint256 priceDecrease, uint256 idx) public {
+        idx = bound(idx, 0, 2);
+        ERC20 wbtc = ERC20(erc20Tokens[idx]);
+        ERC20 cdxUsd = ERC20(erc20Tokens[3]);
+
+        uint256 cdxUsdPrice = oracle.getAssetPrice(address(cdxUsd));
+        uint256 wbtcPrice = oracle.getAssetPrice(address(wbtc));
+        {
+            uint256 wbtcDepositAmount = 10 ** wbtc.decimals();
+            (, uint256 wbtcLtv,,,,,,,) = deployedContracts
+                .protocolDataProvider
+                .getReserveConfigurationData(address(wbtc), true);
+
+            uint256 wbtcMaxBorrowAmount = wbtcLtv * wbtcDepositAmount / 10_000;
+            uint256 cdxUsdMaxBorrowAmountWithWbtcCollateral = (
+                (wbtcMaxBorrowAmount * wbtcPrice * 10 ** (cdxUsd.decimals() - wbtc.decimals()))
+                    / (10 ** PRICE_FEED_DECIMALS)
+            );
+            require(
+                cdxUsd.balanceOf(address(this)) > cdxUsdMaxBorrowAmountWithWbtcCollateral,
+                "Too less cdxUsd"
+            );
+
+            /* Main user deposits usdc and wants to borrow */
+            wbtc.approve(address(deployedContracts.lendingPool), wbtcDepositAmount);
+            deployedContracts.lendingPool.deposit(
+                address(wbtc), true, wbtcDepositAmount, address(this)
+            );
+            /* Main user borrows maxPossible amount of cdxUsd */
+            deployedContracts.lendingPool.borrow(
+                address(cdxUsd), true, cdxUsdMaxBorrowAmountWithWbtcCollateral, address(this)
+            );
+        }
+        {
+            (,,,,, uint256 healthFactor) =
+                deployedContracts.lendingPool.getUserAccountData(address(this));
+            assertGe(healthFactor, 1 ether);
+            // console.log("Health factor: ", healthFactor);
+        }
+
+        /* simulate btc price increase */
+        {
+            priceDecrease = bound(priceDecrease, 800, 1000); // 8-12%
+            int256[] memory prices = new int256[](4);
+            prices[0] = int256(oracle.getAssetPrice(address(wbtc)));
+            prices[1] = int256(oracle.getAssetPrice(address(weth)));
+            prices[2] = int256(oracle.getAssetPrice(address(dai)));
+
+            uint256 newPrice = (wbtcPrice - wbtcPrice * priceDecrease / 10_000);
+            prices[idx] = int256(newPrice);
+            prices[3] = int256(cdxUsdPrice);
+
+            address[] memory aggregators = new address[](4);
+            (, aggregators) = fixture_getTokenPriceFeeds(erc20Tokens, prices);
+
+            oracle.setAssetSources(tokens, aggregators);
+            cdxUsdPrice = newPrice;
+        }
+
+        ReserveDataParams memory cdxUsdReserveParamsBefore =
+            fixture_getReserveData(address(cdxUsd), deployedContracts.protocolDataProvider);
+        ReserveDataParams memory wbtcReserveParamsBefore =
+            fixture_getReserveData(address(wbtc), deployedContracts.protocolDataProvider);
+        {
+            (,,,,, uint256 healthFactor) =
+                deployedContracts.lendingPool.getUserAccountData(address(this));
+            assertLt(healthFactor, 1 ether, "Health factor greater or equal than 1");
+            console.log("healthFactor: ", healthFactor);
+        }
+        /**
+         * LIQUIDATION PROCESS - START ***********
+         */
+        uint256 amountToLiquidate;
+        uint256 scaledVariableDebt;
+        {
+            (, uint256 debtToCover, uint256 _scaledVariableDebt,,) = deployedContracts
+                .protocolDataProvider
+                .getUserReserveData(address(cdxUsd), true, address(this));
+            amountToLiquidate = debtToCover / 2; // maximum possible liquidation amount
+            scaledVariableDebt = _scaledVariableDebt;
+        }
+        {
+            /* prepare funds */
+            address liquidator = makeAddr("liquidator");
+            cdxUsd.transfer(liquidator, amountToLiquidate);
+
+            vm.startPrank(liquidator);
+            cdxUsd.approve(address(deployedContracts.lendingPool), amountToLiquidate);
+            deployedContracts.lendingPool.liquidationCall(
+                address(wbtc), true, address(cdxUsd), true, address(this), amountToLiquidate, false
+            );
+            vm.stopPrank();
+        }
+        /**
+         * LIQUIDATION PROCESS - END ***********
+         */
+        ReserveDataParams memory cdxUsdReserveParamsAfter =
+            fixture_getReserveData(address(cdxUsd), deployedContracts.protocolDataProvider);
+        ReserveDataParams memory wbtcReserveParamsAfter =
+            fixture_getReserveData(address(wbtc), deployedContracts.protocolDataProvider);
+        uint256 expectedCollateralLiquidated;
+
+        {
+            (,,, uint256 liquidationBonus,,,,,) = deployedContracts
+                .protocolDataProvider
+                .getReserveConfigurationData(address(wbtc), true);
+
+            expectedCollateralLiquidated = cdxUsdPrice
+                * (amountToLiquidate * liquidationBonus / 10_000) * 10 ** wbtc.decimals()
+                / (wbtcPrice * 10 ** cdxUsd.decimals());
+        }
+        uint256 variableDebtBeforeTx = fixture_calcExpectedVariableDebtTokenBalance(
+            cdxUsdReserveParamsBefore.variableBorrowRate,
+            cdxUsdReserveParamsBefore.variableBorrowIndex,
+            cdxUsdReserveParamsBefore.lastUpdateTimestamp,
+            scaledVariableDebt,
+            block.timestamp
+        );
+        {
+            (,,,,, uint256 healthFactor) =
+                deployedContracts.lendingPool.getUserAccountData(address(this));
+            console.log("healthFactor AFTER: ", healthFactor);
+            assertGt(healthFactor, 1 ether);
+        }
+
+        (, uint256 currentVariableDebt,,,) = deployedContracts
+            .protocolDataProvider
+            .getUserReserveData(address(cdxUsd), true, address(this));
+
+        assertApproxEqRel(
+            currentVariableDebt,
+            variableDebtBeforeTx - amountToLiquidate,
+            0.01e18,
+            "Debt not accurate"
+        );
+        assertApproxEqRel(
+            cdxUsdReserveParamsAfter.availableLiquidity,
+            cdxUsdReserveParamsBefore.availableLiquidity + amountToLiquidate,
+            0.01e18,
+            "Available liquidity not accurate"
+        );
+        assertGe(
+            cdxUsdReserveParamsAfter.liquidityIndex,
+            cdxUsdReserveParamsBefore.liquidityIndex,
+            "Liquidity Index Less than before"
+        );
+        // assertLt(
+        //     cdxUsdReserveParamsAfter.liquidityRate,
+        //     cdxUsdReserveParamsBefore.liquidityRate,
+        //     "Liquidity rate greater or equal than before"
+        // );
+        // assertApproxEqRel(
+        //     wbtcReserveParamsAfter.availableLiquidity,
+        //     wbtcReserveParamsBefore.availableLiquidity - expectedCollateralLiquidated,
+        //     0.01e18,
+        //     "Available liquidity after liquidation not accurate"
+        // );
+        {
+            (,,,, bool usageAsCollateralEnabled) = deployedContracts
+                .protocolDataProvider
+                .getUserReserveData(address(wbtc), true, address(this));
+            assertEq(usageAsCollateralEnabled, true, "Usage as collaterall disabled");
+        }
+    }
+
     function testLiquidationReceiveUnderlying(uint256 priceIncrease) public {
         ERC20 dai = ERC20(erc20Tokens[2]);
         ERC20 wbtc = ERC20(erc20Tokens[0]);
@@ -377,9 +542,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         /* simulate btc price increase */
         {
             priceIncrease = bound(priceIncrease, 800, 1_200); // 8-12%
-            console.log("wbtcPrice: ", wbtcPrice);
             uint256 newPrice = (wbtcPrice + wbtcPrice * priceIncrease / 10_000);
-            console.log("newPrice: ", newPrice);
             int256[] memory prices = new int256[](4);
             prices[0] = int256(newPrice);
             prices[1] = int256(oracle.getAssetPrice(address(weth)));
@@ -400,7 +563,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             (,,,,, uint256 healthFactor) =
                 deployedContracts.lendingPool.getUserAccountData(address(this));
             assertLt(healthFactor, 1 ether, "Health factor greater or equal than 1");
-            console.log("healthFactor: ", healthFactor);
+            // console.log("healthFactor: ", healthFactor);
         }
 
         /**
@@ -530,7 +693,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             (,,,,, uint256 healthFactor) =
                 deployedContracts.lendingPool.getUserAccountData(address(this));
             assertGe(healthFactor, 1 ether);
-            console.log("healthFactor: ", healthFactor);
+            // console.log("healthFactor: ", healthFactor);
         }
 
         /* simulate btc price increase */
@@ -553,8 +716,6 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
 
         ReserveDataParams memory wbtcReserveParamsBefore =
             fixture_getReserveData(address(wbtc), deployedContracts.protocolDataProvider);
-        ReserveDataParams memory daiReserveParamsBefore =
-            fixture_getReserveData(address(dai), deployedContracts.protocolDataProvider);
         {
             (,,,,, uint256 healthFactor) =
                 deployedContracts.lendingPool.getUserAccountData(address(this));
@@ -580,7 +741,6 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
 
             vm.startPrank(liquidator);
             wbtc.approve(address(deployedContracts.lendingPool), amountToLiquidate);
-            vm.expectRevert();
             deployedContracts.lendingPool.liquidationCall(
                 address(dai), true, address(wbtc), true, address(this), amountToLiquidate, true
             );
@@ -589,73 +749,72 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         /**
          * LIQUIDATION PROCESS - END ***********
          */
-        // ReserveDataParams memory wbtcReserveParamsAfter =
-        //     fixture_getReserveData(address(wbtc), deployedContracts.protocolDataProvider);
-        // ReserveDataParams memory daiReserveParamsAfter =
-        //     fixture_getReserveData(address(dai), deployedContracts.protocolDataProvider);
-        // uint256 expectedCollateralLiquidated;
+        ReserveDataParams memory wbtcReserveParamsAfter =
+            fixture_getReserveData(address(wbtc), deployedContracts.protocolDataProvider);
+        uint256 expectedCollateralLiquidated;
 
-        // {
-        //     (,,, uint256 liquidationBonus,,,,,) = deployedContracts
-        //         .protocolDataProvider
-        //         .getReserveConfigurationData(address(dai), true);
+        {
+            (,,, uint256 liquidationBonus,,,,,) = deployedContracts
+                .protocolDataProvider
+                .getReserveConfigurationData(address(dai), true);
 
-        //     expectedCollateralLiquidated = wbtcPrice
-        //         * (amountToLiquidate * liquidationBonus / 10_000) * 10 ** dai.decimals()
-        //         / (daiPrice * 10 ** wbtc.decimals());
-        // }
-        // uint256 variableDebtBeforeTx = fixture_calcExpectedVariableDebtTokenBalance(
-        //     wbtcReserveParamsBefore.variableBorrowRate,
-        //     wbtcReserveParamsBefore.variableBorrowIndex,
-        //     wbtcReserveParamsBefore.lastUpdateTimestamp,
-        //     scaledVariableDebt,
-        //     block.timestamp
-        // );
-        // {
-        //     (,,,,, uint256 healthFactor) =
-        //         deployedContracts.lendingPool.getUserAccountData(address(this));
-        //     // console.log("AFTER LIQUIDATION: ");
-        //     // console.log("healthFactor: ", healthFactor);
-        //     assertGt(healthFactor, 1 ether);
-        // }
+            expectedCollateralLiquidated = wbtcPrice
+                * (amountToLiquidate * liquidationBonus / 10_000) * 10 ** dai.decimals()
+                / (daiPrice * 10 ** wbtc.decimals());
+        }
+        uint256 variableDebtBeforeTx = fixture_calcExpectedVariableDebtTokenBalance(
+            wbtcReserveParamsBefore.variableBorrowRate,
+            wbtcReserveParamsBefore.variableBorrowIndex,
+            wbtcReserveParamsBefore.lastUpdateTimestamp,
+            scaledVariableDebt,
+            block.timestamp
+        );
+        {
+            (,,,,, uint256 healthFactor) =
+                deployedContracts.lendingPool.getUserAccountData(address(this));
+            // console.log("AFTER LIQUIDATION: ");
+            // console.log("healthFactor: ", healthFactor);
+            assertGt(healthFactor, 1 ether);
+        }
 
-        // (, uint256 currentVariableDebt,,,) = deployedContracts
-        //     .protocolDataProvider
-        //     .getUserReserveData(address(wbtc), true, address(this));
+        (, uint256 currentVariableDebt,,,) = deployedContracts
+            .protocolDataProvider
+            .getUserReserveData(address(wbtc), true, address(this));
 
-        // assertApproxEqRel(
-        //     currentVariableDebt,
-        //     variableDebtBeforeTx - amountToLiquidate,
-        //     0.01e18,
-        //     "VariableDebt assertion failed"
-        // );
-        // assertApproxEqRel(
-        //     wbtcReserveParamsAfter.availableLiquidity,
-        //     wbtcReserveParamsBefore.availableLiquidity + amountToLiquidate,
-        //     0.01e18,
-        //     "WBTC AvailableLiquidity assertion failed"
-        // );
-        // assertGe(
-        //     wbtcReserveParamsAfter.liquidityIndex,
-        //     wbtcReserveParamsBefore.liquidityIndex,
-        //     "LiquidityIndex assertion failed"
-        // );
-        // assertLt(
-        //     wbtcReserveParamsAfter.liquidityRate,
-        //     wbtcReserveParamsBefore.liquidityRate,
-        //     "LiquidityRate assertion failed"
-        // );
-        // assertApproxEqRel(
-        //     daiReserveParamsAfter.availableLiquidity,
-        //     daiReserveParamsBefore.availableLiquidity - expectedCollateralLiquidated,
-        //     0.01e18,
-        //     "DAI AvailableLiquidity assertion failed"
-        // );
-        // {
-        //     (,,,, bool usageAsCollateralEnabled) = deployedContracts
-        //         .protocolDataProvider
-        //         .getUserReserveData(address(dai), true, address(this));
-        //     assertEq(usageAsCollateralEnabled, true);
-        // }
+        assertApproxEqRel(
+            currentVariableDebt,
+            variableDebtBeforeTx - amountToLiquidate,
+            0.01e18,
+            "VariableDebt assertion failed"
+        );
+        assertApproxEqRel(
+            wbtcReserveParamsAfter.availableLiquidity,
+            wbtcReserveParamsBefore.availableLiquidity + amountToLiquidate,
+            0.01e18,
+            "WBTC AvailableLiquidity assertion failed"
+        );
+        assertGe(
+            wbtcReserveParamsAfter.liquidityIndex,
+            wbtcReserveParamsBefore.liquidityIndex,
+            "LiquidityIndex assertion failed"
+        );
+        assertLt(
+            wbtcReserveParamsAfter.liquidityRate,
+            wbtcReserveParamsBefore.liquidityRate,
+            "LiquidityRate assertion failed"
+        );
+
+        assertApproxEqRel(
+            aTokens[2].balanceOf(makeAddr("liquidator")),
+            expectedCollateralLiquidated,
+            0.01e18,
+            "ADai AvailableLiquidity assertion failed"
+        );
+        {
+            (,,,, bool usageAsCollateralEnabled) = deployedContracts
+                .protocolDataProvider
+                .getUserReserveData(address(dai), true, address(this));
+            assertEq(usageAsCollateralEnabled, true);
+        }
     }
 }
