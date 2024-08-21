@@ -196,6 +196,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
                 address(reliquary),
                 address(cdxUSD),
                 address(usdc),
+                address(this),
                 address(this)
             );
         }

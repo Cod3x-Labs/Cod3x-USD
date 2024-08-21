@@ -37,6 +37,7 @@ contract Zap is Pausable, Ownable {
     IERC20 public immutable poolAdd;
     IERC20 public immutable cdxUsd;
     IERC20 public immutable counterAsset; // most likely usdc/usdt
+    address public guardian;
 
     IAsset[] private poolTokens;
     mapping(address => uint256) private tokenToIndex;
@@ -47,6 +48,15 @@ contract Zap is Pausable, Ownable {
     error Zap__CONTRACT_NOT_COMPATIBLE();
     error Zap__SLIPPAGE_CHECK_FAILED();
     error Zap__RELIC_NOT_OWNED();
+    error Zap__ONLY_GUARDIAN();
+
+    /// Mofifiers
+    modifier onlyGuardian() {
+        if (msg.sender != guardian) {
+            revert Zap__ONLY_GUARDIAN();
+        }
+        _;
+    }
 
     constructor(
         address _balancerVault,
@@ -55,14 +65,16 @@ contract Zap is Pausable, Ownable {
         address _reliquary,
         address _cdxUsd,
         address _counterAsset,
-        address _initialOwner
-    ) Ownable(_initialOwner) {
+        address _owner,
+        address _guardian
+    ) Ownable(_owner) {
         balancerVault = IBalancerVault(_balancerVault);
         cod3xVault = Cod3xVault(_cod3xVault);
         strategy = ScdxUsdVaultStrategy(_strategy);
         reliquary = IReliquary(_reliquary);
         cdxUsd = IERC20(_cdxUsd);
         counterAsset = IERC20(_counterAsset);
+        guardian = _guardian;
 
         poolId = ScdxUsdVaultStrategy(_strategy).poolId();
 
@@ -124,12 +136,29 @@ contract Zap is Pausable, Ownable {
 
     /// =============== Admin ===============
 
-    function pause() public onlyOwner {
+    /**
+     * @notice Pause the Zap contract.
+     * @dev restricted to guardian.
+     */
+    function pause() public onlyGuardian {
         _pause();
     }
 
+    /**
+     * @notice Unpause the Zap contract.
+     * @dev restricted to owner.
+     */
     function unpause() public onlyOwner {
         _unpause();
+    }
+
+    /**
+     * @notice set guardian address.
+     * @param _guardian guardian address.
+     */
+    function setGuardian(address _guardian) external onlyOwner {
+        if(_guardian == address(0)) revert Zap__WRONG_INPUT();
+        guardian = _guardian;
     }
 
     /// ============ Staked cdxUSD ============
