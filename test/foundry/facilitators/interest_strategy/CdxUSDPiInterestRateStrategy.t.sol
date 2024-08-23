@@ -34,17 +34,19 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
     function setUp() public override {
         super.setUp();
 
-        uint256[] memory balances = new uint256[](3);
+        uint256[] memory balances = new uint256[](4);
         balances[0] = 1000;
         balances[1] = 1000;
         balances[2] = 1000;
-
+        balances[3] = 1000;
+        ERC20 bpt = new ERC20Mock(18);
         provider = address(new LendingPoolProviderMock(makeAddr("lendingPool")));
         poolId = bytes32("cdxUSD/USDT/USDC");
-        tokenAddresses = new address[](3);
+        tokenAddresses = new address[](4);
         tokenAddresses[0] = address(usdc);
         tokenAddresses[1] = address(usdt);
-        tokenAddresses[2] = address(cdxUSD);
+        tokenAddresses[2] = address(bpt);
+        tokenAddresses[3] = address(cdxUSD);
 
         balancerVaultMock = new BalancerVaultMock(poolId, tokenAddresses, balances);
 
@@ -154,8 +156,13 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         durations[2] = 3 days;
 
         uint256[][] memory balances = new uint256[][](3);
-        for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
+        console.log("tokenAddresses length: ", tokenAddresses.length);
+        console.log("durations length: ", durations.length);
+        balances[0] = new uint256[](tokenAddresses.length);
+        for (uint8 idx = 0; idx < durations.length; idx++) {
             balances[idx] = new uint256[](tokenAddresses.length);
+        }
+        for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
             balances[0][idx] = INITIAL_BALANCE * 10 ** ERC20Mock(tokenAddresses[idx]).decimals();
         }
 
@@ -164,13 +171,16 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         balancerVaultMock.setBalancesForTokens(poolId, tokenAddresses, balances[0]);
         vm.warp(block.timestamp + durations[0]);
 
+        console.log("balances 1 length: ", balances[1].length);
         balances[1][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[1][1] = 800 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[1][2] = 1200 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[1][2] = 0; //BPT
+        balances[1][3] = 1200 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[2][0] = 900 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[2][1] = 1100 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[2][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[2][2] = 0; //BPT
+        balances[2][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         fixture_simulateBalancesChange(balances, durations, path1, address(cdxUSD));
     }
@@ -182,8 +192,13 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         durations[2] = 3 days;
 
         uint256[][] memory balances = new uint256[][](3);
-        for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
+        console.log("tokenAddresses length: ", tokenAddresses.length);
+        console.log("durations length: ", durations.length);
+        balances[0] = new uint256[](tokenAddresses.length);
+        for (uint8 idx = 0; idx < durations.length; idx++) {
             balances[idx] = new uint256[](tokenAddresses.length);
+        }
+        for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
             balances[0][idx] = INITIAL_BALANCE * 10 ** ERC20Mock(tokenAddresses[idx]).decimals();
         }
 
@@ -192,11 +207,13 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
 
         balances[1][0] = 2000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[1][1] = 500 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[1][2] = 500 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[1][2] = 0; //BPT
+        balances[1][3] = 500 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[2][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[2][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[2][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[2][2] = 0; //BPT
+        balances[2][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         fixture_simulateBalancesChange(balances, durations, path2, address(cdxUSD));
     }
@@ -225,19 +242,23 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
 
         balances[1][0] = 750 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[1][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[1][2] = 1250 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[1][2] = 0; //BPT
+        balances[1][3] = 1250 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[2][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[2][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[2][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[2][2] = 0; //BPT
+        balances[2][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[3][0] = 2000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[3][1] = 500 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[3][2] = 500 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[3][2] = 0; //BPT
+        balances[3][3] = 500 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[4][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[4][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[4][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[4][2] = 0; //BPT
+        balances[4][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         fixture_simulateBalancesChange(balances, durations, path3, address(cdxUSD));
     }
@@ -266,19 +287,23 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
 
         balances[1][0] = 750 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[1][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[1][2] = 1250 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[1][2] = 0; //BPT
+        balances[1][3] = 1250 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[2][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[2][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[2][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[2][2] = 0; //BPT
+        balances[2][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[3][0] = 1250 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[3][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[3][2] = 750 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[3][2] = 0; //BPT
+        balances[3][3] = 750 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         balances[4][0] = 1000 * 10 ** ERC20Mock(tokenAddresses[0]).decimals();
         balances[4][1] = 1000 * 10 ** ERC20Mock(tokenAddresses[1]).decimals();
-        balances[4][2] = 1000 * 10 ** ERC20Mock(tokenAddresses[2]).decimals();
+        balances[4][2] = 0; //BPT
+        balances[4][3] = 1000 * 10 ** ERC20Mock(tokenAddresses[3]).decimals();
 
         fixture_simulateBalancesChange(balances, durations, path4, address(cdxUSD));
     }

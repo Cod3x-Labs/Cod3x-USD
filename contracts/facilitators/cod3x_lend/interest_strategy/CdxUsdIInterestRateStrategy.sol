@@ -76,9 +76,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     uint256 public _pegMargin;
     uint256 public _timeout;
 
-    // P - to disable
-    uint256 public _kp;
-
     // I
     uint256 public _ki; // in RAY
     uint256 public _lastTimestamp;
@@ -116,7 +113,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         _addressesProvider = ILendingPoolAddressesProvider(provider);
 
         /// PID values
-        _kp = 0;
         _ki = ki;
         _lastTimestamp = block.timestamp;
         _minControllerError = minControllerError;
@@ -126,15 +122,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         _balancerVault = IBalancerVault(balancerVault);
         _poolId = poolId;
         (IERC20[] memory tokens,,) = IBalancerVault(balancerVault).getPoolTokens(poolId); //? is returning an array with BPT token?
-        console.log("Length: ", tokens.length);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            console.log("First tokens: ", address(tokens[i]));
-        }
-        // (address pool,) = IBalancerVault(balancerVault).getPool(poolId);
-        // tokens = BalancerHelper._dropBptItem(tokens, pool);
-        // for (uint256 i = 0; i < tokens.length; i++) {
-        //     console.log("Second tokens: ", address(tokens[i]));
-        // }
+        (address pool,) = IBalancerVault(balancerVault).getPool(poolId);
+        tokens = BalancerHelper._dropBptItem(tokens, pool);
         for (uint256 i = 0; i < tokens.length; i++) {
             IERC20 token_ = tokens[i];
             stablePoolTokens.push(token_);
@@ -260,9 +249,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
     function getCurrentInterestRates() external view returns (uint256, uint256, uint256) {
         // console.log("Utilization rate: ", getCdxUsdStablePoolReserveUtilization());
         uint256 utilizationRate = getCdxUsdStablePoolReserveUtilization();
-        int256 normalizedError = getNormalizedError(utilizationRate);
-        console.log("Normalized: ", uint256(normalizedError));
-        return (0, transferFunction(getControllerError(normalizedError)), utilizationRate);
+        return (0, transferFunction(_errI), utilizationRate);
     }
 
     function baseVariableBorrowRate() public view override returns (uint256) {
@@ -285,15 +272,12 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         for (uint256 i = 0; i < stablePoolTokens.length; i++) {
             IERC20 token_ = stablePoolTokens[i];
             (uint256 cash_,,,) = IBalancerVault(_balancerVault).getPoolTokenInfo(_poolId, token_);
-            console.log("Cash for %s: %s", address(token_), cash_);
             cash_ = scaleDecimals(cash_, token_);
             totalInPool_ += cash_;
 
             if (address(token_) == _asset) cdxUsdAmtInPool_ = cash_;
         }
-        console.log("totalInPool_: ", totalInPool_);
-        console.log("cdxUsdAmtInPool_: ", cdxUsdAmtInPool_);
-        console.log("utilization rate: ", cdxUsdAmtInPool_ * uint256(RAY) / totalInPool_);
+
         return cdxUsdAmtInPool_ * uint256(RAY) / totalInPool_;
     }
 
@@ -304,11 +288,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
      * @return The scaled amount.
      */
     function scaleDecimals(uint256 amount, IERC20 token) internal view returns (uint256) {
-        console.log("Decimals: ", ERC20(address(token)).decimals());
-        console.log("Multiplications: ", (SCALING_DECIMAL - ERC20(address(token)).decimals()));
-        console.log(
-            "Returning: ", amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals())
-        );
         return amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals());
     }
 
@@ -323,43 +302,19 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy, Ownable {
         view
         returns (int256)
     {
-        console.log(
-            "_optimalStablePoolReserveUtilization %s vs stablePoolReserveUtilization %s",
-            _optimalStablePoolReserveUtilization,
-            stablePoolReserveUtilization
-        );
         int256 err =
             int256(stablePoolReserveUtilization) - int256(_optimalStablePoolReserveUtilization);
-        console.log("ERROR: ", uint256(err));
+
         if (int256(stablePoolReserveUtilization) < int256(_optimalStablePoolReserveUtilization)) {
-            console.log(
-                "Return err 1: ",
-                uint256(err.rayDivInt(int256(_optimalStablePoolReserveUtilization)))
-            );
             return err.rayDivInt(int256(_optimalStablePoolReserveUtilization));
         } else {
-            console.log(
-                "Return err 2: ",
-                uint256(err.rayDivInt(RAY - int256(_optimalStablePoolReserveUtilization)))
-            );
             return err.rayDivInt(RAY - int256(_optimalStablePoolReserveUtilization));
         }
-    }
-
-    /// @dev Process the controller error from the normalized error.
-    function getControllerError(int256 err) internal view returns (int256) {
-        int256 errP = int256(_kp).rayMulInt(err);
-        console.log("errP: ", uint256(errP));
-        console.log("errI: ", uint256(_errI));
-        console.log("Sum: ", uint256(errP + _errI));
-        return errP + _errI;
     }
 
     /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/dj5puy23wz)
     function transferFunction(int256 controllerError) public view returns (uint256) {
         int256 ce = controllerError > _minControllerError ? controllerError : _minControllerError;
-        console.log("ce: ", uint256(ce));
-        console.log("RAY - ce: ", uint256(RAY - ce));
         return uint256(ALPHA.rayMulInt(ce.rayDivInt(RAY - ce)));
     }
 
