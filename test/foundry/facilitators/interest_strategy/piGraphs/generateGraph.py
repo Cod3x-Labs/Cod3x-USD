@@ -7,8 +7,9 @@ log = False
 
 # Load the CSV file
 asset = "0x13aa49bac059d709dd0a18d6bb63290076a702d7"
-if "pid_tests" in os.getcwd():
-    dir = os.getcwd() + "/data"
+print(os.getcwd())
+if "piGraphs" in os.getcwd():
+    dir = os.getcwd()
 else:
     dir = os.getcwd() + "/test/foundry/facilitators/interest_strategy/piGraphs"
 idx = 0
@@ -66,4 +67,4 @@ for root, dirs, filenames in os.walk(dir):
             ax2.grid(True)
 
             plt.tight_layout()
-            plt.savefig(os.getcwd() + "/test/foundry/facilitators/interest_strategy/piGraphs/rates_over_time_{}.png".format(filename.split(".")[0]))
+            plt.savefig(dir + "/rates_over_time_{}.png".format(filename.split(".")[0]))

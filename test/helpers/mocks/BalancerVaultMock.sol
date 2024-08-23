@@ -48,7 +48,7 @@ contract BalancerVaultMock {
         returns (IERC20[] memory tokens, uint256[] memory balances, uint256 lastChangeBlock)
     {
         tokens = _idToTokens[poolId];
-        balances = new uint256[](3);
+        balances = new uint256[](tokens.length);
         lastChangeBlock = 0;
         for (uint8 i = 0; i < tokens.length; i++) {
             balances[i] = _idToTokenAndCash[poolId][address(tokens[i])];
