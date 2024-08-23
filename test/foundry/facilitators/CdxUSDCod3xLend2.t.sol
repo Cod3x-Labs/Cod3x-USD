@@ -270,11 +270,12 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         address initiator,
         bytes calldata params
     ) external returns (bool) {
-        uint256[] memory totalAmountsToPay = new uint256[](NR_OF_ASSETS);
+        uint256[] memory totalAmountsToPay = new uint256[](NR_OF_ASSETS + 1);
         (uint256[] memory balancesBefore, address sender) = abi.decode(params, (uint256[], address)); //uint256[], address
         if ((sender == address(this))) {
-            for (uint32 idx = 0; idx < NR_OF_ASSETS; idx++) {
+            for (uint32 idx = 0; idx < NR_OF_ASSETS + 1; idx++) {
                 console.log("[In] Premium: ", premiums[idx]);
+                console.log("Balance: ", IERC20(assets[idx]).balanceOf(sender));
                 totalAmountsToPay[idx] = amounts[idx] + premiums[idx];
                 assertEq(balancesBefore[idx] + amounts[idx], IERC20(assets[idx]).balanceOf(sender));
                 assertEq(assets[idx], tokens[idx]);
@@ -285,7 +286,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             assertEq(sender, address(this));
             return true;
         } else if (sender == notApproved) {
-            for (uint32 idx = 0; idx < NR_OF_ASSETS; idx++) {
+            for (uint32 idx = 0; idx < NR_OF_ASSETS + 1; idx++) {
                 console.log("[In] Premium: ", premiums[idx]);
                 totalAmountsToPay[idx] = amounts[idx] + premiums[idx];
                 assertEq(
@@ -300,11 +301,11 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
     }
 
     function testFlasloanAlwaysRevert() public {
-        bool[] memory reserveTypes = new bool[](NR_OF_ASSETS);
-        address[] memory tokenAddresses = new address[](NR_OF_ASSETS);
-        uint256[] memory amounts = new uint256[](NR_OF_ASSETS);
-        uint256[] memory modes = new uint256[](NR_OF_ASSETS);
-        uint256[] memory balancesBefore = new uint256[](NR_OF_ASSETS);
+        bool[] memory reserveTypes = new bool[](NR_OF_ASSETS + 1);
+        address[] memory tokenAddresses = new address[](NR_OF_ASSETS + 1);
+        uint256[] memory amounts = new uint256[](NR_OF_ASSETS + 1);
+        uint256[] memory modes = new uint256[](NR_OF_ASSETS + 1);
+        uint256[] memory balancesBefore = new uint256[](NR_OF_ASSETS + 1);
 
         for (uint32 idx = 0; idx < NR_OF_ASSETS; idx++) {
             uint256 amountToDeposit = IERC20(tokens[idx]).balanceOf(address(this)) / 2;
@@ -318,6 +319,11 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             modes[idx] = 0;
             balancesBefore[idx] = IERC20(tokens[idx]).balanceOf(address(this));
         }
+        reserveTypes[NR_OF_ASSETS] = true;
+        tokenAddresses[NR_OF_ASSETS] = address(erc20Tokens[NR_OF_ASSETS]);
+        amounts[NR_OF_ASSETS] = 1e18;
+        modes[NR_OF_ASSETS] = 0;
+        balancesBefore[NR_OF_ASSETS] = erc20Tokens[NR_OF_ASSETS].balanceOf(address(this));
 
         ILendingPool.FlashLoanParams memory flashloanParams =
             ILendingPool.FlashLoanParams(address(this), tokenAddresses, reserveTypes, address(this));
