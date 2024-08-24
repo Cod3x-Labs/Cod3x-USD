@@ -270,10 +270,10 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         address initiator,
         bytes calldata params
     ) external returns (bool) {
-        uint256[] memory totalAmountsToPay = new uint256[](NR_OF_ASSETS + 1);
+        uint256[] memory totalAmountsToPay = new uint256[](assets.length);
         (uint256[] memory balancesBefore, address sender) = abi.decode(params, (uint256[], address)); //uint256[], address
         if ((sender == address(this))) {
-            for (uint32 idx = 0; idx < NR_OF_ASSETS + 1; idx++) {
+            for (uint32 idx = 0; idx < assets.length; idx++) {
                 console.log("[In] Premium: ", premiums[idx]);
                 console.log("Balance: ", IERC20(assets[idx]).balanceOf(sender));
                 totalAmountsToPay[idx] = amounts[idx] + premiums[idx];
@@ -286,7 +286,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             assertEq(sender, address(this));
             return true;
         } else if (sender == notApproved) {
-            for (uint32 idx = 0; idx < NR_OF_ASSETS + 1; idx++) {
+            for (uint32 idx = 0; idx < assets.length; idx++) {
                 console.log("[In] Premium: ", premiums[idx]);
                 totalAmountsToPay[idx] = amounts[idx] + premiums[idx];
                 assertEq(
@@ -300,36 +300,40 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         }
     }
 
-    function testFlasloanAlwaysRevert() public {
-        bool[] memory reserveTypes = new bool[](NR_OF_ASSETS + 1);
-        address[] memory tokenAddresses = new address[](NR_OF_ASSETS + 1);
-        uint256[] memory amounts = new uint256[](NR_OF_ASSETS + 1);
-        uint256[] memory modes = new uint256[](NR_OF_ASSETS + 1);
-        uint256[] memory balancesBefore = new uint256[](NR_OF_ASSETS + 1);
+    // TODO fix FL on cod3x lend
+    function testFlasloanCdxUsd() public {
+        address user = makeAddr("user");
+        uint256 amount = 1000e18;
 
-        for (uint32 idx = 0; idx < NR_OF_ASSETS; idx++) {
-            uint256 amountToDeposit = IERC20(tokens[idx]).balanceOf(address(this)) / 2;
-            erc20Tokens[idx].approve(address(deployedContracts.lendingPool), amountToDeposit);
-            deployedContracts.lendingPool.deposit(
-                address(erc20Tokens[idx]), true, amountToDeposit, address(this)
-            );
-            reserveTypes[idx] = true;
-            tokenAddresses[idx] = address(erc20Tokens[idx]);
-            amounts[idx] = IERC20(tokens[idx]).balanceOf(address(this)) / 2;
-            modes[idx] = 0;
-            balancesBefore[idx] = IERC20(tokens[idx]).balanceOf(address(this));
-        }
-        reserveTypes[NR_OF_ASSETS] = true;
-        tokenAddresses[NR_OF_ASSETS] = address(erc20Tokens[NR_OF_ASSETS]);
-        amounts[NR_OF_ASSETS] = 1e18;
-        modes[NR_OF_ASSETS] = 0;
-        balancesBefore[NR_OF_ASSETS] = erc20Tokens[NR_OF_ASSETS].balanceOf(address(this));
+        // supply cdxUSD
+
+        /* Deposit on behalf of user */
+        erc20Tokens[0].approve(address(deployedContracts.lendingPool), 1e8);
+        deployedContracts.lendingPool.deposit(address(erc20Tokens[0]), true, 1e8, user);
+
+        /* User shall be able to withdraw underlying tokens */
+        vm.startPrank(user);
+        deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, amount, user);
+        vm.stopPrank();
+
+        // Flashloan
+        bool[] memory reserveTypes = new bool[](1);
+        address[] memory tokenAddresses = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        uint256[] memory modes = new uint256[](1);
+        uint256[] memory balancesBefore = new uint256[](1);
+
+        reserveTypes[0] = true;
+        tokenAddresses[0] = address(cdxUsd);
+        amounts[0] = 1e18;
+        modes[0] = 0;
+        balancesBefore[0] = cdxUsd.balanceOf(address(this));
 
         ILendingPool.FlashLoanParams memory flashloanParams =
             ILendingPool.FlashLoanParams(address(this), tokenAddresses, reserveTypes, address(this));
         bytes memory params = abi.encode(balancesBefore, address(this));
 
-        vm.expectRevert();
+        // vm.expectRevert();
         deployedContracts.lendingPool.flashLoan(flashloanParams, amounts, modes, params);
     }
 
