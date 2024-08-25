@@ -54,7 +54,6 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     uint256 private constant RELIC_ID = 1;
 
     uint256 public indexCdxUsd;
-    uint256 public indexUsdt;
     uint256 public indexUsdc;
 
     function setUp() public virtual override {
@@ -63,7 +62,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
         /// ======= Balancer Pool Deploy =======
         {
-            assets = [IERC20(address(cdxUSD)), usdc, usdt];
+            assets = [IERC20(address(cdxUSD)), usdc];
 
             // balancer stable pool creation
             (poolId, poolAdd) = createStablePool(assets, 2500, userA);
@@ -72,19 +71,16 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
 
             uint256 indexCdxUsdTemp;
-            uint256 indexUsdtTemp;
             uint256 indexUsdcTemp;
             uint256 indexBtpTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
                 if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
-                if (setupPoolTokens[i] == usdt) indexUsdtTemp = i;
                 if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
                 if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
             }
 
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
             amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
-            amountsToAdd[indexUsdtTemp] = INITIAL_USDT_AMT;
             amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
             amountsToAdd[indexBtpTemp] = 0;
 
@@ -98,7 +94,6 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
             for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
                 if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
-                if (setupPoolTokensWithoutBTP[i] == usdt) indexUsdt = i;
                 if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
             }
         }

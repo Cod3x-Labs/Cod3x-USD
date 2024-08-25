@@ -34,6 +34,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     error ScdxUsdVaultStrategy__SHOULD_OWN_RELIC_1();
     error ScdxUsdVaultStrategy__CDXUSD_NOT_INCLUDED_IN_BALANCER_POOL();
     error ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
+    error ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -91,6 +92,9 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
         (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
         poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
+
+        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
+
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
