@@ -144,7 +144,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
     /**
      * @notice Unpause on the `send()` function.
-     * @dev restricted to guardian.
+     * @dev restricted to owner.
      */
     function unpauseBridge() external onlyOwner {
         lzPause = false;
