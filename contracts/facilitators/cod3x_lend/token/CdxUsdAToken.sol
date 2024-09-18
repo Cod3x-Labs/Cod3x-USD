@@ -76,6 +76,7 @@ contract CdxUsdAToken is
         address underlyingAsset,
         IRewarder incentivesController,
         uint8 aTokenDecimals,
+        bool,
         string calldata aTokenName,
         string calldata aTokenSymbol,
         bytes calldata params
@@ -97,6 +98,7 @@ contract CdxUsdAToken is
             treasury,
             address(incentivesController),
             aTokenDecimals,
+            _reserveType,
             aTokenName,
             aTokenSymbol,
             params
@@ -356,6 +358,33 @@ contract CdxUsdAToken is
         );
         emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
     }
+
+        /// --------- Share logic ---------
+    function transferShare(address from, address to, uint256 shareAmount) external {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function shareApprove(address owner, address spender, uint256 shareAmount) external {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function shareAllowances(address owner, address spender) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function WRAPPER_ADDRESS() external view returns (address) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function convertToShares(uint256 assetAmount) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function convertToAssets(uint256 shareAmount) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    /// --------- Rehypothecation logic ---------
 
     function setTreasury(address newTreasury) external override onlyLendingPool {
         require(newTreasury != address(0), "ZERO_INPUT");

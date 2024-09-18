@@ -77,6 +77,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         address underlyingAsset,
         IRewarder incentivesController,
         uint8 debtTokenDecimals,
+        bool,
         string memory debtTokenName,
         string memory debtTokenSymbol,
         bytes calldata params
@@ -96,6 +97,7 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
             address(pool),
             address(incentivesController),
             debtTokenDecimals,
+            _reserveType,
             debtTokenName,
             debtTokenSymbol,
             params

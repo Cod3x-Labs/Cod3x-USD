@@ -501,7 +501,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         // validationLogic = address(new ValidationLogic());
         lendingPool = new LendingPool();
         lendingPool.initialize(
-            ILendingPoolAddressesProvider(deployedContracts.lendingPoolAddressesProvider)
+            ILendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider))
         );
         deployedContracts.lendingPoolAddressesProvider.setLendingPoolImpl(address(lendingPool));
         lendingPoolProxyAddress =
@@ -870,19 +870,19 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
         for (uint8 idx = 0; idx < tokensToConfigure.length; idx++) {
             miniPoolContracts.miniPoolConfigurator.configureReserveAsCollateral(
-                tokensToConfigure[idx], true, 9500, 9700, 10100, IMiniPool(mp)
+                tokensToConfigure[idx], 9500, 9700, 10100, IMiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.activateReserve(
-                tokensToConfigure[idx], true, IMiniPool(mp)
+                tokensToConfigure[idx], IMiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.enableBorrowingOnReserve(
-                tokensToConfigure[idx], true, IMiniPool(mp)
+                tokensToConfigure[idx], IMiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.setReserveInterestRateStrategyAddress(
-                address(tokensToConfigure[idx]), true, address(IRS), IMiniPool(mp)
+                address(tokensToConfigure[idx]), address(IRS), IMiniPool(mp)
             );
         }
         vm.stopPrank();
