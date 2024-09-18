@@ -4,45 +4,44 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
-import "lib/Cod3x-Lend/contracts/rewarder/Rewarder.sol";
-import "lib/Cod3x-Lend/contracts/misc/Oracle.sol";
+import "lib/Cod3x-Lend/contracts/protocol/rewarder/lendingpool/Rewarder.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/Oracle.sol";
 import "lib/Cod3x-Lend/contracts/misc/ProtocolDataProvider.sol";
 import "lib/Cod3x-Lend/contracts/misc/Treasury.sol";
 import "lib/Cod3x-Lend/contracts/misc/UiPoolDataProviderV2.sol";
 import "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
-import "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ReserveLogic.sol";
-import "lib/Cod3x-Lend/contracts/protocol/libraries/logic/GenericLogic.sol";
-import "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ValidationLogic.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ReserveLogic.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/GenericLogic.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ValidationLogic.sol";
 import "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
 import
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPool.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolCollateralManager.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolConfigurator.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPool.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPool.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolCollateralManager.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolConfigurator.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPool.sol";
 import "lib/Cod3x-Lend/contracts/protocol/configuration/MiniPoolAddressProvider.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolConfigurator.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/FlowLimiter.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolConfigurator.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/minipool/FlowLimiter.sol";
 
 import "lib/Cod3x-Lend/contracts/deployments/ATokensAndRatesHelper.sol";
-import "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
+import "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC6909/ATokenERC6909.sol";
-import "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+import "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 import "lib/Cod3x-Lend/contracts/mocks/tokens/MintableERC20.sol";
 import "lib/Cod3x-Lend/contracts/mocks/tokens/WETH9Mocked.sol";
-import "lib/Cod3x-Lend/contracts/mocks/oracle/CLAggregators/MockAggregator.sol";
+import "lib/Cod3x-Lend/contracts/mocks/oracle/MockAggregator.sol";
 import "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
-import "lib/Cod3x-Lend/contracts/mocks/tokens/MockStrat.sol";
 import "lib/Cod3x-Lend/contracts/mocks/tokens/ExternalContract.sol";
 import "lib/Cod3x-Lend/contracts/mocks/dependencies/IStrategy.sol";
 import "lib/Cod3x-Lend/contracts/mocks/dependencies/IExternalContract.sol";
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 
 import
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolDefaultReserveInterestRate.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/MiniPoolDefaultReserveInterestRate.sol";
 import "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
-import "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolCollateralManager.sol";
+import "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
 
 struct ReserveDataParams {
     uint256 availableLiquidity;

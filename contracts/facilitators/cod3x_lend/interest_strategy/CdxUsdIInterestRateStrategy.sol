@@ -11,7 +11,7 @@ import {ILendingPoolAddressesProvider} from
 import {IAToken} from "lib/Cod3x-Lend/contracts/interfaces/IAToken.sol";
 import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
 import {VariableDebtToken} from
-    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from

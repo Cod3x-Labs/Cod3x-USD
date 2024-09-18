@@ -6,9 +6,9 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
-import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
+import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import {VariableDebtToken} from
-    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";

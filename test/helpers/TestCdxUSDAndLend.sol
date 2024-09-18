@@ -3,59 +3,59 @@ pragma solidity ^0.8.22;
 
 // Cod3x Lend
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
-import {Rewarder} from "lib/Cod3x-Lend/contracts/rewarder/Rewarder.sol";
-import {Oracle} from "lib/Cod3x-Lend/contracts/misc/Oracle.sol";
+import {Rewarder} from "lib/Cod3x-Lend/contracts/protocol/rewarder/lendingpool/Rewarder.sol";
+import {Oracle} from "lib/Cod3x-Lend/contracts/protocol/core/Oracle.sol";
 import {ProtocolDataProvider} from "lib/Cod3x-Lend/contracts/misc/ProtocolDataProvider.sol";
 import {Treasury} from "lib/Cod3x-Lend/contracts/misc/Treasury.sol";
 import {UiPoolDataProviderV2} from "lib/Cod3x-Lend/contracts/misc/UiPoolDataProviderV2.sol";
 import {WETHGateway} from "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
-import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ReserveLogic.sol";
-import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/libraries/logic/GenericLogic.sol";
+import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ReserveLogic.sol";
+import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/GenericLogic.sol";
 import {ValidationLogic} from
-    "lib/Cod3x-Lend/contracts/protocol/libraries/logic/ValidationLogic.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ValidationLogic.sol";
 import {LendingPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
 import {LendingPoolAddressesProviderRegistry} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
 import {DefaultReserveInterestRateStrategy} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
-import {LendingPool} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPool.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
+import {LendingPool} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPool.sol";
 import {LendingPoolCollateralManager} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolCollateralManager.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolCollateralManager.sol";
 import {LendingPoolConfigurator} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/LendingPoolConfigurator.sol";
-import {MiniPool} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPool.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolConfigurator.sol";
+import {MiniPool} from "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPool.sol";
 import {MiniPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/MiniPoolAddressProvider.sol";
 import {MiniPoolConfigurator} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolConfigurator.sol";
-import {flowLimiter} from "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/FlowLimiter.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolConfigurator.sol";
+import {flowLimiter} from "lib/Cod3x-Lend/contracts/protocol/core/minipool/FlowLimiter.sol";
 import {ATokensAndRatesHelper} from "lib/Cod3x-Lend/contracts/deployments/ATokensAndRatesHelper.sol";
-import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
+import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import {ATokenERC6909} from
     "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC6909/ATokenERC6909.sol";
 import {VariableDebtToken} from
-    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 import {MintableERC20} from "lib/Cod3x-Lend/contracts/mocks/tokens/MintableERC20.sol";
 import {WETH9Mocked} from "lib/Cod3x-Lend/contracts/mocks/tokens/WETH9Mocked.sol";
 import {MockAggregator} from
-    "lib/Cod3x-Lend/contracts/mocks/oracle/CLAggregators/MockAggregator.sol";
+    "lib/Cod3x-Lend/contracts/mocks/oracle/MockAggregator.sol";
 import {MockERC4626} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
 import {ExternalContract} from "lib/Cod3x-Lend/contracts/mocks/tokens/ExternalContract.sol";
 import {IStrategy} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IStrategy.sol";
 import {IExternalContract} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IExternalContract.sol";
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MiniPoolDefaultReserveInterestRateStrategy} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolDefaultReserveInterestRate.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/MiniPoolDefaultReserveInterestRate.sol";
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
 import {MiniPoolCollateralManager} from
-    "lib/Cod3x-Lend/contracts/protocol/lendingpool/minipool/MiniPoolCollateralManager.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
-import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+// import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 
 // Mock imports
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";

@@ -5,7 +5,7 @@ import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableD
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {SafeCast} from "lib/Cod3x-Lend/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
-import {DebtTokenBase} from "lib/Cod3x-Lend/contracts/protocol/tokenization/base/DebtTokenBase.sol";
+import {DebtTokenBase} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/base/DebtTokenBase.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 import {IRewarder} from "lib/Cod3x-Lend/contracts/interfaces/IRewarder.sol";
 
