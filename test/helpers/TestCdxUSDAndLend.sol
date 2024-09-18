@@ -9,10 +9,10 @@ import {ProtocolDataProvider} from "lib/Cod3x-Lend/contracts/misc/ProtocolDataPr
 import {Treasury} from "lib/Cod3x-Lend/contracts/misc/Treasury.sol";
 import {UiPoolDataProviderV2} from "lib/Cod3x-Lend/contracts/misc/UiPoolDataProviderV2.sol";
 import {WETHGateway} from "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
-import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ReserveLogic.sol";
-import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/GenericLogic.sol";
+import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ReserveLogic.sol";
+import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/GenericLogic.sol";
 import {ValidationLogic} from
-    "lib/Cod3x-Lend/contracts/protocol/core/lendingPool/logic/ValidationLogic.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ValidationLogic.sol";
 import {LendingPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
 import {LendingPoolAddressesProviderRegistry} from
@@ -50,10 +50,11 @@ import {MiniPoolDefaultReserveInterestRateStrategy} from
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
 import {MiniPoolCollateralManager} from
     "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
-import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
+import {ILendingPoolConfigurator} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
-import "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
+import {IMiniPool} from "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
+import {IMiniPoolAddressesProvider} from "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 // import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 
@@ -423,7 +424,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         });
 
         vm.prank(owner);
-        lendingPoolConfigurator.batchInitReserve(initInputParams);
+        ILendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
 
         inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
             asset: _cdxUsd,
@@ -501,7 +502,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         // validationLogic = address(new ValidationLogic());
         lendingPool = new LendingPool();
         lendingPool.initialize(
-            ILendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider))
+            LendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider))
         );
         deployedContracts.lendingPoolAddressesProvider.setLendingPoolImpl(address(lendingPool));
         lendingPoolProxyAddress =
@@ -637,7 +638,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         }
 
         vm.prank(owner);
-        lendingPoolConfigurator.batchInitReserve(initInputParams);
+        ILendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
 
         for (uint8 idx = 0; idx < tokens.length; idx++) {
             inputConfigParams[idx] = ATokensAndRatesHelper.ConfigureReserveInput({
@@ -765,13 +766,13 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         DeployedMiniPoolContracts memory deployedMiniPoolContracts;
         deployedMiniPoolContracts.miniPoolImpl = new MiniPool();
         deployedMiniPoolContracts.miniPoolAddressesProvider = new MiniPoolAddressesProvider(
-            ILendingPoolAddressesProvider(_lendingPoolAddressesProvider)
+            LendingPoolAddressesProvider(_lendingPoolAddressesProvider)
         );
         deployedMiniPoolContracts.aToken6909Impl = new ATokenERC6909();
         deployedMiniPoolContracts.flowLimiter = new flowLimiter(
-            ILendingPoolAddressesProvider(_lendingPoolAddressesProvider),
-            IMiniPoolAddressesProvider(address(deployedMiniPoolContracts.miniPoolAddressesProvider)),
-            ILendingPool(_lendingPool)
+            LendingPoolAddressesProvider(_lendingPoolAddressesProvider),
+            MiniPoolAddressesProvider(address(deployedMiniPoolContracts.miniPoolAddressesProvider)),
+            LendingPool(_lendingPool)
         );
         address miniPoolConfigIMPL = address(new MiniPoolConfigurator());
         deployedMiniPoolContracts.miniPoolAddressesProvider.setMiniPoolConfigurator(
@@ -832,7 +833,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         ssStrat[3] = uint256(0.1e27);
 
         MiniPoolDefaultReserveInterestRateStrategy IRS = new MiniPoolDefaultReserveInterestRateStrategy(
-            IMiniPoolAddressesProvider(address(miniPoolContracts.miniPoolAddressesProvider)),
+            MiniPoolAddressesProvider(address(miniPoolContracts.miniPoolAddressesProvider)),
             ssStrat[0],
             ssStrat[1],
             ssStrat[2],
@@ -862,7 +863,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             });
         }
         vm.startPrank(address(miniPoolContracts.miniPoolAddressesProvider.getPoolAdmin()));
-        miniPoolContracts.miniPoolConfigurator.batchInitReserve(initInputParams, IMiniPool(mp));
+        IMiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(initInputParams, IMiniPool(mp));
         assertEq(
             miniPoolContracts.miniPoolAddressesProvider.getMiniPoolConfigurator(),
             address(miniPoolContracts.miniPoolConfigurator)
@@ -870,19 +871,19 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
         for (uint8 idx = 0; idx < tokensToConfigure.length; idx++) {
             miniPoolContracts.miniPoolConfigurator.configureReserveAsCollateral(
-                tokensToConfigure[idx], 9500, 9700, 10100, IMiniPool(mp)
+                tokensToConfigure[idx], 9500, 9700, 10100, MiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.activateReserve(
-                tokensToConfigure[idx], IMiniPool(mp)
+                tokensToConfigure[idx], MiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.enableBorrowingOnReserve(
-                tokensToConfigure[idx], IMiniPool(mp)
+                tokensToConfigure[idx], MiniPool(mp)
             );
 
             miniPoolContracts.miniPoolConfigurator.setReserveInterestRateStrategyAddress(
-                address(tokensToConfigure[idx]), address(IRS), IMiniPool(mp)
+                address(tokensToConfigure[idx]), address(IRS), MiniPool(mp)
             );
         }
         vm.stopPrank();

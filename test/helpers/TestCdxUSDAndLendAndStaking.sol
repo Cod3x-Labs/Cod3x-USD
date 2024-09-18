@@ -54,7 +54,7 @@ import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
 import {CdxUsdIInterestRateStrategy} from
     "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
-import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUsdOracle.sol";
+import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUSDOracle.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
