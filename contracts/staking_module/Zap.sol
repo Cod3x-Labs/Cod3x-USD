@@ -157,7 +157,7 @@ contract Zap is Pausable, Ownable {
      * @param _guardian guardian address.
      */
     function setGuardian(address _guardian) external onlyOwner {
-        if(_guardian == address(0)) revert Zap__WRONG_INPUT();
+        if (_guardian == address(0)) revert Zap__WRONG_INPUT();
         guardian = _guardian;
     }
 
@@ -243,7 +243,9 @@ contract Zap is Pausable, Ownable {
         );
 
         /// Send token
-        IERC20(_tokenToWithdraw).safeTransfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).safeTransfer(
+            _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
+        );
     }
 
     /// ================ Relic ================
@@ -337,6 +339,8 @@ contract Zap is Pausable, Ownable {
         );
 
         /// Send Relic
-        IERC20(_tokenToWithdraw).safeTransfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).safeTransfer(
+            _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
+        );
     }
 }

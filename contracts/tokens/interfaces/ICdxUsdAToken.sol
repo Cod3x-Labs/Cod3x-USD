@@ -28,4 +28,10 @@ interface ICdxUsdAToken is IAToken, ICdxUSDFacilitators {
      * @param reliquaryAllocation BPS of cdxUSD fee distributed to staked cdxUSD.
      */
     function setReliquaryInfo(address reliquary, uint256 reliquaryAllocation) external;
+
+    /**
+     * @notice Set keeper address.
+     * @param keeper New keeper address.
+     */
+    function setKeeper(address keeper) external;
 }

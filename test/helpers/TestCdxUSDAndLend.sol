@@ -9,8 +9,10 @@ import {ProtocolDataProvider} from "lib/Cod3x-Lend/contracts/misc/ProtocolDataPr
 import {Treasury} from "lib/Cod3x-Lend/contracts/misc/Treasury.sol";
 import {UiPoolDataProviderV2} from "lib/Cod3x-Lend/contracts/misc/UiPoolDataProviderV2.sol";
 import {WETHGateway} from "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
-import {ReserveLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ReserveLogic.sol";
-import {GenericLogic} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/GenericLogic.sol";
+import {ReserveLogic} from
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ReserveLogic.sol";
+import {GenericLogic} from
+    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/GenericLogic.sol";
 import {ValidationLogic} from
     "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ValidationLogic.sol";
 import {LendingPoolAddressesProvider} from
@@ -38,8 +40,7 @@ import {VariableDebtToken} from
     "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 import {MintableERC20} from "lib/Cod3x-Lend/contracts/mocks/tokens/MintableERC20.sol";
 import {WETH9Mocked} from "lib/Cod3x-Lend/contracts/mocks/tokens/WETH9Mocked.sol";
-import {MockAggregator} from
-    "lib/Cod3x-Lend/contracts/mocks/oracle/MockAggregator.sol";
+import {MockAggregator} from "lib/Cod3x-Lend/contracts/mocks/oracle/MockAggregator.sol";
 import {MockERC4626} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
 import {ExternalContract} from "lib/Cod3x-Lend/contracts/mocks/tokens/ExternalContract.sol";
 import {IStrategy} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IStrategy.sol";
@@ -50,11 +51,13 @@ import {MiniPoolDefaultReserveInterestRateStrategy} from
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
 import {MiniPoolCollateralManager} from
     "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
-import {ILendingPoolConfigurator} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
+import {ILendingPoolConfigurator} from
+    "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
 import {IMiniPool} from "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
-import {IMiniPoolAddressesProvider} from "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolAddressesProvider.sol";
+import {IMiniPoolAddressesProvider} from
+    "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolAddressesProvider.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 // import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 
@@ -381,6 +384,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
             _reliquaryCdxusdRewarder, 8000 /* 80% */
         );
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(msg.sender);
         DataTypes.ReserveData memory reserve =
             ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
         RollingRewarder(_reliquaryCdxusdRewarder).updateChildFunder(reserve.aTokenAddress);
@@ -863,7 +867,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             });
         }
         vm.startPrank(address(miniPoolContracts.miniPoolAddressesProvider.getPoolAdmin()));
-        MiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(initInputParams, IMiniPool(mp));
+        MiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(
+            initInputParams, IMiniPool(mp)
+        );
         assertEq(
             miniPoolContracts.miniPoolAddressesProvider.getMiniPoolConfigurator(),
             address(miniPoolContracts.miniPoolConfigurator)

@@ -334,7 +334,9 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         bytes memory params = abi.encode(balancesBefore, address(this));
 
         // vm.expectRevert();
-        ILendingPool(address(deployedContracts.lendingPool)).flashLoan(flashloanParams, amounts, modes, params);
+        ILendingPool(address(deployedContracts.lendingPool)).flashLoan(
+            flashloanParams, amounts, modes, params
+        );
     }
 
     function testLiquidationOfCdxUsd(uint256 priceDecrease, uint256 idx) public {

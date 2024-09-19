@@ -145,7 +145,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _errI = initialErrIValue;
 
         (IERC20[] memory poolTokens,,) = _balancerVault.getPoolTokens(poolId);
-        
+
         // 3 tokens [asset, counterAsset, BPT]
         if (poolTokens.length != 3) {
             revert PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();

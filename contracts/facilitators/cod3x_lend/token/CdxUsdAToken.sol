@@ -35,6 +35,7 @@ contract CdxUsdAToken is
 
     ILendingPool internal _pool;
     CdxUsdVariableDebtToken internal _cdxUsdVariableDebtToken;
+    address internal _keeper;
     address internal _treasury;
     address internal _cdxUsdTreasury;
     address internal _underlyingAsset;
@@ -57,11 +58,17 @@ contract CdxUsdAToken is
         _;
     }
 
+    modifier onlyKeeper() {
+        require(_msgSender() == _keeper, "CALLER_NOT_KEEPER");
+        _;
+    }
+
     /**
      * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.
      * @notice MUST also call updateCdxUsdTreasury() at initialization.
      * @notice MUST also call setReliquaryInfo() at initialization.
+     * @notice MUST also call setKeeper() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
      * @param treasury The address of the Aave treasury, receiving the fees on this aToken
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
@@ -138,6 +145,12 @@ contract CdxUsdAToken is
         _reliquaryAllocation = reliquaryAllocation;
 
         IERC20(_underlyingAsset).approve(reliquaryCdxusdRewarder, type(uint256).max);
+    }
+
+    /// @inheritdoc ICdxUsdAToken
+    function setKeeper(address keeper) external override onlyPoolAdmin {
+        require(keeper != address(0), "ZERO_INPUT");
+        _keeper = keeper;
     }
 
     /**
@@ -347,7 +360,7 @@ contract CdxUsdAToken is
     }
 
     /// @inheritdoc ICdxUSDFacilitators
-    function distributeFeesToTreasury() external virtual override {
+    function distributeFeesToTreasury() external virtual override onlyKeeper {
         require(_cdxUsdTreasury != address(0), "NO_CDXUSD_TREASURY");
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
 
@@ -359,7 +372,7 @@ contract CdxUsdAToken is
         emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
     }
 
-        /// --------- Share logic ---------
+    /// --------- Share logic ---------
     function transferShare(address from, address to, uint256 shareAmount) external {
         revert("OPERATION_NOT_SUPPORTED");
     }
