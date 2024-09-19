@@ -243,7 +243,7 @@ contract Zap is Pausable, Ownable {
         );
 
         /// Send token
-        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).safeTransfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
     }
 
     /// ================ Relic ================
@@ -337,6 +337,6 @@ contract Zap is Pausable, Ownable {
         );
 
         /// Send Relic
-        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).safeTransfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
     }
 }
