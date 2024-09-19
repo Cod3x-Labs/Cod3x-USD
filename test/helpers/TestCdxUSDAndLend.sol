@@ -424,7 +424,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         });
 
         vm.prank(owner);
-        ILendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
+        LendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
 
         inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
             asset: _cdxUsd,
@@ -638,7 +638,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         }
 
         vm.prank(owner);
-        ILendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
+        LendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
 
         for (uint8 idx = 0; idx < tokens.length; idx++) {
             inputConfigParams[idx] = ATokensAndRatesHelper.ConfigureReserveInput({
@@ -863,7 +863,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             });
         }
         vm.startPrank(address(miniPoolContracts.miniPoolAddressesProvider.getPoolAdmin()));
-        IMiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(initInputParams, IMiniPool(mp));
+        MiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(initInputParams, IMiniPool(mp));
         assertEq(
             miniPoolContracts.miniPoolAddressesProvider.getMiniPoolConfigurator(),
             address(miniPoolContracts.miniPoolConfigurator)
