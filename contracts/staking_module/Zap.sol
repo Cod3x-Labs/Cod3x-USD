@@ -304,19 +304,19 @@ contract Zap is Pausable, Ownable {
      *         - send token(s) to user
      * @dev Users must first approve the amount they wish to send.
      * @param _relicId Id of the relic to withdraw from.
-     * @param _amountBtpToWithdraw amount of token to withdraw.
+     * @param _amountBptToWithdraw amount of token to withdraw.
      * @param _tokenToWithdraw address of the token to be withdrawn.
      * @param _minAmountOut slippage protection.
      * @param _to address receiving tokens. (harvest rewards and principal)
      */
     function zapOutRelic(
         uint256 _relicId,
-        uint256 _amountBtpToWithdraw,
+        uint256 _amountBptToWithdraw,
         address _tokenToWithdraw,
         uint256 _minAmountOut,
         address _to
     ) external whenNotPaused {
-        if (_relicId == 0 || _amountBtpToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
+        if (_relicId == 0 || _amountBptToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
             revert Zap__WRONG_INPUT();
         }
 
@@ -325,7 +325,7 @@ contract Zap is Pausable, Ownable {
         }
 
         /// Reliquary withdraw
-        reliquary.withdraw(_amountBtpToWithdraw, _relicId, address(_to));
+        reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
 
         /// withdraw pool
         BalancerHelper._exitPool(
@@ -338,7 +338,7 @@ contract Zap is Pausable, Ownable {
             _minAmountOut
         );
 
-        /// Send Relic
+        /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(
             _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
         );

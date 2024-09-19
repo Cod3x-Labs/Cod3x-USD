@@ -199,7 +199,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         // Send fee to treasury
         uint256 feeAmt_ = amountSentLD_ - amountReceivedLD_;
         if (feeAmt_ != 0) {
-            _transfer(msg.sender, treasury, feeAmt_);
+            _transfer(_from, treasury, feeAmt_);
         }
 
         // Balance check

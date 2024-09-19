@@ -325,7 +325,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     }
 
     function baseVariableBorrowRate() public view override returns (uint256) {
-        return uint256(transferFunction(type(int256).min));
+        return transferFunction(type(int256).min);
     }
 
     function getMaxVariableBorrowRate() external pure override returns (uint256) {
@@ -384,7 +384,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
     }
 
-    /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/dj5puy23wz)
+    /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/msx2vwdbfc)
     function transferFunction(int256 controllerError) public view returns (uint256) {
         int256 ce = controllerError > _minControllerError ? controllerError : _minControllerError;
         return uint256(ALPHA.rayMulInt(ce.rayDivInt(RAY - ce)));

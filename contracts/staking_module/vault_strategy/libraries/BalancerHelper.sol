@@ -88,9 +88,9 @@ library BalancerHelper {
         returns (IERC20[] memory)
     {
         IERC20[] memory arrayWithoutBpt_ = new IERC20[](_array.length - 1);
-        uint256 btpIndex_ = IBaseBalancerPool(_pool).getBptIndex();
+        uint256 bptIndex_ = IBaseBalancerPool(_pool).getBptIndex();
         for (uint256 i = 0; i < arrayWithoutBpt_.length; i++) {
-            arrayWithoutBpt_[i] = _array[i < btpIndex_ ? i : i + 1];
+            arrayWithoutBpt_[i] = _array[i < bptIndex_ ? i : i + 1];
         }
 
         return arrayWithoutBpt_;

@@ -333,7 +333,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             ILendingPool.FlashLoanParams(address(this), tokenAddresses, reserveTypes, address(this));
         bytes memory params = abi.encode(balancesBefore, address(this));
 
-        // vm.expectRevert();
+        vm.expectRevert();
         ILendingPool(address(deployedContracts.lendingPool)).flashLoan(
             flashloanParams, amounts, modes, params
         );
