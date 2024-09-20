@@ -10,6 +10,10 @@ import {ICdxUSDFacilitators} from "./ICdxUSDFacilitators.sol";
  * @notice Defines the basic interface of the CdxUsdAToken.
  */
 interface ICdxUsdAToken is IAToken, ICdxUSDFacilitators {
+    event SetVariableDebtToken(address cdxUsdVariableDebtToken);
+    event SetReliquaryInfo(address reliquaryCdxusdRewarder, uint256 reliquaryAllocation);
+    event SetKeeper(address keeper);
+
     /**
      * @notice Sets a reference to the GHO variable debt token.
      * @param cdxUsdVariableDebtToken The address of the CdxUsdVariableDebtToken contract.

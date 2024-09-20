@@ -94,6 +94,14 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         int256 err,
         int256 controllerErr
     );
+    event SetMinControllerError(int256 minControllerError);
+    event SetPidValues(uint256 ki);
+    event SetOracleValues(
+        address counterAssetPriceFeed, int256 priceFeedReference, uint256 pegMargin, uint256 timeout
+    );
+    event SetBalancerPoolId(bytes32 newPoolId);
+    event SetManualInterestRate(uint256 manualInterestRate);
+    event SetErrI(int256 newErrI);
 
     /// @dev `setOracleValues()` needs to be called at contracts creation.
     //! The counter asset MUST be a 1$ pegged asset
@@ -182,6 +190,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
 
         _minControllerError = minControllerError;
+
+        emit SetMinControllerError(minControllerError);
     }
 
     /**
@@ -193,8 +203,9 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         if (ki == 0) {
             revert PiReserveInterestRateStrategy__ZERO_INPUT();
         }
-
         _ki = ki;
+
+        emit SetPidValues(ki);
     }
 
     /**
@@ -212,6 +223,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _priceFeedReference = int256(1 * 10 ** uint256(_counterAssetPriceFeed.decimals()));
         _pegMargin = pegMargin;
         _timeout = timeout;
+
+        emit SetOracleValues(counterAssetPriceFeed, _priceFeedReference, pegMargin, timeout);
     }
 
     /**
@@ -224,6 +237,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             revert PiReserveInterestRateStrategy__ZERO_INPUT();
         }
         _poolId = newPoolId;
+
+        emit SetBalancerPoolId(newPoolId);
     }
 
     /**
@@ -237,6 +252,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
         }
         _manualInterestRate = manualInterestRate;
+
+        emit SetManualInterestRate(manualInterestRate);
     }
 
     /**
@@ -249,6 +266,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
         }
         _errI = newErrI;
+
+        emit SetErrI(newErrI);
     }
 
     // ----------- external -----------

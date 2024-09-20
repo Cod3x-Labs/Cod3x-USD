@@ -122,6 +122,8 @@ contract CdxUsdAToken is
         require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
 
         _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
+
+        emit SetVariableDebtToken(cdxUsdVariableDebtToken);
     }
 
     /// @inheritdoc ICdxUSDFacilitators
@@ -129,6 +131,7 @@ contract CdxUsdAToken is
         require(newCdxUsdTreasury != address(0), "ZERO_INPUT");
         address oldCdxUsdTreasury = _cdxUsdTreasury;
         _cdxUsdTreasury = newCdxUsdTreasury;
+
         emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury, newCdxUsdTreasury);
     }
 
@@ -145,12 +148,16 @@ contract CdxUsdAToken is
         _reliquaryAllocation = reliquaryAllocation;
 
         IERC20(_underlyingAsset).approve(reliquaryCdxusdRewarder, type(uint256).max);
+
+        emit SetReliquaryInfo(reliquaryCdxusdRewarder, reliquaryAllocation);
     }
 
     /// @inheritdoc ICdxUsdAToken
     function setKeeper(address keeper) external override onlyPoolAdmin {
         require(keeper != address(0), "ZERO_INPUT");
         _keeper = keeper;
+
+        emit SetKeeper(keeper);
     }
 
     /**
