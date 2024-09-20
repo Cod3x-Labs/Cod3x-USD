@@ -3,7 +3,6 @@ pragma solidity ^0.8.22;
 
 import {IOFTExtended} from "./interfaces/IOFTExtended.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {OFTCore} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
@@ -18,19 +17,30 @@ import {OFTCore} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
  *          - Possibility to enable fees
  */
 abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
-    using SafeCast for uint256;
-    using SafeCast for int256;
+    uint256 internal constant BPS = 10000;
 
-    uint16 internal constant BPS = 10000;
-
+    /// --- Bridge Config ---
     /// @notice Mapping giving the config for a specific EID.
-    mapping(uint32 => BridgeConfig) internal eidToConfig;
+    mapping(uint32 => int256) internal eidToMinBalanceLimit;
+    /// @notice Global max amount of assets that can be bridged per hour.
+    uint256 public hourlyLimit;
+    /// @notice Fee charged for bridging out of the hosting chain in BPS.
+    uint256 public fee;
 
-    /// @notice Mapping giving the utilization for a specific EID.
-    mapping(uint32 => BridgeUtilization) internal eidToUtilization;
+    /// --- Bridge Utilization ---
+    /// @notice Mapping giving the balance for a specific EID.
+    // Track the balance between the hosting network and a specific chain:
+    // balanceUtilization < 0 => more token sent than received
+    // balanceUtilization > 0 => more token received than sent
+    mapping(uint32 => int256) internal eidToBalanceUtilization;
+    /// @notice Max amount of assets that can be bridged per hour.
+    uint256 public slidingHourlyLimitUtilization;
+    /// @notice Variable used for hourly limit calculation.
+    uint256 public lastUsedTimestamp;
 
+    /// --- Vars ---
     /// @notice Pause any bridging operation.
-    bool lzPause;
+    bool public lzPause;
     /// @notice Guardian address that can toggle pause.
     address public guardian;
     /// @notice treasury address that receives fees.
@@ -72,46 +82,56 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
     // ======================= Getters ================================
 
-    function getBridgeConfig(uint32 _dstEid) external view returns (BridgeConfig memory) {
-        return eidToConfig[_dstEid];
+    function getBalanceLimit(uint32 _dstEid) external view returns (int256) {
+        return eidToMinBalanceLimit[_dstEid];
     }
 
-    function getBridgeUtilization(uint32 _dstEid)
-        external
-        view
-        returns (BridgeUtilization memory)
-    {
-        return eidToUtilization[_dstEid];
+    function getBalanceUtilization(uint32 _dstEid) external view returns (int256) {
+        return eidToBalanceUtilization[_dstEid];
     }
 
     // ======================= Admin Functions ================================
 
     /**
-     * @notice admin function for modifying the configuration of a specific network bridge.
-     * @dev set `hourlyLimit` to type(uint104).max will give infinite bridging capacity and skip the check.
-     * @dev To pause a specific eid you can set `_minBalanceLimit` to 0.
+     * @notice Admin function for modifying the `minBalanceLimit` of a specific network bridge.
+     * @dev To pause a specific eid you can set `minBalanceLimit` to 0.
      * @param _eid network to be modified.
      * @param _minBalanceLimit authorized max negative balance. (always < 0)
-     * @param _hourlyLimit authorized max hourly volume.
-     * @param _fee fee charged on bridging transactions. (in BPS)
      */
-    function setBridgeConfig(
-        uint32 _eid,
-        int112 _minBalanceLimit,
-        uint104 _hourlyLimit,
-        uint16 _fee
-    ) external onlyOwner {
-        // `eidToConfig._minBalanceLimit` represent the imbalance limitation. Since we are only limiting the outflow
+    function setBalanceLimit(uint32 _eid, int256 _minBalanceLimit) external onlyOwner {
+        // `_minBalanceLimit` represent the imbalance limitation. Since we are only limiting the outflow
         // `_minBalanceLimit` must always be negative.
         if (_minBalanceLimit > 0) revert OFTExtended__LIMIT_MUST_BE_NEGATIVE();
+
+        eidToMinBalanceLimit[_eid] = _minBalanceLimit;
+
+        emit SetBalanceLimit(_eid, _minBalanceLimit);
+    }
+    /**
+     *  @notice Admin function for modifying the `hourlyLimit`.
+     * @dev set `hourlyLimit` to type(uint256).max will give infinite bridging capacity and skip the check.
+     * @param _hourlyLimit authorized max hourly volume.
+     */
+
+    function setHourlyLimit(uint256 _hourlyLimit) external onlyOwner {
+        if (hourlyLimit != _hourlyLimit) {
+            _updateHourlyLimit(0);
+        }
+
+        hourlyLimit = _hourlyLimit;
+
+        emit SetHourlyLimit(_hourlyLimit);
+    }
+    /**
+     *  @notice Admin function for modifying the `fee`.
+     *  @param _fee fee charged on bridging transactions. (in BPS)
+     */
+
+    function setFee(uint256 _fee) external onlyOwner {
         if (_fee > BPS / 10) revert OFTExtended__FEE_TOO_HIGH();
+        fee = _fee;
 
-        BridgeConfig storage eidToConfigPtr = eidToConfig[_eid];
-        eidToConfigPtr.minBalanceLimit = _minBalanceLimit;
-        eidToConfigPtr.hourlyLimit = _hourlyLimit;
-        eidToConfigPtr.fee = _fee;
-
-        emit SetBridgeConfig(_eid, _minBalanceLimit, _hourlyLimit, _fee);
+        emit SetFee(_fee);
     }
 
     /**
@@ -144,7 +164,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
     /**
      * @notice Unpause on the `send()` function.
-     * @dev restricted to guardian.
+     * @dev restricted to owner.
      */
     function unpauseBridge() external onlyOwner {
         lzPause = false;
@@ -188,9 +208,6 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         override
         returns (uint256 amountSentLD_, uint256 amountReceivedLD_)
     {
-        BridgeConfig storage eidToConfigPtr = eidToConfig[_dstEid];
-        BridgeUtilization storage BridgeUtilizationPtr = eidToUtilization[_dstEid];
-
         // Pause check
         if (lzPause) revert OFTExtended__BRIDGING_PAUSED();
 
@@ -204,33 +221,20 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
         // Balance check
         {
-            int112 balanceUpdate_ =
-                BridgeUtilizationPtr.balance - int256(amountReceivedLD_).toInt112();
-            if (balanceUpdate_ < eidToConfigPtr.minBalanceLimit) {
+            int256 balanceUpdate_ = eidToBalanceUtilization[_dstEid] - int256(amountReceivedLD_);
+            if (balanceUpdate_ < eidToMinBalanceLimit[_dstEid]) {
                 revert OFTExtended__BRIDGING_LIMIT_REACHED(_dstEid);
             }
-            BridgeUtilizationPtr.balance = balanceUpdate_;
+            eidToBalanceUtilization[_dstEid] = balanceUpdate_;
         }
 
         // Hourly limit check
-        if (eidToConfigPtr.hourlyLimit != type(uint104).max) {
-            uint40 timeElapsed_ = uint40(block.timestamp) - BridgeUtilizationPtr.lastUsedTimestamp;
-            uint104 slidingUtilizationDecrease_ =
-                timeElapsed_ * eidToConfigPtr.hourlyLimit / 1 hours;
+        if (hourlyLimit != type(uint256).max) {
+            _updateHourlyLimit(amountReceivedLD_);
 
-            // Update the sliding utilization, making sure it doesn't become negative
-            uint104 slidingHourlyLimitUtilization_ =
-                BridgeUtilizationPtr.slidingHourlyLimitUtilization;
-
-            BridgeUtilizationPtr.slidingHourlyLimitUtilization = slidingHourlyLimitUtilization_
-                - min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_)
-                + amountReceivedLD_.toUint104();
-
-            if (BridgeUtilizationPtr.slidingHourlyLimitUtilization > eidToConfigPtr.hourlyLimit) {
+            if (slidingHourlyLimitUtilization > hourlyLimit) {
                 revert OFTExtended__BRIDGING_HOURLY_LIMIT_REACHED(_dstEid);
             }
-
-            BridgeUtilizationPtr.lastUsedTimestamp = uint40(block.timestamp);
         }
 
         _burn(_from, amountReceivedLD_);
@@ -255,7 +259,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         amountSentLD_ = _removeDust(_amountLD);
 
         // Fee calculation
-        uint16 fee_ = eidToConfig[_dstEid].fee;
+        uint256 fee_ = fee;
         if (fee_ != 0 && treasury != address(0)) {
             amountReceivedLD_ = _removeDust(amountSentLD_ - (amountSentLD_ * fee_ / BPS));
         } else {
@@ -282,17 +286,34 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         returns (uint256 amountReceivedLD_)
     {
         // Balance update
-        BridgeUtilization storage BridgeUtilizationPtr = eidToUtilization[_srcEid];
-        BridgeUtilizationPtr.balance += int256(_amountLD).toInt112();
+        eidToBalanceUtilization[_srcEid] += int256(_amountLD);
 
         // @dev In the case of NON-default OFT, the _amountLD MIGHT not be == amountReceivedLD.
         _mint(_to, _amountLD);
         return _amountLD;
     }
 
+    /**
+     * @dev Update the hourly limit.
+     * @param _amount The amount of tokens sent crosschain.
+     */
+    function _updateHourlyLimit(uint256 _amount) internal {
+        uint256 timeElapsed_ = block.timestamp - lastUsedTimestamp;
+
+        uint256 slidingUtilizationDecrease_ = timeElapsed_ * hourlyLimit / 1 hours;
+
+        // Update the sliding utilization, making sure it doesn't become negative
+        uint256 slidingHourlyLimitUtilization_ = slidingHourlyLimitUtilization;
+
+        slidingHourlyLimitUtilization = slidingHourlyLimitUtilization_
+            - min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_) + _amount;
+
+        lastUsedTimestamp = block.timestamp;
+    }
+
     // ================================== Helpers ===================================
 
-    function min(uint104 _a, uint104 _b) internal pure returns (uint104) {
+    function min(uint256 _a, uint256 _b) internal pure returns (uint256) {
         return _a < _b ? _a : _b;
     }
 }

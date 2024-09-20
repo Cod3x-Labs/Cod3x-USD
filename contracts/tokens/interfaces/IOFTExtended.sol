@@ -17,50 +17,20 @@ interface IOFTExtended is IOFT, IERC20 /*, IERC20Permit */ {
 
     // ================================== Events ===================================
 
-    event SetBridgeConfig(
-        uint32 indexed _eid, int112 _minBalanceLimit, uint104 _hourlyLimit, uint16 _fee
-    );
+    event SetBalanceLimit(uint32 indexed _eid, int256 _minBalanceLimit);
+    event SetFee(uint256 _fee);
+    event SetHourlyLimit(uint256 _hourlyLimit);
     event SetTreasury(address _newTreasury);
     event SetGuardian(address _newGuardian);
     event ToggleBridgePause(bool _pause);
 
-    // ======================= Structs ================================
-
-    /// @notice Bridge config to a specific chain ids.
-    /// @dev Size 240 bits.
-    struct BridgeConfig {
-        // Fee charged for bridging out of the hosting chain in BPS.
-        uint16 fee;
-        // The minimum authorized balance for a specidic EID. (always < O)
-        // `abs(minBalanceLimit)` represent the maximum amount of asset that can be bridged out.
-        int112 minBalanceLimit;
-        // Max amount of assets that can be bridged per hour.
-        uint104 hourlyLimit;
-    }
-
-    /// @notice Bridge utilization to a specific chain ids.
-    /// @dev Size 256 bits.
-    /// We are not limited with int112 since 2**103 / 10**18 = 2596148 Md $
-    /// We are not limited with Uint104 since 2**103 / 10**18 = 202Md $
-    struct BridgeUtilization {
-        // Track the balance between the hosting network and a specific chain:
-        // balanceUtilization < 0 => more token sent than received
-        // balanceUtilization > 0 => more token received than sent
-        int112 balance;
-        // Max amount of assets that can be bridged per hour.
-        uint104 slidingHourlyLimitUtilization;
-        // Variable used for hourly limit calculation.
-        uint40 lastUsedTimestamp;
-    }
-
     // ======================= Interfaces ================================
 
-    function setBridgeConfig(
-        uint32 _eid,
-        int112 _minBalanceLimit,
-        uint104 _hourlyLimit,
-        uint16 _fee
-    ) external;
+    function setBalanceLimit(uint32 _eid, int256 _minBalanceLimit) external;
+
+    function setHourlyLimit(uint256 _hourlyLimit) external;
+
+    function setFee(uint256 _fee) external;
 
     function setTreasury(address _treasury) external;
 
@@ -70,10 +40,7 @@ interface IOFTExtended is IOFT, IERC20 /*, IERC20Permit */ {
 
     function unpauseBridge() external;
 
-    function getBridgeConfig(uint32 _dstEid) external view returns (BridgeConfig memory);
+    function getBalanceLimit(uint32 _dstEid) external view returns (int256);
 
-    function getBridgeUtilization(uint32 _dstEid)
-        external
-        view
-        returns (BridgeUtilization memory);
+    function getBalanceUtilization(uint32 _dstEid) external view returns (int256);
 }
