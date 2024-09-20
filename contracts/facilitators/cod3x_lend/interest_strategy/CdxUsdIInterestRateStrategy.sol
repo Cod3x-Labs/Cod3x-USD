@@ -285,7 +285,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             /// PID state update
             int256 err = getNormalizedError(stablePoolReserveUtilization);
             _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
-            if(_errI < 0) _errI = 0; // Limit the negative accumulation.
+            if (_errI < 0) _errI = 0; // Limit the negative accumulation.
             _lastTimestamp = block.timestamp;
         }
 
