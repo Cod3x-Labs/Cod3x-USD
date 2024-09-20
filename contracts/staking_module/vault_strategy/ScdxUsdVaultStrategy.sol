@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
+import "lib/Cod3x-Vault/lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "./interfaces/IVault.sol"; // balancer Vault
@@ -15,7 +16,7 @@ import "./libraries/BalancerHelper.sol";
  * @notice This contract is Cod3x Vault strategy that define the Staked cdxUSD logic.
  * @dev Keepers needs to call `setMinBPTAmountOut()` + `harvest()` every days.
  */
-contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
+contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     uint256 private constant RELIC_ID = 1;
 
     IERC20 public cdxUSD;
@@ -205,5 +206,13 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     function setMinBPTAmountOut(uint256 _minBPTAmountOut) external {
         _atLeastRole(KEEPER);
         minBPTAmountOut = _minBPTAmountOut;
+    }
+
+    function onERC721Received(address, address, uint256, bytes calldata)
+        external
+        pure
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
     }
 }
