@@ -165,7 +165,7 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
-        setErrI(1e26);
+        setErrI(1e25);
 
         (, uint256 currentVariableBorrowRateAfter,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();

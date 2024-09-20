@@ -42,10 +42,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function testTF() public view {
-        console.log(
-            "transferFunction == ",
-            cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)
-        ); // bps
+        console.logUint(cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)); // bps
     }
 
     // 4 users  (users[0], users[1], users[2], users[3])
@@ -61,39 +58,28 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], cdxusd, 9_000_000e18);
+        borrow(users[1], cdxusd, 12_000_000e18);
 
         plateau(20);
-        swapBalancer(users[1], cdxusd, 2_000_000e18);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
         plateau(20);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
         plateau(20);
-        swapBalancer(users[1], counterAsset, 1_000_000e18);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
         plateau(20);
-        swapBalancer(users[1], counterAsset, 200_000e18);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
         plateau(20);
-        setManualInterestRate(1e27 / 50); // 2%
-        swapBalancer(users[1], counterAsset, 200_000e18);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
         plateau(20);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        plateau(100);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
         plateau(20);
-        swapBalancer(users[1], counterAsset, 1_200_000e18);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
         plateau(20);
-        setManualInterestRate(0); // stop
-        setErrI(13e25 * 2);
-        swapBalancer(users[1], counterAsset, 200_000e18);
-        plateau(20);
-        plateau(20);
-        swapBalancer(users[1], counterAsset, 1_200_000e18);
-        plateau(20);
-
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(200);
         repay(users[1], cdxusd, 100_000e18);
-
-        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
-        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
-
-        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
-
-        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
-        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
 
         // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
     }

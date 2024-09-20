@@ -53,7 +53,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     using WadRayMath for int256;
     using PercentageMath for uint256;
 
-    int256 public constant ALPHA = 15e25; // 15e(-2)
     int256 private constant RAY = 1e27;
     uint256 private constant SCALING_DECIMAL = 18;
 
@@ -66,7 +65,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC/USDT] (order can change)
 
     int256 public _minControllerError;
-    int256 public _maxErrIAmp;
     uint256 public _optimalStablePoolReserveUtilization;
     uint256 public _manualInterestRate;
 
@@ -106,7 +104,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         address balancerVault,
         bytes32 poolId,
         int256 minControllerError,
-        int256 maxITimeAmp,
         int256 initialErrIValue,
         uint256 ki
     ) {
@@ -119,7 +116,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _ki = ki;
         _lastTimestamp = block.timestamp;
         _minControllerError = minControllerError;
-        _maxErrIAmp = int256(_ki).rayMulInt(-RAY * maxITimeAmp);
 
         // Balancer
         _balancerVault = IBalancerVault(balancerVault);
@@ -134,11 +130,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _optimalStablePoolReserveUtilization = uint256(RAY) / tokens.length;
 
         /// Checks
-        if (transferFunction(type(int256).min) < 0) {
-            revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
+        if (minControllerError <= 0) {
+            revert PiReserveInterestRateStrategy__ZERO_INPUT();
         }
 
-        if (transferFunction(initialErrIValue) > uint256(RAY)) {
+        if ((transferFunction(initialErrIValue) > uint256(RAY))) {
             revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
         }
 
@@ -181,21 +177,17 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @param minControllerError The new minimum controller error value.
      */
     function setMinControllerError(int256 minControllerError) external onlyPoolAdmin {
-        if (minControllerError == 0) {
+        if (minControllerError <= 0) {
             revert PiReserveInterestRateStrategy__ZERO_INPUT();
         }
 
         _minControllerError = minControllerError;
-        if (transferFunction(type(int256).min) < 0) {
-            revert PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
-        }
     }
 
     /**
      * @notice Sets the PID values for the controller.
      * @dev Only the admin can call this function.
      * @param ki The proportional gain value.
-     * @param maxITimeAmp The maximum integral time amplification value.
      */
     function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyPoolAdmin {
         if (ki == 0 || maxITimeAmp == 0) {
@@ -203,7 +195,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
 
         _ki = ki;
-        _maxErrIAmp = int256(_ki).rayMulInt(-RAY * maxITimeAmp);
     }
 
     /**
@@ -294,12 +285,12 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
             /// PID state update
             int256 err = getNormalizedError(stablePoolReserveUtilization);
             _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
-            if (_errI < _maxErrIAmp) _errI = _maxErrIAmp; // Limit _errI negative accumulation.
+            if(_errI < 0) _errI = 0; // Limit the negative accumulation.
             _lastTimestamp = block.timestamp;
         }
 
         uint256 currentVariableBorrowRate =
-            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI);
+            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI); // unsafe cast ok.
 
         emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, _errI, _errI);
 
@@ -325,11 +316,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     }
 
     function baseVariableBorrowRate() public view override returns (uint256) {
-        return transferFunction(type(int256).min);
+        return uint256(transferFunction(type(int256).min));
     }
 
     function getMaxVariableBorrowRate() external pure override returns (uint256) {
-        return type(uint256).max;
+        return uint256(type(int256).max);
     }
 
     // ----------- helpers -----------
@@ -384,14 +375,14 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
     }
 
-    /// @dev Transfer Function for calculation of _currentVariableBorrowRate (https://www.desmos.com/calculator/msx2vwdbfc)
+    /// @dev Transfer Function for calculation of _currentVariableBorrowRate.
     function transferFunction(int256 controllerError) public view returns (uint256) {
-        int256 ce = controllerError > _minControllerError ? controllerError : _minControllerError;
-        return uint256(ALPHA.rayMulInt(ce.rayDivInt(RAY - ce)));
+        return
+            uint256(controllerError > _minControllerError ? controllerError : _minControllerError);
     }
 
     /// @dev Return `true` if the counter asset is pegged. Uses the `_pegMargin` to determine.
-    function isCounterAssetPegged() public returns (bool) {
+    function isCounterAssetPegged() public view returns (bool) {
         try _counterAssetPriceFeed.latestRoundData() returns (
             uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
         ) {
