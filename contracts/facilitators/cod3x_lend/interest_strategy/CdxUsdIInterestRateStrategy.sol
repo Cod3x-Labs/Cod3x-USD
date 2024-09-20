@@ -189,8 +189,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @dev Only the admin can call this function.
      * @param ki The proportional gain value.
      */
-    function setPidValues(uint256 ki, int256 maxITimeAmp) external onlyPoolAdmin {
-        if (ki == 0 || maxITimeAmp == 0) {
+    function setPidValues(uint256 ki) external onlyPoolAdmin {
+        if (ki == 0) {
             revert PiReserveInterestRateStrategy__ZERO_INPUT();
         }
 
@@ -290,7 +290,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
 
         uint256 currentVariableBorrowRate =
-            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI); // unsafe cast ok.
+            _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI);
 
         emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, _errI, _errI);
 
@@ -316,7 +316,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     }
 
     function baseVariableBorrowRate() public view override returns (uint256) {
-        return uint256(transferFunction(type(int256).min));
+        return transferFunction(type(int256).min);
     }
 
     function getMaxVariableBorrowRate() external pure override returns (uint256) {
