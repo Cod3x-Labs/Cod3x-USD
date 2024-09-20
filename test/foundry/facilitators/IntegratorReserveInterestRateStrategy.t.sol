@@ -173,6 +173,54 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
         assertLt(currentVariableBorrowRateAfter, currentVariableBorrowRateBefore);
     }
 
+    function testDistributeFeesToTreasury() public {
+        ERC20 wbtc = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
+        ERC20 eth = erc20Tokens[1]; // ethPrice =  3700,00000000$
+        ERC20 dai = erc20Tokens[2]; // daiPrice =  1,00000000$
+        ERC20 cdxusd = erc20Tokens[3]; // cdxUsdPrice =  1,00000000$
+
+        deposit(users[0], wbtc, 2e8);
+        deposit(users[1], wbtc, 20_000e8);
+        deposit(users[1], dai, 100_000e18);
+
+        borrow(users[1], cdxusd, 9_000_000e18);
+
+        plateau(20);
+        swapBalancer(users[1], cdxusd, 2_000_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        setManualInterestRate(1e27 / 50); // 2%
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_200_000e18);
+        plateau(20);
+        setManualInterestRate(0); // stop
+        setErrI(13e25 * 2);
+        swapBalancer(users[1], counterAsset, 200_000e18);
+        plateau(20);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 1_200_000e18);
+        plateau(20);
+
+        repay(users[1], cdxusd, 100_000e18);
+
+        uint256 balanceCdxUsdATokenBefore = cdxusd.balanceOf(address(aTokens[3]));
+        uint256 bpsReliquaryAlloc = CdxUsdAToken(address(aTokens[3]))._reliquaryAllocation();
+
+        assertGt(balanceCdxUsdATokenBefore, 0);
+        assertEq(cdxusd.balanceOf(cdxUsdTreasury), 0);
+
+        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
+
+        assertEq(cdxusd.balanceOf(address(aTokens[3])), 0);
+        assertEq(cdxusd.balanceOf(cdxUsdTreasury), balanceCdxUsdATokenBefore - bpsReliquaryAlloc * balanceCdxUsdATokenBefore / 10000);
+    }
+
     // ------------------------------
     // ---------- Helpers -----------
     // ------------------------------

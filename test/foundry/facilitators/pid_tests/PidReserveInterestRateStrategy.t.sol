@@ -86,6 +86,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         plateau(20);
 
         repay(users[1], cdxusd, 100_000e18);
+        
         console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
         console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
 

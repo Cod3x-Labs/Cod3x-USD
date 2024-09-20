@@ -259,6 +259,14 @@ contract CdxUsdAToken is
     }
 
     /**
+     * @dev Returns the address of the keeper
+     *
+     */
+    function KEEPER_ADDRESS() public view returns (address) {
+        return _keeper;
+    }
+
+    /**
      * @dev Returns the address of the lending pool where this aToken is used
      *
      */
