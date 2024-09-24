@@ -59,12 +59,9 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
             true,
             address(balancerVaultMock),
             poolId,
-            -400e24, //Min controller error
-            20 days, //maxITimeAmp
-            // 1e27, //kp
-            13e25, // starts at 2% interest rate
-            13e19, // ki
-            admin
+            1e25, // 1%
+            2e25, // starts at 2% interest rate
+            13e19 // ki
         );
 
         if (vm.exists(path1)) vm.removeFile(path1);

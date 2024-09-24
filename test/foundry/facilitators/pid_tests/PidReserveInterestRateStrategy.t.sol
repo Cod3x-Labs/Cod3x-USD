@@ -2,12 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "test/helpers/TestCdxUSDAndLendAndStaking.sol";
-// import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
-// import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
-// import
-//     "lib/Cod3x-Lend/contracts/protocol/lendingpool/interestRateStrategies/PidReserveInterestRateStrategy.sol";
-// import "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
-// import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking {
     address[] users;
@@ -48,14 +42,12 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function testTF() public view {
-        console.log(
-            "transferFunction == ",
-            cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)
-        ); // bps
+        console.logUint(cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)); // bps
     }
 
     // 4 users  (users[0], users[1], users[2], users[3])
     // 4 tokens (wbtc, eth, dai, cdxUsd)
+    // Initial Balancer Pool cdxUSD/CounterAsseter balance is 10M/10M.
     function testPid() public {
         ERC20 wbtc = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
         ERC20 eth = erc20Tokens[1]; // ethPrice =  3700,00000000$
@@ -66,42 +58,30 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         deposit(users[1], wbtc, 20_000e8);
         deposit(users[1], dai, 100_000e18);
 
-        borrow(users[1], dai, 10000e18);
-        plateau(20);
-        borrow(users[1], dai, 1);
+        borrow(users[1], cdxusd, 12_000_000e18);
 
-        borrow(users[1], cdxusd, 10000e18);
         plateau(20);
-        borrow(users[1], cdxusd, 1);
-        // borrow(users[1], cdxusd, 9_000_000e18);
-        // plateau(20);
-        // borrow(users[1], cdxusd, 500e18);
-        // swapBalancer(users[1], cdxusd, 5_000_000e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
-        // borrow(users[1], cdxusd, 500e18);
-        // borrow(users[1], cdxusd, 500e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(20);
         swapBalancer(users[1], counterAsset, 5_000_000e18);
-        // repay(users[1], cdxusd, 200e18);
-        // plateau(20);
-        // // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
-        // borrow(users[1], cdxusd, 500e18);
-        // plateau(20);
-        // swapBalancer(users[1], counterAsset, 5_000_000e18);
-        // plateau(20);
-        // repay(users[1], cdxusd, 200e18);
-        // plateau(20);
-        repay(users[1], cdxusd, 100e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], counterAsset, 5_000_000e18);
+        plateau(100);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(20);
+        swapBalancer(users[1], cdxusd, 5_000_000e18);
+        plateau(200);
+        repay(users[1], cdxusd, 100_000e18);
 
-        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
-        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
-
-        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
-
-        console.log("cdxusd.balance = %18e", cdxusd.balanceOf(address(aTokens[3])));
-        console.log("cdxUsdTreasury = %18e", cdxusd.balanceOf(cdxUsdTreasury));
+        // counterAssetPrice = int256(2 * 10 ** PRICE_FEED_DECIMALS); //! counter asset deppeg
     }
     // ------------------------------
     // ---------- Helpers -----------
@@ -188,6 +168,14 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             block.timestamp,
             SwapKind.GIVEN_IN
         );
+    }
+
+    function setManualInterestRate(uint256 manualInterestRate) public {
+        cdxUsdInterestRateStrategy.setManualInterestRate(manualInterestRate);
+    }
+
+    function setErrI(int256 newErrI) public {
+        cdxUsdInterestRateStrategy.setErrI(newErrI);
     }
 
     function logg(address user, uint256 action, address asset) public {

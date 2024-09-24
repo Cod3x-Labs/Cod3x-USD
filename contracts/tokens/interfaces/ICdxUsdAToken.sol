@@ -10,6 +10,10 @@ import {ICdxUSDFacilitators} from "./ICdxUSDFacilitators.sol";
  * @notice Defines the basic interface of the CdxUsdAToken.
  */
 interface ICdxUsdAToken is IAToken, ICdxUSDFacilitators {
+    event SetVariableDebtToken(address cdxUsdVariableDebtToken);
+    event SetReliquaryInfo(address reliquaryCdxusdRewarder, uint256 reliquaryAllocation);
+    event SetKeeper(address keeper);
+
     /**
      * @notice Sets a reference to the GHO variable debt token.
      * @param cdxUsdVariableDebtToken The address of the CdxUsdVariableDebtToken contract.
@@ -28,4 +32,10 @@ interface ICdxUsdAToken is IAToken, ICdxUSDFacilitators {
      * @param reliquaryAllocation BPS of cdxUSD fee distributed to staked cdxUSD.
      */
     function setReliquaryInfo(address reliquary, uint256 reliquaryAllocation) external;
+
+    /**
+     * @notice Set keeper address.
+     * @param keeper New keeper address.
+     */
+    function setKeeper(address keeper) external;
 }

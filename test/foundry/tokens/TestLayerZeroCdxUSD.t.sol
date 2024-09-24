@@ -62,8 +62,8 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         ofts[1] = address(bOFT);
         this.wireOApps(ofts);
 
-        aOFT.setBridgeConfig(bEid, type(int112).min, type(uint104).max, 0);
-        bOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
+        setBridgeConfig(aOFT, bEid, type(int256).min, type(uint256).max, 0);
+        setBridgeConfig(bOFT, aEid, type(int256).min, type(uint256).max, 0);
 
         // mint tokens
         aOFT.mockMint(userA, initialBalance);
@@ -284,7 +284,7 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
     }
 
     function testOftDebit() public {
-        aOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, 0);
+        setBridgeConfig(aOFT, aEid, type(int256).min, type(uint256).max, 0);
 
         uint256 amountToSendLD = 1 ether;
         uint256 minAmountToCreditLD = 1 ether;
@@ -481,13 +481,13 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
     }
 
     function testLimitBridgeRate(uint256 _seedLimit, uint256 _seedAmountToSend) public {
-        int112 _limit = -int112(uint112(bound(_seedLimit, 0, initialBalance * 2)));
+        int256 _limit = -int256(uint256(bound(_seedLimit, 0, initialBalance * 2)));
         uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
 
         bool isLimitTrigger = _amountToSend > uint256(-int256(_limit));
 
-        aOFT.setBridgeConfig(bEid, _limit, type(uint104).max, 0);
-        bOFT.setBridgeConfig(aEid, _limit, type(uint104).max, 0);
+        setBridgeConfig(aOFT, bEid, _limit, type(uint256).max, 0);
+        setBridgeConfig(bOFT, aEid, _limit, type(uint256).max, 0);
 
         if (isLimitTrigger) {
             bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
@@ -522,10 +522,10 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
             assertEq(aOFT.balanceOf(userA), initialBalance - _amountToSend);
             assertEq(bOFT.balanceOf(userB), initialBalance + _amountToSend);
 
-            int112 balanceA = aOFT.getBridgeUtilization(bEid).balance;
+            int256 balanceA = aOFT.getBalanceUtilization(bEid);
             assertEq(abs(int256(balanceA)), _amountToSend);
 
-            int112 balanceB = bOFT.getBridgeUtilization(aEid).balance;
+            int256 balanceB = bOFT.getBalanceUtilization(aEid);
             assertEq(abs(int256(balanceB)), _amountToSend);
 
             // 2nb send
@@ -545,10 +545,10 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
             assertEq(bOFT.balanceOf(userB), initialBalanceB - _amountToSend);
             assertEq(aOFT.balanceOf(userA), initialBalanceA + _amountToSend);
 
-            balanceA = aOFT.getBridgeUtilization(bEid).balance;
+            balanceA = aOFT.getBalanceUtilization(bEid);
             assertEq(_removeDust(abs(int256(balanceA))), 0);
 
-            balanceB = bOFT.getBridgeUtilization(aEid).balance;
+            balanceB = bOFT.getBalanceUtilization(aEid);
             assertEq(_removeDust(abs(int256(balanceB))), 0);
         }
     }
@@ -557,8 +557,8 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         uint16 feeT = uint16(bound(_seedLimit, 0, 1000));
         uint256 tokensToSend = _removeDust(bound(_seedAmountToSend, 0, initialBalance));
 
-        aOFT.setBridgeConfig(bEid, type(int112).min, type(uint104).max, feeT);
-        bOFT.setBridgeConfig(aEid, type(int112).min, type(uint104).max, feeT);
+        setBridgeConfig(aOFT, bEid, type(int256).min, type(uint256).max, feeT);
+        setBridgeConfig(bOFT, aEid, type(int256).min, type(uint256).max, feeT);
 
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
         SendParam memory sendParam =
@@ -580,13 +580,13 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
     }
 
     function testHourlyBridgingLimit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend) public {
-        uint104 _hourlyLimit = uint104(bound(_seedHourlyLimit, 0, initialBalance));
+        uint256 _hourlyLimit = uint256(bound(_seedHourlyLimit, 0, initialBalance));
         uint256 _amountToSend = _removeDust(bound(_seedAmountToSend, 1e15, initialBalance / 2));
 
         bool isLimitTrigger = _amountToSend > uint256(_hourlyLimit);
 
-        aOFT.setBridgeConfig(bEid, type(int112).min, _hourlyLimit, 0);
-        bOFT.setBridgeConfig(aEid, type(int112).min, _hourlyLimit, 0);
+        setBridgeConfig(aOFT, bEid, type(int256).min, _hourlyLimit, 0);
+        setBridgeConfig(bOFT, aEid, type(int256).min, _hourlyLimit, 0);
 
         if (isLimitTrigger) {
             bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
@@ -608,8 +608,8 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
             assertEq(aOFT.balanceOf(userA), initialBalance);
             assertEq(bOFT.balanceOf(userB), initialBalance);
         } else {
-            aOFT.setBridgeConfig(bEid, type(int112).min, uint104(_amountToSend), 0);
-            bOFT.setBridgeConfig(aEid, type(int112).min, uint104(_amountToSend), 0);
+            setBridgeConfig(aOFT, bEid, type(int256).min, uint256(_amountToSend), 0);
+            setBridgeConfig(bOFT, aEid, type(int256).min, uint256(_amountToSend), 0);
 
             bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
             SendParam memory sendParam =
@@ -626,10 +626,10 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
             assertEq(aOFT.balanceOf(userA), initialBalance - _amountToSend);
             assertEq(bOFT.balanceOf(userB), initialBalance + _amountToSend);
 
-            uint104 shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
+            uint256 shluA = aOFT.slidingHourlyLimitUtilization();
             assertEq(shluA, _amountToSend);
 
-            uint104 shluB = bOFT.getBridgeUtilization(aEid).slidingHourlyLimitUtilization;
+            uint256 shluB = bOFT.slidingHourlyLimitUtilization();
             assertEq(shluB, 0);
             skip(30 minutes);
 
@@ -641,9 +641,45 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
             vm.prank(userA);
             aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
 
-            shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
+            shluA = aOFT.slidingHourlyLimitUtilization();
             assertApproxEqRel(shluA, _amountToSend / 2 + _amountToSend / 4, 1e18 / 1000); // %0,1
         }
+    }
+
+    function testHourlyBridgingLimitSetting() public {
+        uint256 _hourlyLimit = 150e18;
+        uint256 _amountToSend = 100e18;
+        bool isLimitTrigger = _amountToSend > uint256(_hourlyLimit);
+
+        setBridgeConfig(aOFT, bEid, type(int256).min, _hourlyLimit, 0);
+        setBridgeConfig(bOFT, aEid, type(int256).min, _hourlyLimit, 0);
+
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
+
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
+        MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
+
+        vm.prank(userA);
+        aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
+
+        verifyPackets(bEid, addressToBytes32(address(bOFT)));
+
+        uint256 shluA = aOFT.slidingHourlyLimitUtilization();
+        assertEq(shluA, _amountToSend);
+
+        uint256 shluB = bOFT.slidingHourlyLimitUtilization();
+
+        assertEq(shluB, 0);
+
+        skip(30 minutes);
+
+        setBridgeConfig(aOFT, bEid, type(int256).min, _hourlyLimit + 1, 0);
+        setBridgeConfig(bOFT, aEid, type(int256).min, _hourlyLimit + 1, 0);
+
+        uint256 shluA2 = aOFT.slidingHourlyLimitUtilization();
+
+        assertEq(shluA2, shluA - 75e18);
     }
 
     // ------------------- Helpers -------------------
@@ -654,5 +690,17 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
 
     function abs(int256 x) public pure returns (uint256) {
         return x < 0 ? uint256(-x) : uint256(x);
+    }
+
+    function setBridgeConfig(
+        OFTMock oft,
+        uint32 bEid,
+        int256 minBalance,
+        uint256 _hourlyLimit,
+        uint256 fee
+    ) public {
+        oft.setBalanceLimit(bEid, minBalance);
+        oft.setHourlyLimit(_hourlyLimit);
+        oft.setFee(fee);
     }
 }

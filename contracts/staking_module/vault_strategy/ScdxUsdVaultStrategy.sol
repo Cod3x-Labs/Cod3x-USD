@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
+import "lib/Cod3x-Vault/lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "./interfaces/IVault.sol"; // balancer Vault
@@ -15,7 +16,7 @@ import "./libraries/BalancerHelper.sol";
  * @notice This contract is Cod3x Vault strategy that define the Staked cdxUSD logic.
  * @dev Keepers needs to call `setMinBPTAmountOut()` + `harvest()` every days.
  */
-contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
+contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     uint256 private constant RELIC_ID = 1;
 
     IERC20 public cdxUSD;
@@ -34,6 +35,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     error ScdxUsdVaultStrategy__SHOULD_OWN_RELIC_1();
     error ScdxUsdVaultStrategy__CDXUSD_NOT_INCLUDED_IN_BALANCER_POOL();
     error ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
+    error ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -91,6 +93,9 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
 
         (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
         poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
+
+        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
+
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
@@ -201,5 +206,13 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4 {
     function setMinBPTAmountOut(uint256 _minBPTAmountOut) external {
         _atLeastRole(KEEPER);
         minBPTAmountOut = _minBPTAmountOut;
+    }
+
+    function onERC721Received(address, address, uint256, bytes calldata)
+        external
+        pure
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
     }
 }

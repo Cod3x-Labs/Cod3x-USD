@@ -37,6 +37,7 @@ contract Zap is Pausable, Ownable {
     IERC20 public immutable poolAdd;
     IERC20 public immutable cdxUsd;
     IERC20 public immutable counterAsset; // most likely usdc/usdt
+    address public guardian;
 
     IAsset[] private poolTokens;
     mapping(address => uint256) private tokenToIndex;
@@ -47,6 +48,15 @@ contract Zap is Pausable, Ownable {
     error Zap__CONTRACT_NOT_COMPATIBLE();
     error Zap__SLIPPAGE_CHECK_FAILED();
     error Zap__RELIC_NOT_OWNED();
+    error Zap__ONLY_GUARDIAN();
+
+    /// Mofifiers
+    modifier onlyGuardian() {
+        if (msg.sender != guardian) {
+            revert Zap__ONLY_GUARDIAN();
+        }
+        _;
+    }
 
     constructor(
         address _balancerVault,
@@ -55,14 +65,16 @@ contract Zap is Pausable, Ownable {
         address _reliquary,
         address _cdxUsd,
         address _counterAsset,
-        address _initialOwner
-    ) Ownable(_initialOwner) {
+        address _owner,
+        address _guardian
+    ) Ownable(_owner) {
         balancerVault = IBalancerVault(_balancerVault);
         cod3xVault = Cod3xVault(_cod3xVault);
         strategy = ScdxUsdVaultStrategy(_strategy);
         reliquary = IReliquary(_reliquary);
         cdxUsd = IERC20(_cdxUsd);
         counterAsset = IERC20(_counterAsset);
+        guardian = _guardian;
 
         poolId = ScdxUsdVaultStrategy(_strategy).poolId();
 
@@ -124,12 +136,29 @@ contract Zap is Pausable, Ownable {
 
     /// =============== Admin ===============
 
-    function pause() public onlyOwner {
+    /**
+     * @notice Pause the Zap contract.
+     * @dev restricted to guardian.
+     */
+    function pause() public onlyGuardian {
         _pause();
     }
 
+    /**
+     * @notice Unpause the Zap contract.
+     * @dev restricted to owner.
+     */
     function unpause() public onlyOwner {
         _unpause();
+    }
+
+    /**
+     * @notice set guardian address.
+     * @param _guardian guardian address.
+     */
+    function setGuardian(address _guardian) external onlyOwner {
+        if (_guardian == address(0)) revert Zap__WRONG_INPUT();
+        guardian = _guardian;
     }
 
     /// ============ Staked cdxUSD ============
@@ -214,7 +243,9 @@ contract Zap is Pausable, Ownable {
         );
 
         /// Send token
-        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        IERC20(_tokenToWithdraw).safeTransfer(
+            _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
+        );
     }
 
     /// ================ Relic ================
@@ -273,19 +304,19 @@ contract Zap is Pausable, Ownable {
      *         - send token(s) to user
      * @dev Users must first approve the amount they wish to send.
      * @param _relicId Id of the relic to withdraw from.
-     * @param _amountBtpToWithdraw amount of token to withdraw.
+     * @param _amountBptToWithdraw amount of token to withdraw.
      * @param _tokenToWithdraw address of the token to be withdrawn.
      * @param _minAmountOut slippage protection.
      * @param _to address receiving tokens. (harvest rewards and principal)
      */
     function zapOutRelic(
         uint256 _relicId,
-        uint256 _amountBtpToWithdraw,
+        uint256 _amountBptToWithdraw,
         address _tokenToWithdraw,
         uint256 _minAmountOut,
         address _to
     ) external whenNotPaused {
-        if (_relicId == 0 || _amountBtpToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
+        if (_relicId == 0 || _amountBptToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
             revert Zap__WRONG_INPUT();
         }
 
@@ -294,7 +325,7 @@ contract Zap is Pausable, Ownable {
         }
 
         /// Reliquary withdraw
-        reliquary.withdraw(_amountBtpToWithdraw, _relicId, address(_to));
+        reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
 
         /// withdraw pool
         BalancerHelper._exitPool(
@@ -307,7 +338,9 @@ contract Zap is Pausable, Ownable {
             _minAmountOut
         );
 
-        /// Send Relic
-        IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
+        /// Send token
+        IERC20(_tokenToWithdraw).safeTransfer(
+            _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
+        );
     }
 }

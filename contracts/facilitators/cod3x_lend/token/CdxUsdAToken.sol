@@ -10,7 +10,7 @@ import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors
 import {VersionedInitializable} from
     "lib/Cod3x-Lend/contracts/protocol/libraries/upgradeability/VersionedInitializable.sol";
 import {IncentivizedERC20} from
-    "lib/Cod3x-Lend/contracts/protocol/tokenization/IncentivizedERC20.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/IncentivizedERC20.sol";
 import {ICdxUSD} from "contracts/tokens/interfaces/ICdxUSD.sol";
 import {ICdxUsdAToken} from "contracts/tokens/interfaces/ICdxUsdAToken.sol";
 import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
@@ -35,6 +35,7 @@ contract CdxUsdAToken is
 
     ILendingPool internal _pool;
     CdxUsdVariableDebtToken internal _cdxUsdVariableDebtToken;
+    address internal _keeper;
     address internal _treasury;
     address internal _cdxUsdTreasury;
     address internal _underlyingAsset;
@@ -57,11 +58,17 @@ contract CdxUsdAToken is
         _;
     }
 
+    modifier onlyKeeper() {
+        require(_msgSender() == _keeper, "CALLER_NOT_KEEPER");
+        _;
+    }
+
     /**
      * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.
      * @notice MUST also call updateCdxUsdTreasury() at initialization.
      * @notice MUST also call setReliquaryInfo() at initialization.
+     * @notice MUST also call setKeeper() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
      * @param treasury The address of the Aave treasury, receiving the fees on this aToken
      * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
@@ -76,6 +83,7 @@ contract CdxUsdAToken is
         address underlyingAsset,
         IRewarder incentivesController,
         uint8 aTokenDecimals,
+        bool,
         string calldata aTokenName,
         string calldata aTokenSymbol,
         bytes calldata params
@@ -97,6 +105,7 @@ contract CdxUsdAToken is
             treasury,
             address(incentivesController),
             aTokenDecimals,
+            _reserveType,
             aTokenName,
             aTokenSymbol,
             params
@@ -113,6 +122,8 @@ contract CdxUsdAToken is
         require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
 
         _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
+
+        emit SetVariableDebtToken(cdxUsdVariableDebtToken);
     }
 
     /// @inheritdoc ICdxUSDFacilitators
@@ -120,6 +131,7 @@ contract CdxUsdAToken is
         require(newCdxUsdTreasury != address(0), "ZERO_INPUT");
         address oldCdxUsdTreasury = _cdxUsdTreasury;
         _cdxUsdTreasury = newCdxUsdTreasury;
+
         emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury, newCdxUsdTreasury);
     }
 
@@ -136,6 +148,16 @@ contract CdxUsdAToken is
         _reliquaryAllocation = reliquaryAllocation;
 
         IERC20(_underlyingAsset).approve(reliquaryCdxusdRewarder, type(uint256).max);
+
+        emit SetReliquaryInfo(reliquaryCdxusdRewarder, reliquaryAllocation);
+    }
+
+    /// @inheritdoc ICdxUsdAToken
+    function setKeeper(address keeper) external override onlyPoolAdmin {
+        require(keeper != address(0), "ZERO_INPUT");
+        _keeper = keeper;
+
+        emit SetKeeper(keeper);
     }
 
     /**
@@ -244,6 +266,14 @@ contract CdxUsdAToken is
     }
 
     /**
+     * @dev Returns the address of the keeper
+     *
+     */
+    function KEEPER_ADDRESS() public view returns (address) {
+        return _keeper;
+    }
+
+    /**
      * @dev Returns the address of the lending pool where this aToken is used
      *
      */
@@ -345,7 +375,7 @@ contract CdxUsdAToken is
     }
 
     /// @inheritdoc ICdxUSDFacilitators
-    function distributeFeesToTreasury() external virtual override {
+    function distributeFeesToTreasury() external virtual override onlyKeeper {
         require(_cdxUsdTreasury != address(0), "NO_CDXUSD_TREASURY");
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
 
@@ -356,6 +386,33 @@ contract CdxUsdAToken is
         );
         emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
     }
+
+    /// --------- Share logic ---------
+    function transferShare(address from, address to, uint256 shareAmount) external {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function shareApprove(address owner, address spender, uint256 shareAmount) external {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function shareAllowances(address owner, address spender) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function WRAPPER_ADDRESS() external view returns (address) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function convertToShares(uint256 assetAmount) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    function convertToAssets(uint256 shareAmount) external view returns (uint256) {
+        revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    /// --------- Rehypothecation logic ---------
 
     function setTreasury(address newTreasury) external override onlyLendingPool {
         require(newTreasury != address(0), "ZERO_INPUT");

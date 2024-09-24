@@ -6,9 +6,9 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 import "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
-import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/AToken.sol";
+import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import {VariableDebtToken} from
-    "lib/Cod3x-Lend/contracts/protocol/tokenization/VariableDebtToken.sol";
+    "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
 
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";
@@ -54,7 +54,7 @@ import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
 import {CdxUsdIInterestRateStrategy} from
     "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
-import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUsdOracle.sol";
+import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUSDOracle.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
@@ -231,11 +231,9 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 true,
                 vault, // balancerVault,
                 poolId,
-                -80e25,
-                1728000,
-                13e25, // starts at 2% interest rate
-                13e19,
-                owner
+                1e25,
+                2e25, // starts at 2% interest rate
+                13e19
             );
             counterAssetPriceFeed =
                 new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
