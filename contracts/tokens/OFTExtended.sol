@@ -107,15 +107,9 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         if (_fee > BPS / 10) revert OFTExtended__FEE_TOO_HIGH();
 
         BridgeConfig storage eidToConfigPtr = eidToConfig[_eid];
-
-        if (eidToConfigPtr.hourlyLimit != _hourlyLimit) {
-            _updateHourlyLimit(_eid, 0);
-        }
-
         eidToConfigPtr.minBalanceLimit = _minBalanceLimit;
         eidToConfigPtr.hourlyLimit = _hourlyLimit;
         eidToConfigPtr.fee = _fee;
-
 
         emit SetBridgeConfig(_eid, _minBalanceLimit, _hourlyLimit, _fee);
     }
@@ -220,11 +214,23 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
         // Hourly limit check
         if (eidToConfigPtr.hourlyLimit != type(uint104).max) {
-            _updateHourlyLimit(_dstEid, amountReceivedLD_);
+            uint40 timeElapsed_ = uint40(block.timestamp) - BridgeUtilizationPtr.lastUsedTimestamp;
+            uint104 slidingUtilizationDecrease_ =
+                timeElapsed_ * eidToConfigPtr.hourlyLimit / 1 hours;
+
+            // Update the sliding utilization, making sure it doesn't become negative
+            uint104 slidingHourlyLimitUtilization_ =
+                BridgeUtilizationPtr.slidingHourlyLimitUtilization;
+
+            BridgeUtilizationPtr.slidingHourlyLimitUtilization = slidingHourlyLimitUtilization_
+                - min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_)
+                + amountReceivedLD_.toUint104();
 
             if (BridgeUtilizationPtr.slidingHourlyLimitUtilization > eidToConfigPtr.hourlyLimit) {
                 revert OFTExtended__BRIDGING_HOURLY_LIMIT_REACHED(_dstEid);
             }
+
+            BridgeUtilizationPtr.lastUsedTimestamp = uint40(block.timestamp);
         }
 
         _burn(_from, amountReceivedLD_);
@@ -282,30 +288,6 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         // @dev In the case of NON-default OFT, the _amountLD MIGHT not be == amountReceivedLD.
         _mint(_to, _amountLD);
         return _amountLD;
-    }
-
-    /**
-     * @dev Update the hourly limit.
-     * @param _eid network to be modified.
-     * @param _amount The amount of tokens sent crosschain.
-     */
-    function _updateHourlyLimit(uint32 _eid, uint256 _amount) internal {
-        BridgeConfig storage eidToConfigPtr = eidToConfig[_eid];
-        BridgeUtilization storage BridgeUtilizationPtr = eidToUtilization[_eid];
-
-        uint40 timeElapsed_ = uint40(block.timestamp) - BridgeUtilizationPtr.lastUsedTimestamp;
-        uint104 slidingUtilizationDecrease_ =
-            timeElapsed_ * eidToConfigPtr.hourlyLimit / 1 hours;
-
-        // Update the sliding utilization, making sure it doesn't become negative
-        uint104 slidingHourlyLimitUtilization_ =
-            BridgeUtilizationPtr.slidingHourlyLimitUtilization;
-
-        BridgeUtilizationPtr.slidingHourlyLimitUtilization = slidingHourlyLimitUtilization_
-            - min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_)
-            + _amount.toUint104();
-
-        BridgeUtilizationPtr.lastUsedTimestamp = uint40(block.timestamp);
     }
 
     // ================================== Helpers ===================================

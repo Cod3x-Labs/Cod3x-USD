@@ -646,39 +646,6 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         }
     }
 
-    function testHourlyBridgingLimitSetting() public {
-        uint104 _hourlyLimit = 150e18;
-        uint256 _amountToSend = 100e18;
-
-        bool isLimitTrigger = _amountToSend > uint256(_hourlyLimit);
-
-        aOFT.setBridgeConfig(bEid, type(int112).min, _hourlyLimit, 0);
-        bOFT.setBridgeConfig(aEid, type(int112).min, _hourlyLimit, 0);
-
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
-        SendParam memory sendParam =
-            SendParam(bEid, addressToBytes32(userB), _amountToSend, 0, options, "", "");
-        MessagingFee memory fee = aOFT.quoteSend(sendParam, false);
-
-        vm.prank(userA);
-        aOFT.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
-        verifyPackets(bEid, addressToBytes32(address(bOFT)));
-
-        uint104 shluA = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
-        assertEq(shluA, _amountToSend);
-
-        uint104 shluB = bOFT.getBridgeUtilization(aEid).slidingHourlyLimitUtilization;
-        assertEq(shluB, 0);
-
-        skip(30 minutes);
-
-        aOFT.setBridgeConfig(bEid, type(int112).min, _hourlyLimit + 1, 0);
-        bOFT.setBridgeConfig(aEid, type(int112).min, _hourlyLimit + 1, 0);
-
-        uint104 shluA2 = aOFT.getBridgeUtilization(bEid).slidingHourlyLimitUtilization;
-        assertEq(shluA2, shluA - 75e18);
-}
-
     // ------------------- Helpers -------------------
 
     function _removeDust(uint256 _amountLD) internal pure returns (uint256 amountLD) {
