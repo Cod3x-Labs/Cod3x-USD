@@ -398,8 +398,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 _seedAmtUsdc,
         uint256 _seedTokenIndex
     ) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, IERC20(usdc).balanceOf(userB) / 100, IERC20(cdxUSD).balanceOf(userB) / 10);
-        uint256 amtUsdc = bound(_seedAmtUsdc, IERC20(usdc).balanceOf(userB) / 100, IERC20(usdc).balanceOf(userB) / 10);
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB) / 10);
+        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB) / 10);
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 1);
 
         uint256 initialBlalance1 = cdxUSD.balanceOf(userB);
