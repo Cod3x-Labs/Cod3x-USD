@@ -80,12 +80,13 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     int256 public _errI;
 
     // Errors
-    error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
-    error PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
-    error PiReserveInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
-    error PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
-    error PiReserveInterestRateStrategy__ZERO_INPUT();
-    error PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+    error CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
+    error CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
+    error CdxUsdIInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
+    error CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
+    error CdxUsdIInterestRateStrategy__ZERO_INPUT();
+    error CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+    error CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
 
     // Events
     event PidLog( // if stablePoolReserveUtilization == 0 => counter asset deppeged.
@@ -139,11 +140,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         /// Checks
         if (minControllerError <= 0) {
-            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+            revert CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
         }
 
         if ((transferFunction(initialErrIValue) > uint256(RAY))) {
-            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
         }
 
         _errI = initialErrIValue;
@@ -152,27 +153,27 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         // 3 tokens [asset, counterAsset, BPT]
         if (poolTokens.length != 3) {
-            revert PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+            revert CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
         }
 
         if (
             address(poolTokens[0]) != asset && address(poolTokens[1]) != asset
                 && address(poolTokens[2]) != asset
         ) {
-            revert PiReserveInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+            revert CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
         }
     }
 
     modifier onlyPoolAdmin() {
         if (msg.sender != _addressesProvider.getPoolAdmin()) {
-            revert PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
+            revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
         }
         _;
     }
 
     modifier onlyLendingPool() {
         if (msg.sender != _addressesProvider.getLendingPool()) {
-            revert PiReserveInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
+            revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
         }
         _;
     }
@@ -186,7 +187,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setMinControllerError(int256 minControllerError) external onlyPoolAdmin {
         if (minControllerError <= 0) {
-            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+            revert CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
         }
 
         _minControllerError = minControllerError;
@@ -201,7 +202,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setPidValues(uint256 ki) external onlyPoolAdmin {
         if (ki == 0) {
-            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+            revert CdxUsdIInterestRateStrategy__ZERO_INPUT();
         }
         _ki = ki;
 
@@ -234,7 +235,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setBalancerPoolId(bytes32 newPoolId) external onlyPoolAdmin {
         if (newPoolId == bytes32(0)) {
-            revert PiReserveInterestRateStrategy__ZERO_INPUT();
+            revert CdxUsdIInterestRateStrategy__ZERO_INPUT();
         }
         _poolId = newPoolId;
 
@@ -249,7 +250,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setManualInterestRate(uint256 manualInterestRate) external onlyPoolAdmin {
         if (manualInterestRate > uint256(RAY)) {
-            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
         }
         _manualInterestRate = manualInterestRate;
 
@@ -263,7 +264,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setErrI(int256 newErrI) external onlyPoolAdmin {
         if (transferFunction(newErrI) > uint256(RAY)) {
-            revert PiReserveInterestRateStrategy__RATE_MORE_THAN_100();
+            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
         }
         _errI = newErrI;
 

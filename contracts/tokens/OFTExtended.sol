@@ -229,10 +229,11 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         }
 
         // Hourly limit check
-        if (hourlyLimit != type(uint256).max) {
+        uint256 hourlyLimit_ = hourlyLimit;
+        if (hourlyLimit_ != type(uint256).max) {
             _updateHourlyLimit(amountReceivedLD_);
 
-            if (slidingHourlyLimitUtilization > hourlyLimit) {
+            if (slidingHourlyLimitUtilization > hourlyLimit_) {
                 revert OFTExtended__BRIDGING_HOURLY_LIMIT_REACHED(_dstEid);
             }
         }
