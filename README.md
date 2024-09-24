@@ -2,9 +2,6 @@
 
 <p align="center">Cod3x-USD (cdxUSD) is the native Cod3x overcollateralized stablecoin integrated into <a href="https://github.com/Cod3x-Labs/Cod3x-Lend" style="color: #a77dff">Cod3x lend</a> market, multichain using <a href="https://layerzero.network/" style="color: #a77dff">LayerZero</a> and with a new innovative interest rate <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4844212" style="color: #a77dff">PID controle system</a>.
 </p>
-<p align="center">
-    <img alt="LayerZero" src="imgs/Cod3x_Super_App.png"/>
-</p>
 
 ## Quickstart
 
@@ -85,12 +82,6 @@ npx hardhat lz:deploy --help
 ### Formating
 
 Please use `yarn fmt` before commiting.
-
-## TODOs
-
-- Evaluate risk on Reliquary__TOKEN_NOT_COMPATIBLE() comment.
-- Adjust the rehypothecation BlancerGauge adapter to the correct gauge version.
-- Migrate Cod3x-Lend module from ByteMasons repo to Conclave Repo.
 
 <br>
 
