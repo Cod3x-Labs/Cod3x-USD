@@ -294,16 +294,15 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         BridgeUtilization storage BridgeUtilizationPtr = eidToUtilization[_eid];
 
         uint40 timeElapsed_ = uint40(block.timestamp) - BridgeUtilizationPtr.lastUsedTimestamp;
-        uint256 slidingUtilizationDecrease_ =
+        uint104 slidingUtilizationDecrease_ =
             timeElapsed_ * eidToConfigPtr.hourlyLimit / 1 hours;
 
         // Update the sliding utilization, making sure it doesn't become negative
         uint104 slidingHourlyLimitUtilization_ =
             BridgeUtilizationPtr.slidingHourlyLimitUtilization;
 
-        // Unsafe uint104() cast ok since `slidingHourlyLimitUtilization_` is necessarily uint104.
         BridgeUtilizationPtr.slidingHourlyLimitUtilization = slidingHourlyLimitUtilization_
-            - uint104(min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_))
+            - min(slidingUtilizationDecrease_, slidingHourlyLimitUtilization_)
             + _amount.toUint104();
 
         BridgeUtilizationPtr.lastUsedTimestamp = uint40(block.timestamp);
@@ -311,7 +310,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
 
     // ================================== Helpers ===================================
 
-    function min(uint256 _a, uint256 _b) internal pure returns (uint256) {
+    function min(uint104 _a, uint104 _b) internal pure returns (uint104) {
         return _a < _b ? _a : _b;
     }
 }
