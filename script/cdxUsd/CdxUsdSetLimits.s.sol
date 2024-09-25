@@ -7,7 +7,7 @@ import "./Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
 
-contract CdxUsdSetPeer is Script, Constants {
+contract CdxUsdSetLimits is Script, Constants {
 
     function setUp() public {}
 
@@ -17,6 +17,5 @@ contract CdxUsdSetPeer is Script, Constants {
         vm.startBroadcast();
         CdxUSD(cdxUsdTestNet).setBalanceLimit(eid_, -10_000e18);
         CdxUSD(cdxUsdTestNet).setHourlyLimit(1000e18);
-        vm.stopBroadcast();
     }
 }

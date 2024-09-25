@@ -15,6 +15,5 @@ contract CdxUsdMint is Script, Constants {
 
         vm.broadcast();
         CdxUSD(cdxUsdTestNet).mint(admin, 10_000e18);
-        vm.stopBroadcast();
     }
 }

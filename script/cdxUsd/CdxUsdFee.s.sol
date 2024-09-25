@@ -7,13 +7,13 @@ import "./Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
 
-contract CdxUsdSetPeer is Script, Constants {
+contract CdxUsdFee is Script, Constants {
 
     function setUp() public {}
 
     function run() public {
 
         vm.broadcast();
-        CdxUSD(cdxUsdTestNet).setPeer(40267, bytes32(uint256(uint160(cdxUsdTestNet))));
+        CdxUSD(cdxUsdTestNet).setFee(0);
     }
 }

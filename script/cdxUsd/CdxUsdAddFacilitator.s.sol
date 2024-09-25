@@ -15,6 +15,5 @@ contract CdxUsdAddFacilitator is Script, Constants {
 
         vm.broadcast();
         CdxUSD(cdxUsdTestNet).addFacilitator(admin, "admin", 100_000e18);
-        vm.stopBroadcast();
     }
 }
