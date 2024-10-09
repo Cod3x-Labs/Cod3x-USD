@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import "../interfaces/ICurves.sol";
+import "contracts/interfaces/ICurves.sol";
 
 interface IRewarder {
     function onReward(uint256 _relicId, address _to) external;

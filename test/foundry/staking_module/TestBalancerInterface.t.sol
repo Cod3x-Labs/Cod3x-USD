@@ -2,17 +2,12 @@
 pragma solidity ^0.8.22;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/interfaces/IVault.sol";
 import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
+} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console.sol";
 import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 

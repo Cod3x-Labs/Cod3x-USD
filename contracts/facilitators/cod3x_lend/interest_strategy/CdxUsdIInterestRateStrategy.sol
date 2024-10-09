@@ -19,13 +19,10 @@ import {ReserveConfiguration} from
 
 /// Balancer Imports
 import {
-    IVault as IBalancerVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
+} from "contracts/interfaces/IVault.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "contracts/staking_module/vault_strategy/interfaces/IBaseBalancerPool.sol";
+import "contracts/interfaces/IBaseBalancerPool.sol";
 import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 // OZ imports
@@ -33,7 +30,7 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Chainlink
-import {IAggregatorV3Interface} from "./interfaces/IAggregatorV3Interface.sol";
+import {IAggregatorV3Interface} from "contracts/interfaces/IAggregatorV3Interface.sol";
 
 /**
  * @title CdxUsdIInterestRateStrategy contract

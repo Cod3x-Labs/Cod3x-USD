@@ -2,11 +2,11 @@
 pragma solidity 0.8.23;
 
 import "contracts/staking_module/reliquary/Reliquary.sol";
-import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
+import "contracts/interfaces/IReliquary.sol";
 import "test/helpers/mocks/ERC20Mock.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "contracts/staking_module/reliquary/interfaces/ICurves.sol";
+import "contracts/interfaces/ICurves.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
 
 // The only unfuzzed method is reliquary.setEmissionRate()

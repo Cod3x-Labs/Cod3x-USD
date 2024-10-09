@@ -4,8 +4,8 @@ pragma solidity 0.8.23;
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
-import "../interfaces/INFTDescriptor.sol";
-import "../interfaces/IReliquary.sol";
+import "contracts/interfaces/INFTDescriptor.sol";
+import "contracts/interfaces/IReliquary.sol";
 
 contract NFTDescriptor is INFTDescriptor {
     using Strings for uint256;

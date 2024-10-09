@@ -20,12 +20,12 @@ import {
     JoinKind,
     ExitKind,
     SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+} from "contracts/interfaces/IVault.sol";
 import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
+} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console.sol";
 
 import {TestCdxUSDAndLend} from "test/helpers/TestCdxUSDAndLend.sol";
@@ -33,12 +33,12 @@ import {ERC20Mock} from "test/helpers/mocks/ERC20Mock.sol";
 
 // reliquary
 import "contracts/staking_module/reliquary/Reliquary.sol";
-import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
+import "contracts/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
 import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
 import "contracts/staking_module/reliquary/rewarders/ParentRollingRewarder.sol";
-import "contracts/staking_module/reliquary/interfaces/ICurves.sol";
+import "contracts/interfaces/ICurves.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 // vault

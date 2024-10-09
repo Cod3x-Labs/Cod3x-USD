@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import "../interfaces/IRollingRewarder.sol";
-import "../interfaces/IRewarder.sol";
-import "../interfaces/IReliquary.sol";
+import "contracts/interfaces/IRollingRewarder.sol";
+import "contracts/interfaces/IRewarder.sol";
+import "contracts/interfaces/IReliquary.sol";
 import "./ParentRollingRewarder.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";

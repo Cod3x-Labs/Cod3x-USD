@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import "../interfaces/ICurves.sol";
+import "contracts/interfaces/ICurves.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /// @dev Level of precision rewards are calculated to.

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IAggregatorV3Interface} from
-    "contracts/facilitators/cod3x_lend/interest_strategy/interfaces/IAggregatorV3Interface.sol";
+    "contracts/interfaces/IAggregatorV3Interface.sol";
 
 /**
  * @title MockV3Aggregator

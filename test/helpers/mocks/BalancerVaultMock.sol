@@ -3,7 +3,7 @@ pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "forge-std/console.sol";
-import {IVault} from "../../../contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+import {IVault} from "contracts/interfaces/IVault.sol";
 
 contract BalancerVaultMock {
     mapping(bytes32 => mapping(address => uint256)) _idToTokenAndCash;

@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import "contracts/facilitators/flash_minter/CdxUSDFlashMinter.sol";
 import {MockFlashBorrower} from "../../helpers/mocks/MockFlashBorrower.sol";
-import "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
+import "contracts/interfaces/ICdxUSDFacilitators.sol";
 
 contract TestCdxUSDFlashMinter is TestCdxUSD {
     uint256 public constant DEFAULT_FLASH_FEE = 200;

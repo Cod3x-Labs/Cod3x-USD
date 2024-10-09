@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import "./RollingRewarder.sol";
-import "../interfaces/IParentRollingRewarder.sol";
+import "contracts/interfaces/IParentRollingRewarder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 

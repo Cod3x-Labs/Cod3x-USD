@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
+import "contracts/interfaces/IReliquary.sol";
 import {ReaperVaultV2 as Cod3xVault} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
 import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import {
-    IVault as IBalancerVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
+} from "contracts/interfaces/IVault.sol";
 import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 

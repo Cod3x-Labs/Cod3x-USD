@@ -2,8 +2,10 @@
 pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "../interfaces/IBaseBalancerPool.sol";
-import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "../interfaces/IVault.sol"; // balancer Vault
+import "contracts/interfaces/IBaseBalancerPool.sol";
+import {
+    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
+} from "contracts/interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import "forge-std/console.sol";
 

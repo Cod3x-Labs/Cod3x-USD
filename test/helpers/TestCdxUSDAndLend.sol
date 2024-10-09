@@ -65,7 +65,7 @@ import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
 import {ERC20Mock} from "../helpers/mocks/ERC20Mock.sol";
 import {OFTComposerMock} from "../helpers/mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
+import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -93,7 +93,7 @@ import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/
 /// Main import
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/tokens/CdxUSD.sol";
-import "contracts/tokens/interfaces/ICdxUSD.sol";
+import "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
@@ -104,14 +104,14 @@ import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
+} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import {
     IVault,
     JoinKind,
     ExitKind,
     SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+} from "contracts/interfaces/IVault.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";

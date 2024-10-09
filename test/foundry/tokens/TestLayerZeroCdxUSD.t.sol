@@ -5,7 +5,7 @@ pragma solidity ^0.8.22;
 import {OFTMock} from "../../helpers/mocks/OFTMock.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 import {OFTComposerMock} from "../../helpers/mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
+import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {

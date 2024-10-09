@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import "./interfaces/IReliquary.sol";
-import "./interfaces/IParentRollingRewarder.sol";
-import "./interfaces/IRewarder.sol";
-import "./interfaces/INFTDescriptor.sol";
+import "contracts/interfaces/IReliquary.sol";
+import "contracts/interfaces/IRewarder.sol";
 import "./libraries/ReliquaryLogic.sol";
 import "./libraries/ReliquaryEvents.sol";
 import "./libraries/ReliquaryRehypothecationLogic.sol";
+import "contracts/interfaces/IParentRollingRewarder.sol";
+import "contracts/interfaces/INFTDescriptor.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";

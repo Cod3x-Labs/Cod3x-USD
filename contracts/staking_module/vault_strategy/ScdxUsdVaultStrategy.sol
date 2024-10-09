@@ -3,11 +3,13 @@ pragma solidity ^0.8.22;
 
 import "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import "lib/Cod3x-Vault/lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
-import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
+import "contracts/interfaces/IReliquary.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault as IBalancerVault, JoinKind, ExitKind, SwapKind} from "./interfaces/IVault.sol"; // balancer Vault
+import {
+    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
+} from "contracts/interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "./interfaces/IBaseBalancerPool.sol";
+import "contracts/interfaces/IBaseBalancerPool.sol";
 import "./libraries/BalancerHelper.sol";
 
 /**

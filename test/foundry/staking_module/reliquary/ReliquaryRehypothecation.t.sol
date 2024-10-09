@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "contracts/staking_module/reliquary/Reliquary.sol";
-import "contracts/staking_module/reliquary/interfaces/IReliquary.sol";
+import "contracts/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";
 import "test/helpers/mocks/ERC20Mock.sol";

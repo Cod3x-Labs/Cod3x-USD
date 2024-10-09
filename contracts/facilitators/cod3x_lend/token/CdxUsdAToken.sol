@@ -11,12 +11,12 @@ import {VersionedInitializable} from
     "lib/Cod3x-Lend/contracts/protocol/libraries/upgradeability/VersionedInitializable.sol";
 import {IncentivizedERC20} from
     "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/IncentivizedERC20.sol";
-import {ICdxUSD} from "contracts/tokens/interfaces/ICdxUSD.sol";
-import {ICdxUsdAToken} from "contracts/tokens/interfaces/ICdxUsdAToken.sol";
-import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
+import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
+import {ICdxUsdAToken} from "contracts/interfaces/ICdxUsdAToken.sol";
+import {ICdxUSDFacilitators} from "contracts/interfaces/ICdxUSDFacilitators.sol";
 import {IERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 import {CdxUsdVariableDebtToken} from "./CdxUsdVariableDebtToken.sol";
-import {IRollingRewarder} from "contracts/staking_module/reliquary/interfaces/IRollingRewarder.sol";
+import {IRollingRewarder} from "contracts/interfaces/IRollingRewarder.sol";
 
 /**
  * @title CdxUSD A ERC20 AToken

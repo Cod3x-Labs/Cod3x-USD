@@ -2,8 +2,8 @@
 pragma solidity 0.8.23;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../interfaces/IReliquary.sol";
-import "../interfaces/IRehypothecation.sol";
+import "contracts/interfaces/IReliquary.sol";
+import "contracts/interfaces/IRehypothecation.sol";
 
 library ReliquaryRehypothecationLogic {
     using SafeERC20 for IERC20;

@@ -4,9 +4,9 @@ pragma solidity ^0.8.22;
 import {PercentageMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/PercentageMath.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
-import {ICdxUSD} from "contracts/tokens/interfaces/ICdxUSD.sol";
+import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ICdxUSDFacilitators} from "contracts/tokens/interfaces/ICdxUSDFacilitators.sol";
+import {ICdxUSDFacilitators} from "contracts/interfaces/ICdxUSDFacilitators.sol";
 
 /**
  * @title CdxUSDFlashMinter

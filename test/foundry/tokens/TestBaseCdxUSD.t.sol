@@ -6,7 +6,7 @@ pragma solidity ^0.8.22;
 import {OFTMock} from "../../helpers/mocks/OFTMock.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 import {OFTComposerMock} from "../../helpers/mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
+import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -31,7 +31,7 @@ import {OFTComposeMsgCodec} from
 /// Main import
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/tokens/CdxUSD.sol";
-import "contracts/tokens/interfaces/ICdxUSD.sol";
+import "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";

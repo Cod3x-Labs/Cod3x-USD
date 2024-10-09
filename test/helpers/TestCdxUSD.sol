@@ -6,7 +6,7 @@ pragma solidity ^0.8.22;
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
 import {ERC20Mock} from "../helpers/mocks/ERC20Mock.sol";
 import {OFTComposerMock} from "../helpers/mocks/OFTComposerMock.sol";
-import {IOFTExtended} from "contracts/tokens/interfaces/IOFTExtended.sol";
+import {IOFTExtended} from "contracts/interfaces/IOFTExtended.sol";
 
 // OApp imports
 import {
@@ -34,7 +34,7 @@ import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/
 /// Main import
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/tokens/CdxUSD.sol";
-import "contracts/tokens/interfaces/ICdxUSD.sol";
+import "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
@@ -45,14 +45,14 @@ import {
     IComposableStablePoolFactory,
     IRateProvider,
     ComposableStablePool
-} from "contracts/staking_module/vault_strategy/interfaces/IComposableStablePoolFactory.sol";
+} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import {
     IVault,
     JoinKind,
     ExitKind,
     SwapKind
-} from "contracts/staking_module/vault_strategy/interfaces/IVault.sol";
+} from "contracts/interfaces/IVault.sol";
 import "forge-std/console.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
