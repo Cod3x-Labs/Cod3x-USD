@@ -1,4 +1,5 @@
-# Cod3x USD Audit Report
+# Cod3x USD Audit Report | Cergyk - 03/10/2024
+
 
 # 1. About cergyk
 
@@ -31,7 +32,7 @@ Finally a rehypothecation logic has been implemented for LP tokens invested in R
 
 ***review commit hash* - [0346bab2](https://github.com/Cod3x-Labs/Cod3x-USD/commit/0346bab282ba646d0b431c16e7320a894eaf2361)**
 
-***fixes review commit hash* - [xxxxxxxx](https://github.com/beirao/Reliquary/commit/xxxxxxxx)**
+***fixes review commit hash* - [8894e7f1](https://github.com/Cod3x-Labs/Cod3x-USD/commit/8894e7f1a3ce5391dcaf8d5396d9f0ea8b1c8c02)**
 
 ## Deployment chains
 
@@ -149,6 +150,12 @@ This means that during the index updating of the `Cod3x-lend` module, the variab
 ### Recommendation
 The logic used for Cod3x-Lend in the current scope is forked from AaveV2, and AaveV3 has separate updating for liquidity index and variable interest index. Updating the forked version will solve this issue. 
 
+### Cod3x-Labs
+Fixed in [07be4adb9](https://github.com/Cod3x-Labs/Cod3x-USD/commit/07be4adb927050b43241f6d2b77397c4686c6764)
+
+### Cergyk
+Fixed.
+
 ## M-1 Zap::zapOutRelic should use safeTransfer to avoid reverting when using USDT
 
 ### Description
@@ -169,6 +176,13 @@ Use `SafeERC20::safeTransfer` instead for the calls at the end of `Zap::zapOutRe
     IERC20(_tokenToWithdraw).transfer(_to, IERC20(_tokenToWithdraw).balanceOf(address(this)));
 ```
 
+### Cod3x-Labs
+Fixed in [b5488b18](https://github.com/Cod3x-Labs/Cod3x-USD/commit/b5488b18600f687ae3b35fc1eb09d869727eb2f6)
+
+### Cergyk
+Fixed.
+
+
 ## M-2 CdxUSDAToken::distributeFeesToTreasury Rewards distribution can be grieved by repeated calls 
 
 ### Description
@@ -176,6 +190,12 @@ In the AToken implementation for CdxUSD, the function `distributeFeesToTreasury`
 
 ### Recommendation
 Please consider making the call to this function permissioned to a `KEEPER` role.
+
+### Cod3x-Labs
+Fixed in [fe029cdf](https://github.com/Cod3x-Labs/Cod3x-USD/commit/fe029cdf2beb25e3d73a8b4a19d463b83b47c0f8)
+
+### Cergyk
+Fixed.
 
 ## M-3 Balancer stable pool can be used to manipulate interest rate in one block
 
@@ -204,6 +224,12 @@ The Proportional-Integral control system which is used to control interest rates
 ```
 
 Unfortunately due to the spot price being used, a malicious actor can pay the balancer fee during a few blocks to add a large amount of liquidity in an imbalanced way, and durably influence interest rate of the CdxUSD borrowing. 
+
+### Cod3x-Labs
+Acknowledged. We will monitor the staking module to make sure there is no manipulations
+
+### Cergyk
+Acknowledged.
 
 ### Recommendation
 
@@ -262,6 +288,12 @@ Do not add the profit to `toFree`, since the profit is already available as bala
 + roi = int256(totalAssets) - int256(allocated)
 ```
 
+### Cod3x-Labs
+Acknowledged. If the issue is encountered, the team will deposit funds in the relic to undos 
+
+### Cergyk
+Acknowledged.
+
 ## L-1 ScdxUsdVaultStrategy::_liquidateAllPositions relic #1 can be burnt when emergencyWithdraw is called
 
 ### Description
@@ -308,7 +340,6 @@ ScdxUsdVaultStrategy has a migration strategy which liquidates all positions. Th
     }
 ```
 
-
 ### Recommendation
 Please consider adding a conditional around that burn statement:
 ```diff
@@ -340,6 +371,13 @@ Please consider adding a conditional around that burn statement:
         emit ReliquaryEvents.EmergencyWithdraw(poolId_, amount_, to_, _relicId);
     }
 ```
+
+### Cod3x-Labs
+Acknowledged. We think emergencyWithdraw(relic#1) and re-entering the position after may cause critical unexpected behavior since position reward accounting is not updated in emergencyWithdraw. (emergencyWithdraw is designed to burn the relic). So we will keep the code as it is. Considering that withdraw() fails, this means that there is a big problem with Reliquary, so emergencyWithdraw() is the only solution anyway.
+
+### Cergyk
+Acknowledged.
+
 ## L-2 Zap::zapOutStakedCdxUSD Zap out enables only imbalanced exit forcing users to pay balancer fee
 
 ### Description
@@ -351,6 +389,12 @@ The Zap contract used to interact with the CdxUSD staking module forces the user
 ### Recommendation
 Enable the user to withdraw both of the tokens by using `ExitKind.EXACT_BPT_IN_FOR_TOKENS_OUT`
 
+### Cod3x-Labs
+Acknowledged.
+
+### Cergyk
+Acknowledged.
+
 ## L-3 ScdxUSDVaultStrategy should be able to handle ERC721
 
 ### Description
@@ -360,6 +404,12 @@ The ScdxUSDVaultStrategy receives the relic with id 1 and should be able to depo
 ### Recommendation
 
 Add a function `migrateRelic` which can transfer the relic with id 1 to the new strategy. Optionally implement the `IERC721Receiver` interface for `ScdxUSDVaultStrategy`, to mark it as capable to handle ERC721 tokens.
+
+### Cod3x-Labs
+Fixed in [f944da42](https://github.com/Cod3x-Labs/Cod3x-USD/commits/f944da42a1162dcfd5642d9ba31cb5d30e3c84b1)
+
+### Cergyk
+Fixed.
 
 ## L-4 Unsafe cast to uint256 in CdxUsdInterestRateStrategy::transferFunction
 
@@ -371,6 +421,12 @@ This is info severity, because in the current interest rate model `_minControlle
 
 ### Recommendation
 Ensure that `_minControllerError` is >= 0, so that `ce` is always >= in `transferFunction`
+
+### Cod3x-Labs
+Fixed in [c668e534](https://github.com/Cod3x-Labs/Cod3x-USD/commits/c668e5348ec0fb56fd6733bac02ec78f9ffae476)
+
+### Cergyk
+Fixed.
 
 ## Informational & Gas issues
 
@@ -399,6 +455,12 @@ function baseVariableBorrowRate() public view override returns (uint256) {
 }
 ```
 
+#### Cod3x-Labs
+Fixed in [15d693ae](https://github.com/Cod3x-Labs/Cod3x-USD/commits/15d693aeac9022a6d7eac7d1e2f9839d924174d5)
+
+#### Cergyk
+Fixed.
+
 ### INFO-2 Setters do not emit events in CdxUsdInterestRateStrategy
 
 The following setters available in `CdxUsdInterestRateStrategy` do not emit an event, which will hinder observability of config changes:
@@ -417,17 +479,42 @@ Same for the following setters in `CdxUsdAToken`:
 
 Would recommend a consistent handling of setters events accross all files.
 
+#### Cod3x-Labs
+Fixed in [8894e7f1](https://github.com/Cod3x-Labs/Cod3x-USD/commits/8894e7f1a3ce5391dcaf8d5396d9f0ea8b1c8c02)
+
+#### Cergyk
+Fixed.
+
 ### INFO-3 _maxErrIAmp is redundant with _minControllerError
 
 The parameter `_maxErrIAmp` is now redundant with `_minControllerError`, these two parameter check that the error during an interest rate update is above a given value.
+
+#### Cod3x-Labs
+Fixed in [15d693ae](https://github.com/Cod3x-Labs/Cod3x-USD/commits/15d693aeac9022a6d7eac7d1e2f9839d924174d5)
+
+#### Cergyk
+Fixed.
 
 ### INFO-4 OFTExtended hourly rate limit allows for 2\*eidToConfigPtr.hourlyLimit in a 2\*hour window
 
 The rate limiting mechanism is slightly flawed, because instead of limiting during a 1 hour window as suggested, it limits over a 2 hour window (the limit is correct though).
 
+#### Cod3x-Labs
+Acknowledged.
+
+#### Cergyk
+Acknowledged.
+
+
 ### INFO-5 Initialization flow of CdxUSDAToken can be simplified
 
 Setters setVariableDebtToken(), updateCdxUsdTreasury(), setReliquaryInfo(), should be included in the `initialize()` to avoid admin mistakes during initialization
+
+#### Cod3x-Labs
+Fixed in [15d693ae](https://github.com/Cod3x-Labs/Cod3x-USD/commits/15d693aeac9022a6d7eac7d1e2f9839d924174d5)
+
+#### Cergyk
+Fixed.
 
 ### INFO-6 OFTExtended::_debit xChain transfers can fail due to wrong fee take
 
@@ -443,9 +530,22 @@ Replace `msg.sender` with `_from` in `OFTExtended::_debit`, in case `sendFrom`
     }
 ```
 
+#### Cod3x-Labs
+Fixed in [15d693ae](https://github.com/Cod3x-Labs/Cod3x-USD/commits/15d693aeac9022a6d7eac7d1e2f9839d924174d5)
+
+#### Cergyk
+Fixed.
+
 ### INFO-7 typos and unaccurate comments
 
 - `Zap::zapOutRelic`: `Bpt` instead of `Btp`
 - `BalancerHelper`: `bptIndex_` instead of `btpIndex_`
 - `CdxUsdIInterestRateStrategy::transferFunction`: comment refers to wrong desmos link
 - [Zap.sol#L339](https://github.com/Cod3x-Labs/Cod3x-USD/blob/0346bab282ba646d0b431c16e7320a894eaf2361/contracts/staking_module/Zap.sol#L339): should read `/// Send token`.
+
+#### Cod3x-Labs
+Fixed in [15d693ae](https://github.com/Cod3x-Labs/Cod3x-USD/commits/15d693aeac9022a6d7eac7d1e2f9839d924174d5)
+
+#### Cergyk
+Fixed.
+
