@@ -225,15 +225,15 @@ The Proportional-Integral control system which is used to control interest rates
 
 Unfortunately due to the spot price being used, a malicious actor can pay the balancer fee during a few blocks to add a large amount of liquidity in an imbalanced way, and durably influence interest rate of the CdxUSD borrowing. 
 
+### Recommendation
+
+To mitigate this, one can make the increase of interest rates be indexed on a less volatile variable such a TWAP of the liquidity imbalance.
+
 ### Cod3x-Labs
 Acknowledged. We will monitor the staking module to make sure there is no manipulations
 
 ### Cergyk
 Acknowledged.
-
-### Recommendation
-
-To mitigate this, one can make the increase of interest rates be indexed on a less volatile variable such a TWAP of the liquidity imbalance.
 
 ## M-4 ScdxUsdVaultStrategy::_harvestCore The logic in harvest will revert if rewards are bigger than position in relic#1
 
