@@ -58,6 +58,26 @@ contract TestBaseCdxUSD is TestCdxUSD {
         cdxUSD.addFacilitator(userA, "user a", initialBalance);
     }
 
+    function testNameSymbolUpdate() public {
+        assertEq(cdxUSD.name(), "aOFT");
+        assertEq(cdxUSD.symbol(), "aOFT");
+
+        cdxUSD.setName("NNN");
+        cdxUSD.setSymbol("SSS");
+
+        assertEq(cdxUSD.name(), "NNN");
+        assertEq(cdxUSD.symbol(), "SSS");
+
+        vm.startPrank(address(0xdead000));
+        vm.expectRevert();
+        cdxUSD.setName("NNN");
+
+        vm.expectRevert();
+        cdxUSD.setSymbol("SSS");
+
+        vm.stopPrank();
+    }
+
     function testGetFacilitatorData() public {
         ICdxUSD.Facilitator memory data = cdxUSD.getFacilitator(userA);
         assertEq(data.label, "user a", "Unexpected facilitator label");

@@ -16,6 +16,9 @@ contract CdxUSD is ICdxUSD, OFTExtended {
     mapping(address => Facilitator) internal facilitators;
     EnumerableSet.AddressSet internal facilitatorsList;
 
+    string internal _name_;
+    string internal _symbol_;
+
     constructor(
         string memory _name,
         string memory _symbol,
@@ -23,7 +26,10 @@ contract CdxUSD is ICdxUSD, OFTExtended {
         address _delegate,
         address _treasury,
         address _guardian
-    ) OFTExtended(_name, _symbol, _lzEndpoint, _delegate, _treasury, _guardian) {}
+    ) OFTExtended(_name, _symbol, _lzEndpoint, _delegate, _treasury, _guardian) {
+        _name_ = _name;
+        _symbol_ = _symbol;
+    }
 
     /**
      * @notice Mints the requested amount of tokens to the account address.
@@ -131,6 +137,37 @@ contract CdxUSD is ICdxUSD, OFTExtended {
         facilitators[_facilitator].bucketCapacity = _newCapacity;
 
         emit FacilitatorBucketCapacityUpdated(_facilitator, oldCapacity_, _newCapacity);
+    }
+
+    /**
+     * Setter to update the name of the ERC20.
+     * @param _name The new name.
+     */
+    function setName(string memory _name) external onlyOwner {
+        _name_ = _name;
+    }
+
+    /**
+     * Setter to update the symbol of the ERC20.
+     * @param _symbol The new name.
+     */
+    function setSymbol(string memory _symbol) external onlyOwner {
+        _symbol_ = _symbol;
+    }
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view override returns (string memory) {
+        return _name_;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view override returns (string memory) {
+        return _symbol_;
     }
 
     /**

@@ -68,7 +68,7 @@ abstract contract OFTExtended is IOFTExtended, OFTCore, ERC20, ERC20Permit {
         address _treasury,
         address _guardian
     )
-        ERC20(_name, _symbol)
+        ERC20("", "") // `name()` and `symbol()` are overridden in CdxUSD.sol.
         ERC20Permit(_name)
         OFTCore(decimals(), _lzEndpoint, _delegate)
         Ownable(_delegate)
