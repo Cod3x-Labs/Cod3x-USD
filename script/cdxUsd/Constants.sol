@@ -15,25 +15,21 @@ contract Constants {
     address public endpoint;
 
     constructor() {
-        
         // Mainnet : Ethereum
         if (block.chainid == 1) {
             eid = 30101;
             endpoint = address(0x1a44076050125825900e736c501f859c50fE728c);
         }
-
         // Testnet : Sepolia Ethereum
         else if (block.chainid == 11155111) {
             eid = 40161;
             endpoint = address(0x6EDCE65403992e310A62460808c4b910D972f10f);
         }
-
         // Testnet : Sepolia Arbitrum
         else if (block.chainid == 421614) {
             eid = 40231;
             endpoint = address(0x6EDCE65403992e310A62460808c4b910D972f10f);
         }
-
         // Testnet : Polygon Amoy
         else if (block.chainid == 80002) {
             eid = 40267;

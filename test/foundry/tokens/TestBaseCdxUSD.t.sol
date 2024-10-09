@@ -101,7 +101,7 @@ contract TestBaseCdxUSD is TestCdxUSD {
 
     function testRevertAddExistingFacilitator() public {
         vm.expectRevert(ICdxUSD.CdxUSD__FACILITATOR_ALREADY_EXISTS.selector);
-        cdxUSD.addFacilitator(userA, "Aave V3 Pool", initialBalance);
+        cdxUSD.addFacilitator(userA, "Cod3x Pool", initialBalance);
     }
 
     function testRevertAddFacilitatorNoLabel() public {

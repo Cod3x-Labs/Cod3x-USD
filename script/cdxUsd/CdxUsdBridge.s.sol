@@ -32,7 +32,8 @@ contract CdxUsdBridge is Script, Constants {
 
         CdxUSD sourceOFT = CdxUSD(cdxUsdTestNet);
 
-        bytes memory _extraOptions = OptionsBuilder.newOptions().addExecutorLzReceiveOption(65000, 0);
+        bytes memory _extraOptions =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(65000, 0);
         SendParam memory sendParam = SendParam(
             40267,
             addressToBytes32(toAddress),

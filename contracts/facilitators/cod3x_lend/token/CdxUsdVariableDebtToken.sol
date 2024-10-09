@@ -188,14 +188,6 @@ contract CdxUsdVariableDebtToken is DebtTokenBase, IVariableDebtToken {
         uint256 previousScaledBalance = super.balanceOf(user);
         uint256 balanceIncrease = _accrueDebtOnAction(user, previousScaledBalance, index);
 
-        // TODO is this still an issue without discount mechanism?
-        // https://governance.aave.com/t/temporarily-pausing-gho-integration-in-aave/14626/11
-        // if (amount == balanceBeforeBurn) {
-        //     _burn(user, previousScaledBalance);
-        // } else {
-        //     _burn(user, amountScaled);
-        // }
-
         _burn(user, amountScaled);
 
         if (balanceIncrease > amount) {

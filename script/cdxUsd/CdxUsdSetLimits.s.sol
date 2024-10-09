@@ -6,9 +6,7 @@ import "forge-std/console.sol";
 import "./Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
-
 contract CdxUsdSetLimits is Script, Constants {
-
     function setUp() public {}
 
     function run() public {
