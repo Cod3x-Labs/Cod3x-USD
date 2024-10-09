@@ -7,6 +7,4 @@ interface IRollingRewarder is IRewarder {
     function fund(uint256 _amount) external;
 
     function updateDistributionPeriod(uint256 _newDistributionPeriod) external;
-
-    function updateChildFunder(address _childFunder) external;
 }

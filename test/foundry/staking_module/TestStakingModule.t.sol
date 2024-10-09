@@ -121,9 +121,8 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
                 address(this) // can send to the strategy directly.
             );
 
-            rewarder = RollingRewarder(
-                ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD), address(this))
-            );
+            rewarder =
+                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUSD)));
             IERC20(cdxUSD).approve(address(reliquary), type(uint256).max);
             IERC20(cdxUSD).approve(address(rewarder), type(uint256).max);
         }
@@ -189,7 +188,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     function testVariables() public {
         // reliquary
         assertEq(reliquary.emissionRate(), 0);
-        assertEq(rewarder.distributionPeriod(), 7 days);
+        assertEq(rewarder.distributionPeriod(), 3 days);
 
         // vault
         assertEq(cod3xVault.tvlCap(), type(uint256).max);

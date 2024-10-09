@@ -30,7 +30,7 @@ contract MultipleRollingRewarder is ERC721Holder, Test {
     //! here we set emission rate at 0 to simulate a pure collateral Ethos reward without any oath incentives.
     uint256 public emissionRate = 0;
     uint256 public initialMint = 100_000_000 ether;
-    uint256 public initialDistributionPeriod = 7 days;
+    uint256 public initialDistributionPeriod = 3 days;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
@@ -74,7 +74,7 @@ contract MultipleRollingRewarder is ERC721Holder, Test {
 
         for (uint256 i = 0; i < nbChildRewarder; i++) {
             address rewardTokenTemp = address(new ERC20Mock(18));
-            address rewarderTemp = parentRewarder.createChild(rewardTokenTemp, address(this));
+            address rewarderTemp = parentRewarder.createChild(rewardTokenTemp);
             rewardTokens.push(ERC20Mock(rewardTokenTemp));
             childRewarders.push(RollingRewarder(rewarderTemp));
             ERC20Mock(rewardTokenTemp).mint(address(this), initialMint);

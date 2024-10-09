@@ -163,7 +163,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             );
 
             rewarder = RollingRewarder(
-                ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd), address(this))
+                ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd))
             );
             IERC20(cdxUsd).approve(address(reliquary), type(uint256).max);
             IERC20(cdxUsd).approve(address(rewarder), type(uint256).max);

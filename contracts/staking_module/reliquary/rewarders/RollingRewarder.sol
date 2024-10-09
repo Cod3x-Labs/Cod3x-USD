@@ -27,8 +27,6 @@ contract RollingRewarder is IRollingRewarder {
     uint256 public rewardPerSecond;
     uint256 public accRewardPerShare;
 
-    address public childFunder;
-
     mapping(uint256 => uint256) private rewardDebt;
     mapping(uint256 => uint256) private rewardCredit;
 
@@ -36,7 +34,6 @@ contract RollingRewarder is IRollingRewarder {
     error RollingRewarder__NOT_PARENT();
     error RollingRewarder__NOT_OWNER();
     error RollingRewarder__ZERO_INPUT();
-    error RollingRewarder__ONLY_CHILD_FUNDER_ACCESS();
 
     // Events
     event LogOnReward(uint256 _relicId, uint256 _rewardAmount, address _to);
@@ -47,11 +44,6 @@ contract RollingRewarder is IRollingRewarder {
     /// @dev We define owner of parent owner of the child too.
     modifier onlyOwner() {
         if (msg.sender != Ownable(parent).owner()) revert RollingRewarder__NOT_OWNER();
-        _;
-    }
-
-    modifier onlyChildFunder() {
-        if (msg.sender != childFunder) revert RollingRewarder__ONLY_CHILD_FUNDER_ACCESS();
         _;
     }
 
@@ -66,18 +58,17 @@ contract RollingRewarder is IRollingRewarder {
      * @param _rewardToken Address of token rewards are distributed in.
      * @param _reliquary Address of Reliquary this rewarder will read state from.
      */
-    constructor(address _rewardToken, address _reliquary, address _childFunder, uint8 _poolId) {
+    constructor(address _rewardToken, address _reliquary, uint8 _poolId) {
         poolId = _poolId;
         parent = msg.sender;
         rewardToken = _rewardToken;
         reliquary = _reliquary;
-        childFunder = _childFunder;
-        _updateDistributionPeriod(7 days);
+        _updateDistributionPeriod(3 days);
     }
 
     // -------------- Admin --------------
 
-    function fund(uint256 _amount) external onlyChildFunder {
+    function fund(uint256 _amount) external {
         IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), _amount);
         _fund(_amount);
     }
@@ -85,11 +76,6 @@ contract RollingRewarder is IRollingRewarder {
     function updateDistributionPeriod(uint256 _newDistributionPeriod) external onlyOwner {
         if (_newDistributionPeriod == 0) revert RollingRewarder__ZERO_INPUT();
         _updateDistributionPeriod(_newDistributionPeriod);
-    }
-
-    function updateChildFunder(address _childFunder) external onlyOwner {
-        if (_childFunder == address(0)) revert RollingRewarder__ZERO_INPUT();
-        childFunder = _childFunder;
     }
     // -------------- Hooks --------------
 

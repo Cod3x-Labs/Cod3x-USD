@@ -387,7 +387,6 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(address(this));
         DataTypes.ReserveData memory reserve =
             ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
-        RollingRewarder(_reliquaryCdxusdRewarder).updateChildFunder(reserve.aTokenAddress);
 
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
