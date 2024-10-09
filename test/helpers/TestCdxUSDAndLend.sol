@@ -20,7 +20,7 @@ import {LendingPoolAddressesProvider} from
 import {LendingPoolAddressesProviderRegistry} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
 import {DefaultReserveInterestRateStrategy} from
-    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/DefaultReserveInterestRateStrategy.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/lendingpool/DefaultReserveInterestRateStrategy.sol";
 import {LendingPool} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPool.sol";
 import {LendingPoolCollateralManager} from
     "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolCollateralManager.sol";
@@ -41,13 +41,13 @@ import {VariableDebtToken} from
 import {MintableERC20} from "lib/Cod3x-Lend/contracts/mocks/tokens/MintableERC20.sol";
 import {WETH9Mocked} from "lib/Cod3x-Lend/contracts/mocks/tokens/WETH9Mocked.sol";
 import {MockAggregator} from "lib/Cod3x-Lend/contracts/mocks/oracle/MockAggregator.sol";
-import {MockERC4626} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
+import {MockReaperVault2} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVault.sol";
 import {ExternalContract} from "lib/Cod3x-Lend/contracts/mocks/tokens/ExternalContract.sol";
 import {IStrategy} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IStrategy.sol";
 import {IExternalContract} from "lib/Cod3x-Lend/contracts/mocks/dependencies/IExternalContract.sol";
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MiniPoolDefaultReserveInterestRateStrategy} from
-    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/MiniPoolDefaultReserveInterestRate.sol";
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/minipool/MiniPoolDefaultReserveInterestRate.sol";
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
 import {MiniPoolCollateralManager} from
     "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
@@ -184,7 +184,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     VariableDebtToken[] public variableDebtTokens;
     ATokenERC6909[] public aTokensErc6909;
 
-    MockERC4626[] public mockedVaults;
+    MockReaperVault2[] public mockedVaults;
 
     uint128 public constant DEFAULT_CAPACITY = 100_000_000e18;
     uint128 public constant INITIAL_CDXUSD_AMT = 10_000_000e18;
@@ -723,12 +723,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
     function fixture_deployErc4626Mocks(address[] memory _tokens, address _treasury)
         public
-        returns (MockERC4626[] memory)
+        returns (MockReaperVault2[] memory)
     {
-        MockERC4626[] memory _mockedVaults = new MockERC4626[](_tokens.length);
+        MockReaperVault2[] memory _mockedVaults = new MockReaperVault2[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
             _mockedVaults[idx] =
-                new MockERC4626(_tokens[idx], "Mock ERC4626", "mock", TVL_CAP, _treasury);
+                new MockReaperVault2(_tokens[idx], "Mock ERC4626", "mock", TVL_CAP, _treasury);
         }
         return _mockedVaults;
     }
