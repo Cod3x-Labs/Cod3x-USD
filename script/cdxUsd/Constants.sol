@@ -20,6 +20,16 @@ contract Constants {
             eid = 30101;
             endpoint = address(0x1a44076050125825900e736c501f859c50fE728c);
         }
+        // Mainnet : Arbitrum
+        if (block.chainid == 42161) {
+            eid = 30110;
+            endpoint = address(0x1a44076050125825900e736c501f859c50fE728c);
+        }
+        // Mainnet : Base
+        if (block.chainid == 8453) {
+            eid = 30184;
+            endpoint = address(0x1a44076050125825900e736c501f859c50fE728c);
+        }
         // Testnet : Sepolia Ethereum
         else if (block.chainid == 11155111) {
             eid = 40161;
