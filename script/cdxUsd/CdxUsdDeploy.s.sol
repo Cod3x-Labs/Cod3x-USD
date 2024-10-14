@@ -22,7 +22,7 @@ contract CdxUsdDeploy is Script, Constants {
 
         vm.broadcast();
         address l = createx.deployCreate3{value: 0}(
-            bytes32(0x51c39ce3932d65519c3503f96c06ea54c8a098cfddf97e9023eaa8887c8f291a),
+            bytes32(0x3d0c000adf317206fa4a3201a8f8c926ef394fad0047c74b092069a800a5ed54),
             cachedInitCode
         );
 
