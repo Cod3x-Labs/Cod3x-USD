@@ -36,3 +36,14 @@ address[] facilitators = [cdxUsdAToken, amo];
 ```bash
 forge script script/cdxUsd/CdxUsdDeploy.s.sol --rpc-url $MAINNET_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $ETHEREUM_SCAN_APY_KEY --verify contracts/tokens/CdxUSD.sol:CdxUSD --broadcast
 ```
+
+
+Base deployment:
+
+```bash
+forge script script/cdxUsd/CdxUsdDeploy.s.sol --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $BASE_SCAN_APY_KEY --verify contracts/tokens/CdxUSD.sol:CdxUSD --broadcast
+```
+
+```bash
+forge script script/TimelockDeploy.s.sol --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $BASE_SCAN_APY_KEY --verify node_modules/@openzeppelin/contracts/governance/TimelockController.sol:TimelockController --broadcast
+```

@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
 import "forge-std/console.sol";
-import "./Constants.sol";
+import "../Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
 contract CdxUsdFee is Script, Constants {
@@ -11,6 +11,6 @@ contract CdxUsdFee is Script, Constants {
 
     function run() public {
         vm.broadcast();
-        CdxUSD(cdxUsdTestNet).setFee(0);
+        CdxUSD(cdxUsd).setFee(0);
     }
 }

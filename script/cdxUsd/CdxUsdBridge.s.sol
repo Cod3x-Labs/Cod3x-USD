@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
 import "forge-std/console.sol";
-import "./Constants.sol";
+import "../Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
 // OApp imports
@@ -30,7 +30,7 @@ contract CdxUsdBridge is Script, Constants {
         // Start broadcasting with the private key
         vm.startBroadcast();
 
-        CdxUSD sourceOFT = CdxUSD(cdxUsdTestNet);
+        CdxUSD sourceOFT = CdxUSD(cdxUsd);
 
         bytes memory _extraOptions =
             OptionsBuilder.newOptions().addExecutorLzReceiveOption(65000, 0);
