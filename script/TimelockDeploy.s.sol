@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
@@ -9,7 +8,7 @@ import "./Constants.sol";
 import "@openzeppelin/contracts/governance/TimelockController.sol";
 
 contract TimelockDeploy is Script, Constants {
-    uint256 minDelay = 1 days;  
+    uint256 minDelay = 1 days;
     address[] proposers = [multisignAdmin]; // Multisign 3/X
     address[] executors = [multisignGuardian]; // Multisign 1/X
 

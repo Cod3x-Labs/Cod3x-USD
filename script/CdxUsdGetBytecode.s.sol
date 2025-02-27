@@ -16,7 +16,6 @@ contract CdxUsdGetBytecode is Script, Constants {
     function setUp() public {}
 
     function run() public {
-
         // Let's do the same thing with `getCode`
         bytes memory args = abi.encode(name, symbol, endpoint, delegate, treasury, guardian);
         bytes memory bytecode = abi.encodePacked(vm.getCode("CdxUSD.sol:CdxUSD"), args);

@@ -52,7 +52,6 @@ contract Constants {
             isMainnet = false;
         }
 
-
         if (isMainnet) {
             // admin = address(0);
             endpoint = address(0x1a44076050125825900e736c501f859c50fE728c);
@@ -60,6 +59,5 @@ contract Constants {
             // admin = address(0x92Cd849801A467098cDA7CD36756fbFE8A30A036);
             endpoint = address(0x6EDCE65403992e310A62460808c4b910D972f10f);
         }
-
     }
 }
