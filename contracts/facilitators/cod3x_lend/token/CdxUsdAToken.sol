@@ -407,16 +407,20 @@ contract CdxUsdAToken is
         revert("OPERATION_NOT_SUPPORTED");
     }
 
-    function WRAPPER_ADDRESS() external view returns (address) {
-        revert("OPERATION_NOT_SUPPORTED");
-    }
-
     function convertToShares(uint256 assetAmount) external view returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     function convertToAssets(uint256 shareAmount) external view returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
+    }
+
+    /**
+     * @dev Here we are not reverting because this is needed for reserve initialization.
+     * @return The address of the aToken.
+     */
+    function WRAPPER_ADDRESS() external view returns (address) {
+        return address(this);
     }
 
     /// --------- Rehypothecation logic ---------
