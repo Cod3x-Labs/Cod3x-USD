@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "./Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
@@ -20,6 +20,6 @@ contract CdxUsdGetBytecode is Script, Constants {
         bytes memory args = abi.encode(name, symbol, endpoint, delegate, treasury, guardian);
         bytes memory bytecode = abi.encodePacked(vm.getCode("CdxUSD.sol:CdxUSD"), args);
 
-        console.logBytes(bytecode);
+        console2.logBytes(bytecode);
     }
 }

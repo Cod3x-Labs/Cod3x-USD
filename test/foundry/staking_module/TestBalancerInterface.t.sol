@@ -8,7 +8,7 @@ import {
     IRateProvider,
     ComposableStablePool
 } from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
@@ -132,13 +132,13 @@ contract TestBalancerInterface is TestCdxUSD {
         for (uint256 i = 0; i < assets.length; i++) {
             (uint256 cash,,,) = IVault(vault).getPoolTokenInfo(poolId, assets[i]);
 
-            console.log(cash);
-            // console.log(managed);
-            // console.log("---");
+            console2.log(cash);
+            // console2.log(managed);
+            // console2.log("---");
         }
-        console.log("totalSupply : ", IERC20(poolAdd).totalSupply());
+        console2.log("totalSupply : ", IERC20(poolAdd).totalSupply());
 
-        console.log("---");
+        console2.log("---");
     }
 
     // ------ helpers --------

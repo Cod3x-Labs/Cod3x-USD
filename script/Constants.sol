@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "lib/createx/src/CreateX.sol";
 
 // cdxUSD salt   = 0x3d0c000adf317206fa4a3201a8f8c926ef394fad0047c74b092069a800a5ed54

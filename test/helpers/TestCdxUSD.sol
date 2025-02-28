@@ -53,7 +53,7 @@ import {
     ExitKind,
     SwapKind
 } from "contracts/interfaces/IVault.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     uint32 aEid = 1;

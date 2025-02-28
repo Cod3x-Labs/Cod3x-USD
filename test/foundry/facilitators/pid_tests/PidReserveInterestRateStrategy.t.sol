@@ -42,7 +42,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function testTF() public view {
-        console.logUint(cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)); // bps
+        console2.logUint(cdxUsdInterestRateStrategy.transferFunction(-400e24) / (1e27 / 10000)); // bps
     }
 
     // 4 users  (users[0], users[1], users[2], users[3])
@@ -208,8 +208,8 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
         (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
 
-        // console.log("cash cdxUSD : ", cashCdxusd);
-        // console.log("cash counter: ", cashCa);
-        // console.log("---");
+        // console2.log("cash cdxUSD : ", cashCdxusd);
+        // console2.log("cash counter: ", cashCa);
+        // console2.log("---");
     }
 }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "test/helpers/interfaces/ICreateX.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 contract Constants {
     address public weth = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);

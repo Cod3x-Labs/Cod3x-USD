@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";
@@ -87,11 +87,11 @@ contract TestReliquaryRehypothecation is ERC721Holder, Test {
 
         uint256 balanceBeforeWmatic = IERC20(wmatic).balanceOf(address(this));
 
-        console.log(IERC20(wmatic).balanceOf(address(this)));
+        console2.log(IERC20(wmatic).balanceOf(address(this)));
 
         gaugeBalancerTemp.claim(address(this));
 
-        console.log(IERC20(wmatic).balanceOf(address(this)));
+        console2.log(IERC20(wmatic).balanceOf(address(this)));
 
         assertGt(IERC20(wmatic).balanceOf(address(this)), balanceBeforeWmatic);
 

@@ -8,7 +8,7 @@ import {
     IRateProvider,
     ComposableStablePool
 } from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
@@ -172,11 +172,11 @@ contract TestZap is TestCdxUSD, ERC721Holder {
                 poolId
             );
 
-            // console.log(address(cod3xVault));
-            // console.log(address(vault));
-            // console.log(address(cdxUSD));
-            // console.log(address(reliquary));
-            // console.log(address(poolAdd));
+            // console2.log(address(cod3xVault));
+            // console2.log(address(vault));
+            // console2.log(address(cdxUSD));
+            // console2.log(address(reliquary));
+            // console2.log(address(poolAdd));
 
             cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
         }

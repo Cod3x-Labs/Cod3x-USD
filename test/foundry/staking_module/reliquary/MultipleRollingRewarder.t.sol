@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
 import "contracts/staking_module/reliquary/curves/LinearPlateauCurve.sol";

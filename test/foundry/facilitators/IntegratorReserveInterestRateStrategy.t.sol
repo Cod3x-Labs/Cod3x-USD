@@ -313,10 +313,10 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
         uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
 
-        // console.log("stablePoolBalance : ", stablePoolBalance);
-        // console.log("currentVariableBorrowRate : ", currentVariableBorrowRate);
-        // console.log("cash cdxUSD : ", cashCdxusd);
-        // console.log("cash counter: ", cashCa);
-        // console.log("---");
+        // console2.log("stablePoolBalance : ", stablePoolBalance);
+        // console2.log("currentVariableBorrowRate : ", currentVariableBorrowRate);
+        // console2.log("cash cdxUSD : ", cashCdxusd);
+        // console2.log("cash counter: ", cashCa);
+        // console2.log("---");
     }
 }

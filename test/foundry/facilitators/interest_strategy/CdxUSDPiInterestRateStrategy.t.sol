@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import {ILendingPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import {LendingPoolProviderMock} from "../../../helpers/mocks/LendingPoolProviderMock.sol";
+import "forge-std/console2.sol";
 // import "contracts/facilitators/flash_minter/CdxUSDFlashMinter.sol";
 // import {MockFlashBorrower} from "../../helpers/mocks/MockFlashBorrower.sol";
 
@@ -49,8 +50,8 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         balancerVaultMock = new BalancerVaultMock(poolId, tokenAddresses, balances);
 
         // address[] memory balances_ = balancerVaultMock.getPoolTokens(poolId);
-        // console.log(balances_[0]);
-        // console.log(balancerVaultMock._idToTokens());
+        // console2.log(balances_[0]);
+        // console2.log(balancerVaultMock._idToTokens());
         admin = makeAddr("admin");
 
         cdxUsdIInterestRateStrategy = new CdxUsdIInterestRateStrategy(
@@ -93,10 +94,10 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         vm.prank(ILendingPoolAddressesProvider(provider).getLendingPool());
         (, uint256 currentVariableBorrowRateCalc) =
             cdxUsdIInterestRateStrategy.calculateInterestRates(address(0), address(0), 0, 0, 0, 0);
-        // console.log("currentVariableBorrowRateCalc: ", currentVariableBorrowRateCalc);
+        // console2.log("currentVariableBorrowRateCalc: ", currentVariableBorrowRateCalc);
         (uint256 currentLiquidityRate, uint256 currentVariableBorrowRate, uint256 utilizationRate) =
             cdxUsdIInterestRateStrategy.getCurrentInterestRates();
-        console.log("currentVariableBorrowRate: ", currentVariableBorrowRate);
+        console2.log("currentVariableBorrowRate: ", currentVariableBorrowRate);
 
         uint256 optimalStablePoolReserveUtilization =
             cdxUsdIInterestRateStrategy._optimalStablePoolReserveUtilization();
@@ -133,10 +134,10 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
             durations.length == balances.length,
             "balances length must be the same as durations length"
         );
-        console.log("balances length: ", balances.length);
+        console2.log("balances length: ", balances.length);
         for (uint8 idx = 0; idx < balances.length; idx++) {
-            console.log("IDX: ->>> ", idx);
-            console.log("Balance[idx][0]: ->>> ", balances[idx][0]);
+            console2.log("IDX: ->>> ", idx);
+            console2.log("Balance[idx][0]: ->>> ", balances[idx][0]);
             balancerVaultMock.setBalancesForTokens(poolId, tokenAddresses, balances[idx]);
             logg(address(this), 0, address(tokenToSimulate), path);
             vm.warp(block.timestamp + durations[idx]);
@@ -156,7 +157,7 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
             balances[0][idx] = INITIAL_BALANCE * 10 ** ERC20Mock(tokenAddresses[idx]).decimals();
         }
 
-        console.log(balances[0][0]);
+        console2.log(balances[0][0]);
 
         balancerVaultMock.setBalancesForTokens(poolId, tokenAddresses, balances[0]);
         vm.warp(block.timestamp + durations[0]);
@@ -207,16 +208,16 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         durations[4] = 1 days;
 
         uint256[][] memory balances = new uint256[][](5);
-        console.log("Creating balances...");
+        console2.log("Creating balances...");
         for (uint8 idx = 0; idx < 5; idx++) {
             balances[idx] = new uint256[](tokenAddresses.length);
         }
-        console.log("Initializing balances...");
+        console2.log("Initializing balances...");
         for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
             balances[0][idx] = INITIAL_BALANCE * 10 ** ERC20Mock(tokenAddresses[idx]).decimals();
         }
 
-        console.log("Setting balances...");
+        console2.log("Setting balances...");
         balancerVaultMock.setBalancesForTokens(poolId, tokenAddresses, balances[0]);
         vm.warp(block.timestamp + durations[0]);
 
@@ -248,16 +249,16 @@ contract CdxUsdIInterestRateStrategyTest is TestCdxUSD {
         durations[4] = 1 days;
 
         uint256[][] memory balances = new uint256[][](5);
-        console.log("Creating balances...");
+        console2.log("Creating balances...");
         for (uint8 idx = 0; idx < 5; idx++) {
             balances[idx] = new uint256[](tokenAddresses.length);
         }
-        console.log("Initializing balances...");
+        console2.log("Initializing balances...");
         for (uint8 idx = 0; idx < tokenAddresses.length; idx++) {
             balances[0][idx] = INITIAL_BALANCE * 10 ** ERC20Mock(tokenAddresses[idx]).decimals();
         }
 
-        console.log("Setting balances...");
+        console2.log("Setting balances...");
         balancerVaultMock.setBalancesForTokens(poolId, tokenAddresses, balances[0]);
         vm.warp(block.timestamp + durations[0]);
 

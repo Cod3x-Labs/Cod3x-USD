@@ -27,7 +27,7 @@ import {
     IRateProvider,
     ComposableStablePool
 } from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 import {TestCdxUSDAndLend} from "test/helpers/TestCdxUSDAndLend.sol";
 import {ERC20Mock} from "test/helpers/mocks/ERC20Mock.sol";
@@ -212,11 +212,11 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 poolId
             );
 
-            // console.log(address(cod3xVault));
-            // console.log(address(vault));
-            // console.log(address(cdxUSD));
-            // console.log(address(reliquary));
-            // console.log(address(poolAdd));
+            // console2.log(address(cod3xVault));
+            // console2.log(address(vault));
+            // console2.log(address(cdxUSD));
+            // console2.log(address(reliquary));
+            // console2.log(address(poolAdd));
 
             cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
         }
@@ -275,7 +275,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
 
             erc20Tokens.push(ERC20(address(cdxUsd)));
-            // console.log("Index: ", idx);
+            // console2.log("Index: ", idx);
             (address _aTokenAddress,) = deployedContracts
                 .protocolDataProvider
                 .getReserveTokensAddresses(address(cdxUsd), true);
