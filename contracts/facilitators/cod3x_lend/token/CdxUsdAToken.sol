@@ -416,8 +416,8 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev Here we are not reverting because this is needed for reserve initialization.
-     * @return The address of the aToken.
+     * @dev Here we are not reverting because this is needed for the reserve initialization.
+     * @return The address of the aToken. No wrapper for cdxUSD aToken.
      */
     function WRAPPER_ADDRESS() external view returns (address) {
         return address(this);
