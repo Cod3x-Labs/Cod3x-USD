@@ -32,7 +32,7 @@ pip install -r test/foundry/facilitators/pid_tests/requirements.txt
 ```sh
 cd test/foundry/facilitators/pid_tests
 touch datas/output.csv
-sudo chmod +x execSimualtion.sh
+sudo chmod +x execSimulation.sh
 ./execSimualtion.sh
 ```
 

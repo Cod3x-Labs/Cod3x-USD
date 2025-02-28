@@ -56,6 +56,8 @@ import {CdxUsdVariableDebtToken} from
 import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 
+import {IERC20Detailed} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
+
 /// events
 event Deposit(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount);
 
@@ -478,8 +480,14 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             0.01e18,
             "Debt not accurate"
         );
-        console2.log("cdxUsdReserveParamsAfter.availableLiquidity: ", cdxUsdReserveParamsAfter.availableLiquidity);
-        console2.log("cdxUsdReserveParamsBefore.availableLiquidity: ", cdxUsdReserveParamsBefore.availableLiquidity);
+        console2.log(
+            "cdxUsdReserveParamsAfter.availableLiquidity: ",
+            cdxUsdReserveParamsAfter.availableLiquidity
+        );
+        console2.log(
+            "cdxUsdReserveParamsBefore.availableLiquidity: ",
+            cdxUsdReserveParamsBefore.availableLiquidity
+        );
         console2.log("amountToLiquidate: ", amountToLiquidate);
         assertApproxEqRel(
             cdxUsdReserveParamsAfter.availableLiquidity,
