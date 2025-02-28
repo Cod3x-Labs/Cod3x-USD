@@ -252,7 +252,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         vm.stopPrank();
 
         assertApproxEqRel(
-            tokenIndex == 0
+            tokenIndex == indexCdxUsd
                 ? tokenToWithdraw.balanceOf(address(999))
                 : scaleDecimal(tokenToWithdraw.balanceOf(address(999))),
             (amtCdxusd + scaleDecimal(amtUsdc)) / 10,
