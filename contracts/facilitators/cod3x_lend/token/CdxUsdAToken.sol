@@ -63,6 +63,10 @@ contract CdxUsdAToken is
         _;
     }
 
+    constructor() {
+        _blockInitializing();
+    }
+
     /**
      * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.

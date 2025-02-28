@@ -109,6 +109,10 @@ contract CdxUsdVariableDebtToken is
         _;
     }
 
+    constructor() {
+        _blockInitializing();
+    }
+
     /**
      * @dev Initializes the debt token. MUST also call setAToken() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
