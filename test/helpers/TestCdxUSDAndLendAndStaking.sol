@@ -12,6 +12,7 @@ import {VariableDebtToken} from
 
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";
+import {Cod3xLendDataProvider} from "lib/Cod3x-Lend/contracts/misc/Cod3xLendDataProvider.sol";
 // import {ReserveBorrowConfiguration} from  "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 
 // Balancer
@@ -260,8 +261,19 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 "Cod3x Lend",
                 DEFAULT_CAPACITY
             );
+            // configAddresses = ConfigAddresses(
+            //     address(deployedContracts.cod3xLendDataProvider),
+            //     address(deployedContracts.stableStrategy),
+            //     address(deployedContracts.volatileStrategy),
+            //     address(deployedContracts.treasury),
+            //     address(deployedContracts.rewarder),
+            //     address(deployedContracts.aTokensAndRatesHelper)
+            // );
 
             tokens.push(address(cdxUsd));
+            commonContracts.aTokens =
+                fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
+
             erc20Tokens.push(ERC20(address(cdxUsd)));
             // console.log("Index: ", idx);
             (address _aTokenAddress,) = deployedContracts

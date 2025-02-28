@@ -56,7 +56,8 @@ import {CdxUsdVariableDebtToken} from
 import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 
-import {IERC20Detailed} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
+import {IERC20Detailed} from
+    "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
 
 /// events
 event Deposit(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount);

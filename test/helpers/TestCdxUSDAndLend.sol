@@ -152,10 +152,6 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     string marketId = "Cod3x Lend Genesis Market";
     uint256 cntr;
 
-    address constant USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
-    address constant WBTC = 0x68f180fcCe6836688e9084f035309E29Bf0A2095;
-    address constant WETH = 0x4200000000000000000000000000000000000006;
-    address constant DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address constant ETH_USD_SOURCE = 0xb7B9A39CC63f856b90B364911CC324dC46aC1770;
     address constant USDC_USD_SOURCE = 0x16a9FA2FDa030272Ce99B29CF780dFA30361E0f3;
 
@@ -599,7 +595,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         deployedContracts.cod3xLendDataProvider.setLendingPoolAddressProvider(
             address(deployedContracts.lendingPoolAddressesProvider)
         );
-        commonContracts.wETHGateway = new WETHGateway(WETH);
+        commonContracts.wETHGateway = new WETHGateway(weth);
         deployedContracts.stableStrategy = new DefaultReserveInterestRateStrategy(
             deployedContracts.lendingPoolAddressesProvider,
             sStrat[0],
