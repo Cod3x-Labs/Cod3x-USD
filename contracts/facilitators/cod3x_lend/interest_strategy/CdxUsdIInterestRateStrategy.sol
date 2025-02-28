@@ -50,30 +50,46 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     using WadRayMath for int256;
     using PercentageMath for uint256;
 
+    /// @dev Ray precision constant (1e27) used for fixed-point calculations
     int256 private constant RAY = 1e27;
+    /// @dev Number of decimal places used for scaling calculations
     uint256 private constant SCALING_DECIMAL = 18;
 
+    /// @dev Reference to the lending pool addresses provider contract
     ILendingPoolAddressesProvider public immutable _addressesProvider;
-    address public immutable _asset; // (cdxUSD) This strategy contract needs to be associated to a unique market.
-    bool public immutable _assetReserveType; // This strategy contract needs to be associated to a unique market.
+    /// @dev Address of the asset (cdxUSD) this strategy is associated with
+    address public immutable _asset;
+    /// @dev Type of reserve this strategy manages
+    bool public immutable _assetReserveType;
 
+    /// @dev Reference to Balancer vault contract for pool interactions
     IBalancerVault public immutable _balancerVault;
+    /// @dev ID of the Balancer pool this strategy monitors
     bytes32 public _poolId;
-    IERC20[] public /* immutable */ stablePoolTokens; // most of the time [cdxUSD, USDC/USDT] (order can change)
+    /// @dev Array of tokens in the stable pool (typically [cdxUSD, USDC/USDT])
+    IERC20[] public /* immutable */ stablePoolTokens;
 
+    /// @dev Minimum error threshold for the PID controller
     int256 public _minControllerError;
+    /// @dev Target utilization rate for the stable pool reserve
     uint256 public _optimalStablePoolReserveUtilization;
+    /// @dev Interest rate that can be manually set
     uint256 public _manualInterestRate;
 
-    // Oracle
+    /// @dev Price feed for the counter asset
     IAggregatorV3Interface public _counterAssetPriceFeed;
+    /// @dev Reference price used for peg calculations
     int256 public _priceFeedReference;
+    /// @dev Allowed deviation from the peg price
     uint256 public _pegMargin;
+    /// @dev Maximum time allowed between price updates
     uint256 public _timeout;
 
-    // I
-    uint256 public _ki; // in RAY
+    /// @dev Integral coefficient for PID controller (in RAY units)
+    uint256 public _ki;
+    /// @dev Timestamp of last interest rate update
     uint256 public _lastTimestamp;
+    /// @dev Accumulated integral error for PID calculations
     int256 public _errI;
 
     // Errors
@@ -101,8 +117,18 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     event SetManualInterestRate(uint256 manualInterestRate);
     event SetErrI(int256 newErrI);
 
-    /// @dev `setOracleValues()` needs to be called at contracts creation.
-    //! The counter asset MUST be a 1$ pegged asset
+    /**
+     * @notice Initializes the interest rate strategy contract
+     * @dev The counter asset MUST be a 1$ pegged asset. `setOracleValues()` needs to be called at contracts creation.
+     * @param provider Address of the LendingPoolAddressesProvider contract
+     * @param asset Address of the cdxUSD token
+     * @param assetReserveType Boolean indicating if this is for a stable reserve (true) or variable reserve (false)
+     * @param balancerVault Address of the Balancer Vault contract
+     * @param poolId Identifier of the Balancer pool
+     * @param minControllerError Minimum error threshold for the PID controller
+     * @param initialErrIValue Initial value for the integral error term
+     * @param ki Integral coefficient for the PID controller
+     */
     constructor(
         address provider,
         address asset, // cdxUSD
@@ -161,6 +187,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
     }
 
+    /**
+     * @notice Modifier that restricts access to only the pool admin
+     * @dev Reverts if caller is not the pool admin
+     */
     modifier onlyPoolAdmin() {
         if (msg.sender != _addressesProvider.getPoolAdmin()) {
             revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
@@ -168,6 +198,10 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         _;
     }
 
+    /**
+     * @notice Modifier that restricts access to only the lending pool
+     * @dev Reverts if caller is not the lending pool
+     */
     modifier onlyLendingPool() {
         if (msg.sender != _addressesProvider.getLendingPool()) {
             revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
@@ -271,8 +305,9 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     // ----------- external -----------
 
     /**
-     * @dev Calculates the interest rates depending on the reserve's state and configurations
-     * @return The liquidity rate and the variable borrow rate
+     * @notice Calculates the interest rates based on the reserve's state and configurations
+     * @dev Only callable by the lending pool. This function is kept for compatibility with the previous interface.
+     * @return The liquidity rate and variable borrow rate
      */
     function calculateInterestRates(address, address, uint256, uint256, uint256, uint256)
         external
@@ -284,10 +319,9 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     }
 
     /**
-     * @dev Calculates the interest rates depending on the reserve's state and configurations.
-     * NOTE This function is kept for compatibility with the previous DefaultInterestRateStrategy interface.
-     * New protocol implementation uses the new calculateInterestRates() interface
-     * @return The liquidity rate and the variable borrow rate
+     * @notice Internal function to calculate interest rates based on reserve state
+     * @dev This function is kept for compatibility with previous DefaultInterestRateStrategy interface
+     * @return The liquidity rate and variable borrow rate
      */
     function calculateInterestRates(address, uint256, uint256, uint256)
         internal
@@ -317,12 +351,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     // ----------- view -----------
 
     /**
-     * @notice The view version of `calculateInterestRates()`.
-     * @dev This function return the current interest rate. Frontend may need to
-     * read PidLog to get the last interest rate.
-     * @return currentLiquidityRate
-     * @return currentVariableBorrowRate
-     * @return utilizationRate
+     * @notice View function to get current interest rates
+     * @dev Returns the current rates. Frontend may need to read PidLog to get the last interest rate.
+     * @return currentLiquidityRate The current liquidity rate
+     * @return currentVariableBorrowRate The current variable borrow rate
+     * @return utilizationRate The current utilization rate
      */
     function getCurrentInterestRates() external view returns (uint256, uint256, uint256) {
         return (
@@ -332,18 +365,26 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         );
     }
 
+    /**
+     * @notice Returns the base variable borrow rate
+     * @return The minimum possible variable borrow rate
+     */
     function baseVariableBorrowRate() public view override returns (uint256) {
         return transferFunction(type(int256).min);
     }
 
+    /**
+     * @notice Returns the maximum variable borrow rate
+     * @return The maximum possible variable borrow rate
+     */
     function getMaxVariableBorrowRate() external pure override returns (uint256) {
         return uint256(type(int256).max);
     }
 
     // ----------- helpers -----------
     /**
-     * @notice Helps calculate the cdxUSD balance share in the Balancer Pool.
-     * @return return the share (in RAY) of the cdxUSD balance.
+     * @notice Calculates the cdxUSD balance share in the Balancer Pool
+     * @return The share (in RAY) of the cdxUSD balance
      */
     function getCdxUsdStablePoolReserveUtilization() public view returns (uint256) {
         uint256 totalInPool_;
@@ -362,20 +403,22 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     }
 
     /**
-     * @notice Scales an amount to the appropriate number of decimals (18) based on the token's decimal precision.
-     * @param amount The value representing the amount to be scaled.
-     * @param token The address of the IERC20 token contract.
-     * @return The scaled amount.
+     * @notice Scales an amount to 18 decimals based on the token's decimal precision
+     * @param amount The amount to be scaled
+     * @param token The ERC20 token contract
+     * @return The scaled amount with 18 decimals
      */
     function scaleDecimals(uint256 amount, IERC20 token) internal view returns (uint256) {
         return amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals());
     }
 
     /**
-     * @dev normalize the err:
-     * stablePoolReserveUtilization ⊂ [0, Uo]   => err ⊂ [-RAY, 0]
-     * stablePoolReserveUtilization ⊂ [Uo, RAY] => err ⊂ [0, RAY]
-     * With Uo = optimalStablePoolReserveUtilization
+     * @notice Normalizes the error value for the PID controller
+     * @dev For stablePoolReserveUtilization ⊂ [0, Uo] => err ⊂ [-RAY, 0]
+     *      For stablePoolReserveUtilization ⊂ [Uo, RAY] => err ⊂ [0, RAY]
+     *      Where Uo = optimalStablePoolReserveUtilization
+     * @param stablePoolReserveUtilization The current utilization rate
+     * @return The normalized error value
      */
     function getNormalizedError(uint256 stablePoolReserveUtilization)
         internal
@@ -392,13 +435,21 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
     }
 
-    /// @dev Transfer Function for calculation of _currentVariableBorrowRate.
+    /**
+     * @notice Transfer function for calculating the current variable borrow rate
+     * @param controllerError The current controller error value
+     * @return The calculated variable borrow rate
+     */
     function transferFunction(int256 controllerError) public view returns (uint256) {
         return
             uint256(controllerError > _minControllerError ? controllerError : _minControllerError);
     }
 
-    /// @dev Return `true` if the counter asset is pegged. Uses the `_pegMargin` to determine.
+    /**
+     * @notice Checks if the counter asset is pegged to its target value
+     * @dev Uses _pegMargin to determine acceptable deviation from peg
+     * @return True if the counter asset is properly pegged, false otherwise
+     */
     function isCounterAssetPegged() public view returns (bool) {
         try _counterAssetPriceFeed.latestRoundData() returns (
             uint80 roundID, int256 answer, uint256 startedAt, uint256 timestamp, uint80
@@ -420,6 +471,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         }
     }
 
+    /**
+     * @notice Calculates the absolute value of an integer
+     * @param x The input integer
+     * @return The absolute value of x
+     */
     function abs(int256 x) private pure returns (uint256) {
         return x < 0 ? uint256(-x) : uint256(x);
     }

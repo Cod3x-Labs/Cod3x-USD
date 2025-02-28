@@ -26,28 +26,44 @@ contract CdxUsdVariableDebtToken is
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
+    /// @dev Revision number of the contract implementation
     uint256 public constant DEBT_TOKEN_REVISION = 0x1;
 
+    /// @dev Reference to the CdxUsdAToken contract
     address internal _cdxUsdAToken;
 
+    /// @dev Reference to the lending pool contract
     ILendingPool internal _pool;
 
+    /// @dev The address of the underlying asset
     address internal _underlyingAsset;
 
+    /// @dev Flag indicating the reserve type
     bool internal _reserveType;
 
+    /// @dev Reference to the incentives controller contract
     IRewarder internal _incentivesController;
 
+    /// @dev Mapping of user addresses to their debt state
     mapping(address => CdxUsdUserState) internal _userState;
 
+    /// @dev Mapping of delegator addresses to delegatee addresses to borrow allowances
     mapping(address => mapping(address => uint256)) internal _borrowAllowances;
 
+    /// @dev Structure to track user's debt state
     struct CdxUsdUserState {
         uint128 accumulatedDebtInterest; // Accumulated debt interest of the user.
         uint128 previousIndex; // Previous index of the user.
     }
 
-    /// Events
+    /**
+     * @dev Emitted when debt tokens are minted
+     * @param caller The address performing the mint
+     * @param onBehalfOf The address of the user that will receive the minted tokens
+     * @param value The amount of tokens minted
+     * @param balanceIncrease The increase in balance since the last action of the user
+     * @param index The current debt index of the reserve
+     */
     event Mint(
         address indexed caller,
         address indexed onBehalfOf,
@@ -55,6 +71,15 @@ contract CdxUsdVariableDebtToken is
         uint256 balanceIncrease,
         uint256 index
     );
+
+    /**
+     * @dev Emitted when debt tokens are burned
+     * @param from The address whose tokens are being burned
+     * @param target The address that will receive the underlying, if any
+     * @param value The amount being burned
+     * @param balanceIncrease The increase in balance since the last action of the user
+     * @param index The current debt index of the reserve
+     */
     event Burn(
         address indexed from,
         address indexed target,
@@ -63,11 +88,13 @@ contract CdxUsdVariableDebtToken is
         uint256 index
     );
 
+    /// @dev Ensures the caller is the AToken
     modifier onlyAToken() {
         require(msg.sender == _cdxUsdAToken, "CALLER_NOT_A_TOKEN");
         _;
     }
 
+    /// @dev Ensures the caller is the pool admin
     modifier onlyPoolAdmin() {
         require(
             msg.sender == _pool.getAddressesProvider().getPoolAdmin(),
@@ -76,9 +103,7 @@ contract CdxUsdVariableDebtToken is
         _;
     }
 
-    /**
-     * @dev Only lending pool can call functions marked by this modifier.
-     */
+    /// @dev Only lending pool can call functions marked by this modifier
     modifier onlyLendingPool() {
         require(msg.sender == address(_getLendingPool()), Errors.AT_CALLER_MUST_BE_LENDING_POOL);
         _;
@@ -125,6 +150,10 @@ contract CdxUsdVariableDebtToken is
         );
     }
 
+    /**
+     * @dev Sets the associated AToken address
+     * @param cdxUsdAToken The address of the CdxUsdAToken
+     */
     function setAToken(address cdxUsdAToken) external onlyPoolAdmin {
         require(_cdxUsdAToken == address(0), "ATOKEN_ALREADY_SET");
         require(cdxUsdAToken != address(0), "ZERO_ADDRESS_NOT_VALID");
@@ -310,6 +339,7 @@ contract CdxUsdVariableDebtToken is
 
     /**
      * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @return The address of the underlying asset
      */
     function UNDERLYING_ASSET_ADDRESS() public view returns (address) {
         return _underlyingAsset;
@@ -317,13 +347,14 @@ contract CdxUsdVariableDebtToken is
 
     /**
      * @dev Returns the address of the incentives controller contract
+     * @return The address of the incentives controller
      */
     function getIncentivesController() external view override returns (IRewarder) {
         return _getIncentivesController();
     }
 
     /**
-     * @notice Internal function to get the underlying asset address.
+     * @dev Internal function to get the underlying asset address.
      * @return The address of the underlying asset.
      */
     function _getUnderlyingAssetAddress() internal view returns (address) {
@@ -331,7 +362,7 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @notice Internal function to get the lending pool.
+     * @dev Internal function to get the lending pool.
      * @return The lending pool interface.
      */
     function _getLendingPool() internal view returns (ILendingPool) {
@@ -340,20 +371,33 @@ contract CdxUsdVariableDebtToken is
 
     /**
      * @dev Returns the address of the lending pool where this aToken is used
+     * @return The address of the lending pool
      */
     function POOL() public view returns (ILendingPool) {
         return _pool;
     }
 
+    /**
+     * @dev Internal function to get the incentives controller
+     * @return The incentives controller interface
+     */
     function _getIncentivesController() internal view override returns (IRewarder) {
         return _incentivesController;
     }
 
+    /**
+     * @dev Sets a new incentives controller
+     * @param newController The address of the new incentives controller
+     */
     function setIncentivesController(address newController) external onlyLendingPool {
         require(newController != address(0), "INVALID_CONTROLLER");
         _incentivesController = IRewarder(newController);
     }
 
+    /**
+     * @dev Returns the address of the associated AToken
+     * @return The address of the AToken
+     */
     function getAToken() external view returns (address) {
         return _cdxUsdAToken;
     }
@@ -366,22 +410,42 @@ contract CdxUsdVariableDebtToken is
         revert("TRANSFER_NOT_SUPPORTED");
     }
 
+    /**
+     * @dev Being non transferrable, the debt token does not implement any of the
+     * standard ERC20 functions for transfer and allowance.
+     */
     function allowance(address, address) public view virtual override returns (uint256) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
 
+    /**
+     * @dev Being non transferrable, the debt token does not implement any of the
+     * standard ERC20 functions for transfer and allowance.
+     */
     function approve(address, uint256) public virtual override returns (bool) {
         revert("APPROVAL_NOT_SUPPORTED");
     }
 
+    /**
+     * @dev Being non transferrable, the debt token does not implement any of the
+     * standard ERC20 functions for transfer and allowance.
+     */
     function transferFrom(address, address, uint256) public virtual override returns (bool) {
         revert("TRANSFER_NOT_SUPPORTED");
     }
 
+    /**
+     * @dev Being non transferrable, the debt token does not implement any of the
+     * standard ERC20 functions for transfer and allowance.
+     */
     function increaseAllowance(address, uint256) public virtual override returns (bool) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
 
+    /**
+     * @dev Being non transferrable, the debt token does not implement any of the
+     * standard ERC20 functions for transfer and allowance.
+     */
     function decreaseAllowance(address, uint256) public virtual override returns (bool) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
@@ -408,6 +472,12 @@ contract CdxUsdVariableDebtToken is
         return balanceIncrease;
     }
 
+    /**
+     * @dev Decreases the borrow allowance of a user
+     * @param delegator The address of the delegator
+     * @param delegatee The address of the delegatee
+     * @param amount The amount to decrease the allowance by
+     */
     function _decreaseBorrowAllowance(address delegator, address delegatee, uint256 amount)
         internal
     {
