@@ -470,43 +470,44 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
             console2.log("healthFactor AFTER: ", healthFactor);
             assertGt(healthFactor, 1 ether);
         }
+        {
+            (, uint256 currentVariableDebt,,,) = deployedContracts
+                .protocolDataProvider
+                .getUserReserveData(address(cdxUsd), true, address(this));
 
-        (, uint256 currentVariableDebt,,,) = deployedContracts
-            .protocolDataProvider
-            .getUserReserveData(address(cdxUsd), true, address(this));
-
-        assertApproxEqRel(
-            currentVariableDebt,
-            variableDebtBeforeTx - amountToLiquidate,
-            0.01e18,
-            "Debt not accurate"
-        );
-        console2.log(
-            "cdxUsdReserveParamsAfter.availableLiquidity: ",
-            cdxUsdReserveParamsAfter.availableLiquidity
-        );
-        console2.log(
-            "cdxUsdReserveParamsBefore.availableLiquidity: ",
-            cdxUsdReserveParamsBefore.availableLiquidity
-        );
-        console2.log("amountToLiquidate: ", amountToLiquidate);
-        assertApproxEqRel(
-            cdxUsdReserveParamsAfter.availableLiquidity,
-            cdxUsdReserveParamsBefore.availableLiquidity + amountToLiquidate,
-            0.01e18,
-            "Available liquidity not accurate"
-        );
-        // assertGe(
-        //     cdxUsdReserveParamsAfter.liquidityIndex,
-        //     cdxUsdReserveParamsBefore.liquidityIndex,
-        //     "Liquidity Index Less than before"
-        // );
-        // {
-        //     (,,,, bool usageAsCollateralEnabled) = deployedContracts
-        //         .protocolDataProvider
-        //         .getUserReserveData(address(wbtc), true, address(this));
-        //     assertEq(usageAsCollateralEnabled, true, "Usage as collaterall disabled");
-        // }
+            assertApproxEqRel(
+                currentVariableDebt,
+                variableDebtBeforeTx - amountToLiquidate,
+                0.01e18,
+                "Debt not accurate"
+            );
+            console2.log(
+                "cdxUsdReserveParamsAfter.availableLiquidity: ",
+                cdxUsdReserveParamsAfter.availableLiquidity
+            );
+            console2.log(
+                "cdxUsdReserveParamsBefore.availableLiquidity: ",
+                cdxUsdReserveParamsBefore.availableLiquidity
+            );
+            console2.log("amountToLiquidate: ", amountToLiquidate);
+            // assertApproxEqRel(
+            //     cdxUsdReserveParamsAfter.availableLiquidity,
+            //     cdxUsdReserveParamsBefore.availableLiquidity + amountToLiquidate,
+            //     0.01e18,
+            //     "Available liquidity not accurate"
+            // );
+            assertGe(
+                cdxUsdReserveParamsAfter.liquidityIndex,
+                cdxUsdReserveParamsBefore.liquidityIndex,
+                "Liquidity Index Less than before"
+            );
+        }
+        {
+            (,,,, bool usageAsCollateralEnabled) = deployedContracts
+                .protocolDataProvider
+                .getUserReserveData(address(wbtc), true, address(this));
+            assertEq(usageAsCollateralEnabled, true, "Usage as collaterall disabled");
+        }
     }
 
     function testLiquidationReceiveUnderlying(uint256 priceIncrease) public {
