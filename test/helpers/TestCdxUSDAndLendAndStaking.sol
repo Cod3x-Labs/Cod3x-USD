@@ -229,7 +229,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
                 address(deployedContracts.lendingPoolAddressesProvider),
                 address(cdxUsd),
-                true,
+                false,
                 vault, // balancerVault,
                 poolId,
                 1e25,
@@ -257,7 +257,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             );
 
             cdxUsd.addFacilitator(
-                deployedContracts.lendingPool.getReserveData(address(cdxUsd), true).aTokenAddress,
+                deployedContracts.lendingPool.getReserveData(address(cdxUsd), false).aTokenAddress,
                 "Cod3x Lend",
                 DEFAULT_CAPACITY
             );
@@ -278,11 +278,11 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             // console2.log("Index: ", idx);
             (address _aTokenAddress,) = deployedContracts
                 .protocolDataProvider
-                .getReserveTokensAddresses(address(cdxUsd), true);
+                .getReserveTokensAddresses(address(cdxUsd), false);
             aTokens.push(AToken(_aTokenAddress));
             (, address _variableDebtToken) = deployedContracts
                 .protocolDataProvider
-                .getReserveTokensAddresses(address(cdxUsd), true);
+                .getReserveTokensAddresses(address(cdxUsd), false);
             variableDebtTokens.push(VariableDebtToken(_variableDebtToken));
         }
 

@@ -232,7 +232,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function deposit(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.deposit(address(asset), true, amount, user);
+        deployedContracts.lendingPool.deposit(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -240,7 +242,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
 
     function borrow(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -248,14 +252,18 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
 
     function borrowWithoutSkip(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
     }
 
     function withdraw(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.withdraw(address(asset), true, amount, user);
+        deployedContracts.lendingPool.withdraw(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -264,7 +272,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function repay(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.repay(address(asset), true, amount, user);
+        deployedContracts.lendingPool.repay(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -273,13 +283,23 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function plateau(uint256 period) public {
         for (uint256 i = 0; i < period; i++) {
             vm.startPrank(users[0]);
-            deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.borrow(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             skip(DEFAULT_TIME_BEFORE_OP);
 
             vm.startPrank(users[0]);
             erc20Tokens[3].approve(address(deployedContracts.lendingPool), 1);
-            deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.repay(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             skip(DEFAULT_TIME_BEFORE_OP);
         }

@@ -140,7 +140,7 @@ contract CdxUsdVariableDebtToken is
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
 
-        _reserveType = true; // @issue always false? cdxUSD can't rehypothecate.
+        _reserveType = false;
 
         emit Initialized(
             underlyingAsset,

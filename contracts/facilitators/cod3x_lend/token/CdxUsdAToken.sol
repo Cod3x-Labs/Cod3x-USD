@@ -99,7 +99,7 @@ contract CdxUsdAToken is
         _underlyingAsset = underlyingAsset;
         _incentivesController = incentivesController;
 
-        _reserveType = true; // @issue was always false, make it configurable or always true ?
+        _reserveType = false;
 
         emit Initialized(
             underlyingAsset,

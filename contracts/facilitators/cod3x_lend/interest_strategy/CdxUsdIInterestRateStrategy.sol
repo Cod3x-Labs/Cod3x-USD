@@ -122,7 +122,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @dev The counter asset MUST be a 1$ pegged asset. `setOracleValues()` needs to be called at contracts creation.
      * @param provider Address of the LendingPoolAddressesProvider contract
      * @param asset Address of the cdxUSD token
-     * @param assetReserveType Boolean indicating if this is for a stable reserve (true) or variable reserve (false)
      * @param balancerVault Address of the Balancer Vault contract
      * @param poolId Identifier of the Balancer pool
      * @param minControllerError Minimum error threshold for the PID controller
@@ -132,7 +131,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     constructor(
         address provider,
         address asset, // cdxUSD
-        bool assetReserveType, // true
+        bool,
         address balancerVault,
         bytes32 poolId,
         int256 minControllerError,
@@ -141,7 +140,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     ) {
         /// Cod3x Lend
         _asset = asset;
-        _assetReserveType = assetReserveType;
+        _assetReserveType = false;
         _addressesProvider = ILendingPoolAddressesProvider(provider);
 
         /// PID values

@@ -90,7 +90,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     function deposit(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.deposit(address(asset), true, amount, user);
+        deployedContracts.lendingPool.deposit(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg(user, 0, address(asset));
         logCash();
@@ -100,7 +102,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     function borrow(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg(user, 1, address(asset));
         logCash();
@@ -110,7 +114,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     function borrowWithoutSkip(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logCash();
         counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
@@ -119,7 +125,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     function withdraw(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.withdraw(address(asset), true, amount, user);
+        deployedContracts.lendingPool.withdraw(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg(user, 2, address(asset));
         logCash();
@@ -130,7 +138,9 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     function repay(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.repay(address(asset), true, amount, user);
+        deployedContracts.lendingPool.repay(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg(user, 3, address(asset));
         logCash();
@@ -141,7 +151,12 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     function plateau(uint256 period) public {
         for (uint256 i = 0; i < period; i++) {
             vm.startPrank(users[0]);
-            deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.borrow(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             logg(users[0], 1, address(erc20Tokens[3]));
             counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.
@@ -149,7 +164,12 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
             vm.startPrank(users[0]);
             erc20Tokens[3].approve(address(deployedContracts.lendingPool), 1);
-            deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.repay(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             logg(users[0], 3, address(erc20Tokens[3]));
             counterAssetPriceFeed.updateAnswer(counterAssetPrice); // needed to update the lastTimestamp.

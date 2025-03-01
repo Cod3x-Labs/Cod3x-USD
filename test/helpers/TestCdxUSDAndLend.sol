@@ -430,17 +430,17 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         );
 
         DataTypes.ReserveData memory reserveDataTemp =
-            deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
+            deployedContracts.lendingPool.getReserveData(_cdxUsd, false);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        deployedContracts.lendingPoolConfigurator.setTreasury(address(cdxUsd), true, treasury);
+        deployedContracts.lendingPoolConfigurator.setTreasury(address(cdxUsd), false, treasury);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
             _reliquaryCdxusdRewarder, 8000 /* 80% */
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(address(this));
         DataTypes.ReserveData memory reserve =
-            ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
+            ILendingPool(_lendingPool).getReserveData(_cdxUsd, false);
 
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
@@ -469,7 +469,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             underlyingAssetDecimals: ERC20(_cdxUsd).decimals(),
             interestRateStrategyAddress: _interestStrategy,
             underlyingAsset: _cdxUsd,
-            reserveType: true,
+            reserveType: false,
             treasury: configAddresses.treasury,
             incentivesController: configAddresses.rewarder,
             underlyingAssetName: tmpSymbol,
@@ -486,7 +486,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
         inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
             asset: _cdxUsd,
-            reserveType: true,
+            reserveType: false,
             baseLTV: 8000,
             liquidationThreshold: 8500,
             liquidationBonus: 10500,
@@ -759,7 +759,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokens) {
         _aTokens = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], true);
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokens[idx] = AToken(_aTokenAddress);
         }
@@ -771,7 +771,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokensW) {
         _aTokensW = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], true);
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokensW[idx] = AToken(address(AToken(_aTokenAddress).WRAPPER_ADDRESS()));
         }
@@ -783,7 +783,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public returns (VariableDebtToken[] memory _varDebtTokens) {
         _varDebtTokens = new VariableDebtToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(_tokens[idx], true);
+            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(_tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true);
             // console2.log("Atoken address", _variableDebtToken);
             string memory debtToken = string.concat("debtToken", uintToString(idx));
             vm.label(_variableDebtToken, debtToken);
@@ -953,7 +953,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         uint256 liquidityIndex,
         uint256 variableBorrowIndex,
         uint40 lastUpdateTimestamp
-    ) = protocolDataProvider.getReserveData(token, true);
+    ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
     return ReserveDataParams(
         availableLiquidity,
         totalVariableDebt,
