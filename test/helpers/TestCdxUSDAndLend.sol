@@ -161,7 +161,6 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     address public owner = address(this);
     address public guardian = address(0x4);
     address public treasury = address(0x5);
-    address public cdxUsdTreasury = address(0x6);
 
     CdxUSD public cdxUsd;
     ERC20 public counterAsset;
@@ -435,7 +434,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(cdxUsdTreasury);
+        CdxUsdAToken(reserveDataTemp.aTokenAddress).setTreasury(treasury);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
             _reliquaryCdxusdRewarder, 8000 /* 80% */
         );

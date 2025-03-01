@@ -37,7 +37,6 @@ contract CdxUsdAToken is
     CdxUsdVariableDebtToken internal _cdxUsdVariableDebtToken;
     address internal _keeper;
     address internal _treasury;
-    address internal _cdxUsdTreasury;
     address internal _underlyingAsset;
     bool internal _reserveType;
     IRewarder internal _incentivesController;
@@ -70,7 +69,6 @@ contract CdxUsdAToken is
     /**
      * @dev Initializes the aToken.
      * @notice MUST also call setVariableDebtToken() at initialization.
-     * @notice MUST also call updateCdxUsdTreasury() at initialization.
      * @notice MUST also call setReliquaryInfo() at initialization.
      * @notice MUST also call setKeeper() at initialization.
      * @param pool The address of the lending pool where this aToken will be used
@@ -129,15 +127,6 @@ contract CdxUsdAToken is
         _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
 
         emit SetVariableDebtToken(cdxUsdVariableDebtToken);
-    }
-
-    /// @inheritdoc ICdxUSDFacilitators
-    function updateCdxUsdTreasury(address newCdxUsdTreasury) external override onlyPoolAdmin {
-        require(newCdxUsdTreasury != address(0), "ZERO_INPUT");
-        address oldCdxUsdTreasury = _cdxUsdTreasury;
-        _cdxUsdTreasury = newCdxUsdTreasury;
-
-        emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury, newCdxUsdTreasury);
     }
 
     /// @inheritdoc ICdxUsdAToken
@@ -387,15 +376,15 @@ contract CdxUsdAToken is
 
     /// @inheritdoc ICdxUSDFacilitators
     function distributeFeesToTreasury() external virtual override onlyKeeper {
-        require(_cdxUsdTreasury != address(0), "NO_CDXUSD_TREASURY");
+        require(_treasury != address(0), "NO_CDXUSD_TREASURY");
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
 
         _reliquaryCdxusdRewarder.fund(_reliquaryAllocation * balance / BPS);
 
         IERC20(_underlyingAsset).transfer(
-            _cdxUsdTreasury, IERC20(_underlyingAsset).balanceOf(address(this))
+            _treasury, IERC20(_underlyingAsset).balanceOf(address(this))
         );
-        emit FeesDistributedToTreasury(_cdxUsdTreasury, _underlyingAsset, balance);
+        emit FeesDistributedToTreasury(_treasury, _underlyingAsset, balance);
     }
 
     /// --------- Share logic ---------
@@ -429,14 +418,11 @@ contract CdxUsdAToken is
 
     /// --------- Rehypothecation logic ---------
 
-    function setTreasury(address newTreasury) external override onlyLendingPool {
-        require(newTreasury != address(0), "ZERO_INPUT");
+    function setTreasury(address newTreasury) external override onlyPoolAdmin {
+        require(newTreasury != address(0), Errors.AT_INVALID_ADDRESS);
         _treasury = newTreasury;
-    }
 
-    /// @inheritdoc ICdxUSDFacilitators
-    function getCdxUsdTreasury() external view override returns (address) {
-        return _cdxUsdTreasury;
+        emit TreasurySet(newTreasury);
     }
 
     /// overrides

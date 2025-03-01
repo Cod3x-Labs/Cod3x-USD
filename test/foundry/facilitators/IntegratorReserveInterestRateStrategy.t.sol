@@ -214,13 +214,13 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
             CdxUsdAToken(address(commonContracts.aTokens[3]))._reliquaryAllocation();
 
         assertGt(balanceCdxUsdATokenBefore, 0);
-        assertEq(cdxusd.balanceOf(cdxUsdTreasury), 0);
+        assertEq(cdxusd.balanceOf(treasury), 0);
 
         CdxUsdAToken(address(commonContracts.aTokens[3])).distributeFeesToTreasury();
 
         assertEq(cdxusd.balanceOf(address(commonContracts.aTokens[3])), 0);
         assertEq(
-            cdxusd.balanceOf(cdxUsdTreasury),
+            cdxusd.balanceOf(treasury),
             balanceCdxUsdATokenBefore - bpsReliquaryAlloc * balanceCdxUsdATokenBefore / 10000
         );
     }

@@ -7,6 +7,7 @@ import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156Fl
 import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ICdxUSDFacilitators} from "contracts/interfaces/ICdxUSDFacilitators.sol";
+import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 
 /**
  * @title CdxUSDFlashMinter
@@ -28,7 +29,7 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
     uint256 private fee;
 
     // The cdxUSD treasury, the recipient of fee distributions
-    address private cdxUsdTreasury;
+    address private treasury;
 
     /// Errors
     error CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
@@ -46,19 +47,21 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
 
     event FeeUpdated(uint256 oldFee, uint256 newFee);
 
+    event TreasurySet(address indexed treasury);
+
     /**
      * @dev Constructor
      * @param _cdxUsdToken The address of the cdxUSD token contract
-     * @param _cdxUsdTreasury The address of the cdxUSD treasury
+     * @param _treasury The address of the cdxUSD treasury
      * @param _fee The percentage of the flash-mint amount that needs to be repaid, on top of the principal (in bps)
      * @param _admin The address of the flashminter admin.
      */
-    constructor(address _cdxUsdToken, address _cdxUsdTreasury, uint256 _fee, address _admin)
+    constructor(address _cdxUsdToken, address _treasury, uint256 _fee, address _admin)
         Ownable(_admin)
     {
         if (_fee > MAX_FEE) revert CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
         cdxUSD = ICdxUSD(_cdxUsdToken);
-        _updateCdxUsdTreasury(_cdxUsdTreasury);
+        _setTreasury(_treasury);
         _updateFee(_fee);
     }
 
@@ -88,12 +91,12 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
     }
 
     /**
-     * @notice Distribute fees to the CdxUsdTreasury
+     * @notice Distribute fees to the treasury.
      */
     function distributeFeesToTreasury() external {
         uint256 balance_ = cdxUSD.balanceOf(address(this));
-        cdxUSD.transfer(cdxUsdTreasury, balance_);
-        emit FeesDistributedToTreasury(cdxUsdTreasury, address(cdxUSD), balance_);
+        cdxUSD.transfer(treasury, balance_);
+        emit FeesDistributedToTreasury(treasury, address(cdxUSD), balance_);
     }
 
     /**
@@ -106,12 +109,12 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
     }
 
     /**
-     * @notice Updates the address of the cdxUSD Treasury
-     * @dev WARNING: The CdxUsdTreasury is where revenue fees are sent to. Update carefully
-     * @param _newCdxUsdTreasury The address of the CdxUsdTreasury
+     * @notice Updates the address of the `treasury`.
+     * @dev WARNING: The `treasury` is where revenue fees are sent to. Update carefully.
+     * @param _newTreasury The address of the `treasury`.
      */
-    function updateCdxUsdTreasury(address _newCdxUsdTreasury) external onlyOwner {
-        _updateCdxUsdTreasury(_newCdxUsdTreasury);
+    function setTreasury(address _newTreasury) external onlyOwner {
+        _setTreasury(_newTreasury);
     }
 
     /// @inheritdoc IERC3156FlashLender
@@ -138,12 +141,12 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
         return fee;
     }
     /**
-     * @notice Returns the address of the cdxUSD Treasury
-     * @return The address of the GhoTreasury contract
+     * @notice Returns the address of the treasury.
+     * @return The address of the treasury.
      */
 
-    function getCdxUsdTreasury() external view returns (address) {
-        return cdxUsdTreasury;
+    function getTreasury() external view returns (address) {
+        return treasury;
     }
 
     function _flashFee(uint256 _amount) internal view returns (uint256) {
@@ -157,9 +160,10 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
         emit FeeUpdated(oldFee_, _newFee);
     }
 
-    function _updateCdxUsdTreasury(address _newCdxUsdTreasury) internal {
-        address oldCdxUsdTreasury_ = cdxUsdTreasury;
-        cdxUsdTreasury = _newCdxUsdTreasury;
-        emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury_, _newCdxUsdTreasury);
+    function _setTreasury(address _treasury) internal {
+        require(_treasury != address(0), Errors.AT_INVALID_ADDRESS);
+        treasury = _treasury;
+
+        emit TreasurySet(_treasury);
     }
 }

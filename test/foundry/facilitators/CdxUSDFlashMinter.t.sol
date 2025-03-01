@@ -25,14 +25,14 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
 
     function testConstructor() public {
         vm.expectEmit(true, true, false, false);
-        emit ICdxUSDFacilitators.CdxUsdTreasuryUpdated(address(0), treasury);
+        emit CdxUSDFlashMinter.TreasurySet(treasury);
         vm.expectEmit(false, false, false, true);
         emit FeeUpdated(0, DEFAULT_FLASH_FEE);
         CdxUSDFlashMinter flashMinterTemp =
             new CdxUSDFlashMinter(address(cdxUSD), treasury, DEFAULT_FLASH_FEE, address(this));
         assertEq(address(flashMinterTemp.cdxUSD()), address(cdxUSD), "Wrong GHO token address");
         assertEq(flashMinterTemp.getFee(), DEFAULT_FLASH_FEE, "Wrong fee");
-        assertEq(flashMinterTemp.getCdxUsdTreasury(), treasury, "Wrong treasury address");
+        assertEq(flashMinterTemp.getTreasury(), treasury, "Wrong treasury address");
         assertEq(
             address(flashMinterTemp.owner()), address(this), "Wrong addresses provider address"
         );
@@ -97,7 +97,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(userA))
         );
-        flashMinter.updateCdxUsdTreasury(address(0));
+        flashMinter.setTreasury(address(0));
     }
 
     function testRevertFlashfeeNotGho() public {
@@ -155,11 +155,11 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
     }
 
     function testUpdateGhoTreasury() public {
-        assertEq(flashMinter.getCdxUsdTreasury(), treasury, "Flashminter non-default TREASURY");
+        assertEq(flashMinter.getTreasury(), treasury, "Flashminter non-default TREASURY");
         assertTrue(treasury != address(this));
         vm.expectEmit(true, true, false, false, address(flashMinter));
-        emit ICdxUSDFacilitators.CdxUsdTreasuryUpdated(treasury, address(this));
-        flashMinter.updateCdxUsdTreasury(address(this));
+        emit CdxUSDFlashMinter.TreasurySet(address(this));
+        flashMinter.setTreasury(address(this));
     }
 
     function testMaxFlashloanNotGho() public {
