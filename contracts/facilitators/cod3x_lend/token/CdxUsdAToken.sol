@@ -418,7 +418,7 @@ contract CdxUsdAToken is
 
     /// --------- Rehypothecation logic ---------
 
-    function setTreasury(address newTreasury) external override onlyPoolAdmin {
+    function setTreasury(address newTreasury) external override onlyLendingPool {
         require(newTreasury != address(0), Errors.AT_INVALID_ADDRESS);
         _treasury = newTreasury;
 

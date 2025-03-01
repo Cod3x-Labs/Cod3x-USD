@@ -434,7 +434,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        CdxUsdAToken(reserveDataTemp.aTokenAddress).setTreasury(treasury);
+        deployedContracts.lendingPoolConfigurator.setTreasury(address(cdxUsd), true, treasury);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
             _reliquaryCdxusdRewarder, 8000 /* 80% */
         );
