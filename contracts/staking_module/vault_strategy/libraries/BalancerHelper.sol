@@ -8,14 +8,20 @@ import {
 } from "contracts/interfaces/IVault.sol"; // balancer Vault
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 
+/**
+ * @title Helper library for interacting with Balancer pools.
+ * @notice Provides functions to join/exit Balancer pools and handle BPT tokens.
+ * @dev Implements common Balancer pool operations with safety checks.
+ */
 library BalancerHelper {
     /**
-     * Help to join a balancer pool.
-     * @param _balancerVault balancer vault.
-     * @param _amounts sorted array of amounts to join. (without BPT)
-     * @param _poolId pool index to join.
-     * @param _poolTokens sorted array of the pool. (with BPT)
-     * @param _minBPTAmountOut slippage protection. (in BPT)
+     * @notice Joins a Balancer pool with exact token amounts.
+     * @dev Handles joining with multiple tokens and BPT minting.
+     * @param _balancerVault The Balancer vault contract.
+     * @param _amounts Array of token amounts to join with, sorted by token address.
+     * @param _poolId The unique identifier of the Balancer pool.
+     * @param _poolTokens Array of pool tokens including BPT, sorted by address.
+     * @param _minBPTAmountOut Minimum BPT to receive as slippage protection.
      */
     function _joinPool(
         IBalancerVault _balancerVault,
@@ -42,14 +48,15 @@ library BalancerHelper {
     }
 
     /**
-     * Help to exit a balancer pool.
-     * @param _balancerVault balancer vault.
-     * @param _amount exact BPT amount to exit.
-     * @param _poolId pool index to join.
-     * @param _poolTokens sorted array of the pool. (with BPT)
-     * @param _tokenToWithdraw token to withdraw.
-     * @param _tokenIndex index of `_tokenToWithdraw` in the sorted array. (without BPT)
-     * @param _minAmountOut slippage protection. (in _tokenToWithdraw)
+     * @notice Exits a Balancer pool for a single token.
+     * @dev Burns exact BPT amount to receive a specific token.
+     * @param _balancerVault The Balancer vault contract.
+     * @param _amount Exact BPT amount to burn.
+     * @param _poolId The unique identifier of the Balancer pool.
+     * @param _poolTokens Array of pool tokens including BPT, sorted by address.
+     * @param _tokenToWithdraw Address of token to receive.
+     * @param _tokenIndex Index of withdrawal token in sorted array (excluding BPT).
+     * @param _minAmountOut Minimum token amount to receive as slippage protection.
      */
     function _exitPool(
         IBalancerVault _balancerVault,
@@ -79,9 +86,11 @@ library BalancerHelper {
     }
 
     /**
-     * Take a IERC20 array and return it without BPT.
-     * @param _array IERC20 array to process.
-     * @param _pool address of the pool.
+     * @notice Creates a new array excluding the BPT token.
+     * @dev Used to handle arrays that need BPT filtered out.
+     * @param _array Original array of tokens including BPT.
+     * @param _pool Address of the Balancer pool.
+     * @return Array of tokens with BPT removed.
      */
     function _dropBptItem(IERC20[] memory _array, address _pool)
         internal

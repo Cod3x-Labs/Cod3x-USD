@@ -13,35 +13,57 @@ import "contracts/interfaces/IBaseBalancerPool.sol";
 import "./libraries/BalancerHelper.sol";
 
 /**
- * @title ScdxUsdVaultStrategy Contract
- * @author Cod3x - Beirao
- * @notice This contract is Cod3x Vault strategy that define the Staked cdxUSD logic.
- * @dev Keepers needs to call `setMinBPTAmountOut()` + `harvest()` every days.
+ * @title ScdxUsdVaultStrategy Contract.
+ * @author Cod3x - Beirao.
+ * @notice This contract is a Cod3x Vault strategy that defines the Staked cdxUSD logic.
+ * @dev Keepers need to call `setMinBPTAmountOut()` + `harvest()` every day.
  */
 contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
+    /// @dev ID of the relic used by this strategy.
     uint256 private constant RELIC_ID = 1;
 
+    /// @dev Reference to the cdxUSD token contract.
     IERC20 public cdxUSD;
+    /// @dev Reference to the Reliquary staking contract.
     IReliquary public reliquary;
+    /// @dev Reference to the Balancer vault contract.
     IBalancerVault public balancerVault;
 
+    /// @dev Array of tokens in the Balancer pool.
     IAsset[] public poolTokens;
+    /// @dev ID of the Balancer pool.
     bytes32 public poolId;
+    /// @dev Index of cdxUSD in the pool tokens array.
     uint256 public cdxUsdIndex;
+    /// @dev Minimum BPT tokens to receive when joining pool, used for slippage protection.
     uint256 public minBPTAmountOut;
 
-    /// Errors
+    /// @dev Thrown when input parameters are invalid.
     error ScdxUsdVaultStrategy__INVALID_INPUT();
+    /// @dev Thrown when funds are still staked in Reliquary.
     error ScdxUsdVaultStrategy__FUND_STILL_IN_RELIQUARY();
+    /// @dev Thrown when token addresses are in wrong order.
     error ScdxUsdVaultStrategy__ADDRESS_WRONG_ORDER();
+    /// @dev Thrown when strategy does not own relic ID 1.
     error ScdxUsdVaultStrategy__SHOULD_OWN_RELIC_1();
+    /// @dev Thrown when cdxUSD is not in Balancer pool.
     error ScdxUsdVaultStrategy__CDXUSD_NOT_INCLUDED_IN_BALANCER_POOL();
+    /// @dev Thrown when minBPTAmountOut is not set.
     error ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
+    /// @dev Thrown when pool has more than one counter asset.
     error ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
     /**
-     * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
-     * @notice see documentation for each variable above its respective declaration.
+     * @dev Initializes the strategy with core parameters and permissions.
+     * @param _code3xVault Address of the Cod3x vault contract.
+     * @param _balancerVault Address of the Balancer vault contract.
+     * @param _strategists Array of strategist addresses.
+     * @param _multisigRoles Array of multisig role addresses.
+     * @param _keepers Array of keeper addresses.
+     * @param _cdxUSD Address of the cdxUSD token.
+     * @param _reliquary Address of the Reliquary staking contract.
+     * @param _balancerPool Address of the Balancer pool.
+     * @param _poolId ID of the Balancer pool.
      */
     function initialize(
         address _code3xVault,
@@ -112,8 +134,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// ----------- Admin functions -----------
 
     /**
-     * Set a new reliquary address.
-     * @param _reliquary new reliquary address.
+     * @dev Updates the Reliquary contract address.
+     * @param _reliquary New Reliquary contract address.
      */
     function setReliquary(address _reliquary) public {
         _atLeastRole(ADMIN);
@@ -137,16 +159,18 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// -------------- Overrides --------------
 
     /**
-     * @dev Function to calculate the total {want} in external contracts only.
+     * @dev Returns total amount of want tokens staked in Reliquary.
+     * @return Amount of want tokens in Reliquary.
      */
     function balanceOfPool() public view override returns (uint256) {
         return reliquary.getAmountInRelic(RELIC_ID);
     }
 
     /**
-     * @dev First try to liquidate with `withdraw()`, if it fails try to liquidate with `emergencyWithdraw()`.
-     * If `withdraw()` should not be called, admin can still pause the reliquary contract, this will
-     * make `withdraw()` reverts and automatically call `emergencyWithdraw()`.
+     * @dev Liquidates all positions by withdrawing from Reliquary.
+     * @dev First tries normal withdraw, falls back to emergency withdraw if needed.
+     * @dev Admin can pause Reliquary to force emergency withdraw.
+     * @return Amount of want tokens withdrawn.
      */
     function _liquidateAllPositions() internal override returns (uint256) {
         try reliquary.withdraw(balanceOfPool(), RELIC_ID, address(this)) {}
@@ -158,9 +182,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @dev Function that puts the funds to work.
-     * It gets called whenever the vault has allocated more free want to this strategy that can be
-     * deposited in external contracts to generate yield.
+     * @dev Deposits want tokens into Reliquary for staking.
+     * @param _toReinvest Amount of want tokens to deposit.
      */
     function _deposit(uint256 _toReinvest) internal override {
         if (_toReinvest != 0) {
@@ -169,7 +192,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @dev Withdraws funds from external contracts and brings them back to the strategy.
+     * @dev Withdraws want tokens from Reliquary.
+     * @param _amount Amount of want tokens to withdraw.
      */
     function _withdraw(uint256 _amount) internal override {
         if (balanceOfPool() != 0 && _amount != 0) {
@@ -178,10 +202,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @notice Before calling `harvest()` KEEPERs must call `setMinBPTAmountOut()`.
-     * @dev Steps:
-     *          - harvest cdxUSD from reliquary.
-     *          - join balancer pool and get LP tokens.
+     * @dev Core harvest logic - claims rewards and joins Balancer pool.
+     * @dev Keepers must call setMinBPTAmountOut() before harvest.
      */
     function _harvestCore() internal override {
         if (minBPTAmountOut <= 1) revert ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
@@ -202,14 +224,18 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @notice define minBPTAmountOut. Must be called before harvesting.
-     * @param _minBPTAmountOut Mininum PoolToken out for the next harvest.
+     * @dev Sets minimum BPT tokens to receive when joining pool.
+     * @param _minBPTAmountOut Minimum BPT tokens to receive.
      */
     function setMinBPTAmountOut(uint256 _minBPTAmountOut) external {
         _atLeastRole(KEEPER);
         minBPTAmountOut = _minBPTAmountOut;
     }
 
+    /**
+     * @dev Required for ERC721 token receiver interface.
+     * @return bytes4 Function selector.
+     */
     function onERC721Received(address, address, uint256, bytes calldata)
         external
         pure

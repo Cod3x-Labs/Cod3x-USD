@@ -14,8 +14,9 @@ import {IncentivizedERC20} from
 
 /**
  * @title CdxUsdVariableDebtToken
- * @notice Implements a variable debt token to track the borrowing positions of users
- * at variable rate mode
+ * @notice A variable debt token that tracks user borrowing positions with variable interest rates.
+ * The token represents debt owed by users who have borrowed from the lending pool. The debt amount
+ * fluctuates based on the variable interest rate applied.
  * @author Cod3x - Beirao
  */
 contract CdxUsdVariableDebtToken is
@@ -26,43 +27,43 @@ contract CdxUsdVariableDebtToken is
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
-    /// @dev Revision number of the contract implementation
+    /// @dev Revision number used for version control. Set to 0x1 for initial implementation.
     uint256 public constant DEBT_TOKEN_REVISION = 0x1;
 
-    /// @dev Reference to the CdxUsdAToken contract
+    /// @dev Address of the associated CdxUsdAToken contract that handles deposits.
     address internal _cdxUsdAToken;
 
-    /// @dev Reference to the lending pool contract
+    /// @dev Reference to the lending pool contract that manages lending/borrowing operations.
     ILendingPool internal _pool;
 
-    /// @dev The address of the underlying asset
+    /// @dev Address of the underlying asset that can be borrowed through this debt token.
     address internal _underlyingAsset;
 
-    /// @dev Flag indicating the reserve type
+    /// @dev Flag to differentiate between reserve configurations. Used for reserve management.
     bool internal _reserveType;
 
-    /// @dev Reference to the incentives controller contract
+    /// @dev Contract that manages distribution of incentive rewards to token holders.
     IRewarder internal _incentivesController;
 
-    /// @dev Mapping of user addresses to their debt state
+    /// @dev Maps user addresses to their debt state, tracking individual borrowing positions.
     mapping(address => CdxUsdUserState) internal _userState;
 
-    /// @dev Mapping of delegator addresses to delegatee addresses to borrow allowances
+    /// @dev Maps delegators to delegatees with their approved borrowing allowances.
     mapping(address => mapping(address => uint256)) internal _borrowAllowances;
 
-    /// @dev Structure to track user's debt state
+    /// @dev Struct containing user debt state variables.
     struct CdxUsdUserState {
-        uint128 accumulatedDebtInterest; // Accumulated debt interest of the user.
-        uint128 previousIndex; // Previous index of the user.
+        uint128 accumulatedDebtInterest; // Total interest accrued on user's debt.
+        uint128 previousIndex; // Last recorded debt index for the user.
     }
 
     /**
-     * @dev Emitted when debt tokens are minted
-     * @param caller The address performing the mint
-     * @param onBehalfOf The address of the user that will receive the minted tokens
-     * @param value The amount of tokens minted
-     * @param balanceIncrease The increase in balance since the last action of the user
-     * @param index The current debt index of the reserve
+     * @dev Emitted when new debt tokens are minted.
+     * @param caller The address initiating the mint operation.
+     * @param onBehalfOf The address that will own the minted tokens.
+     * @param value The amount of tokens being minted.
+     * @param balanceIncrease The increase in balance since user's last action.
+     * @param index The current debt index of the reserve.
      */
     event Mint(
         address indexed caller,
@@ -73,12 +74,12 @@ contract CdxUsdVariableDebtToken is
     );
 
     /**
-     * @dev Emitted when debt tokens are burned
-     * @param from The address whose tokens are being burned
-     * @param target The address that will receive the underlying, if any
-     * @param value The amount being burned
-     * @param balanceIncrease The increase in balance since the last action of the user
-     * @param index The current debt index of the reserve
+     * @dev Emitted when debt tokens are burned.
+     * @param from The address whose tokens are being burned.
+     * @param target The address receiving underlying assets, if applicable.
+     * @param value The amount of tokens being burned.
+     * @param balanceIncrease The increase in balance since user's last action.
+     * @param index The current debt index of the reserve.
      */
     event Burn(
         address indexed from,
@@ -88,13 +89,13 @@ contract CdxUsdVariableDebtToken is
         uint256 index
     );
 
-    /// @dev Ensures the caller is the AToken
+    /// @dev Ensures only the AToken contract can call the modified function.
     modifier onlyAToken() {
         require(msg.sender == _cdxUsdAToken, "CALLER_NOT_A_TOKEN");
         _;
     }
 
-    /// @dev Ensures the caller is the pool admin
+    /// @dev Ensures only the pool admin can call the modified function.
     modifier onlyPoolAdmin() {
         require(
             msg.sender == _pool.getAddressesProvider().getPoolAdmin(),
@@ -103,7 +104,7 @@ contract CdxUsdVariableDebtToken is
         _;
     }
 
-    /// @dev Only lending pool can call functions marked by this modifier
+    /// @dev Ensures only the lending pool contract can call the modified function.
     modifier onlyLendingPool() {
         require(msg.sender == address(_getLendingPool()), Errors.AT_CALLER_MUST_BE_LENDING_POOL);
         _;
@@ -114,13 +115,13 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Initializes the debt token. MUST also call setAToken() at initialization.
-     * @param pool The address of the lending pool where this aToken will be used
-     * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     * @param incentivesController The smart contract managing potential incentives distribution
-     * @param debtTokenDecimals The decimals of the debtToken, same as the underlying asset's
-     * @param debtTokenName The name of the token
-     * @param debtTokenSymbol The symbol of the token
+     * @dev Sets up the debt token with initial parameters. Must call setAToken() after initialization.
+     * @param pool The lending pool contract address.
+     * @param underlyingAsset The underlying asset address (e.g. WETH for aWETH).
+     * @param incentivesController The contract managing incentives distribution.
+     * @param debtTokenDecimals The number of decimals for the debt token.
+     * @param debtTokenName The name of the debt token.
+     * @param debtTokenSymbol The symbol of the debt token.
      */
     function initialize(
         ILendingPool pool,
@@ -155,8 +156,8 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Sets the associated AToken address
-     * @param cdxUsdAToken The address of the CdxUsdAToken
+     * @dev Links this debt token to its corresponding AToken contract.
+     * @param cdxUsdAToken The address of the CdxUsdAToken to link.
      */
     function setAToken(address cdxUsdAToken) external onlyPoolAdmin {
         require(_cdxUsdAToken == address(0), "ATOKEN_ALREADY_SET");
@@ -165,18 +166,16 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Gets the revision of the variable debt token implementation
-     * @return The debt token implementation revision
-     *
+     * @dev Returns the current revision number of the contract implementation.
+     * @return The debt token implementation revision number.
      */
     function getRevision() internal pure virtual override returns (uint256) {
         return DEBT_TOKEN_REVISION;
     }
 
     /**
-     * @dev Calculates the accumulated debt balance of the user
-     * @return The debt balance of the user
-     *
+     * @dev Calculates the current debt balance of a user including accrued interest.
+     * @return The total debt balance including interest.
      */
     function balanceOf(address user) public view virtual override returns (uint256) {
         uint256 scaledBalance = super.balanceOf(user);
@@ -191,14 +190,12 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Mints debt token to the `onBehalfOf` address
-     * -  Only callable by the LendingPool
-     * @param user The address receiving the borrowed underlying, being the delegatee in case
-     * of credit delegate, or same as `onBehalfOf` otherwise
-     * @param onBehalfOf The address receiving the debt tokens
-     * @param amount The amount of debt being minted
-     * @param index The variable debt index of the reserve
-     * @return `true` if the the previous balance of the user is 0
+     * @dev Creates new debt tokens for a user. Only callable by the LendingPool.
+     * @param user The address receiving borrowed assets (delegatee or same as onBehalfOf).
+     * @param onBehalfOf The address that will own the debt tokens.
+     * @param amount The amount of debt being created.
+     * @param index The variable debt index of the reserve.
+     * @return True if this is the user's first debt position.
      */
     function mint(address user, address onBehalfOf, uint256 amount, uint256 index)
         external
@@ -226,11 +223,10 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Burns user variable debt
-     * - Only callable by the LendingPool
-     * @param user The user whose debt is getting burned
-     * @param amount The amount getting burned
-     * @param index The variable debt index of the reserve
+     * @dev Destroys debt tokens when debt is repaid. Only callable by the LendingPool.
+     * @param user The user whose debt is being burned.
+     * @param amount The amount of debt being burned.
+     * @param index The variable debt index of the reserve.
      */
     function burn(address user, uint256 amount, uint256 index) external override onlyLendingPool {
         uint256 amountScaled = amount.rayDiv(index);
@@ -255,11 +251,9 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev delegates borrowing power to a user on the specific debt token
-     * @param delegatee the address receiving the delegated borrowing power
-     * @param amount the maximum amount being delegated. Delegation will still
-     * respect the liquidation constraints (even if delegated, a delegatee cannot
-     * force a delegator HF to go below 1)
+     * @dev Allows a user to delegate borrowing power to another address.
+     * @param delegatee The address receiving borrowing power.
+     * @param amount The maximum amount that can be borrowed by the delegatee.
      */
     function approveDelegation(address delegatee, uint256 amount) external override {
         _borrowAllowances[msg.sender][delegatee] = amount;
@@ -267,10 +261,10 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev returns the borrow allowance of the user
-     * @param fromUser The user to giving allowance
-     * @param toUser The user to give allowance to
-     * @return the current allowance of toUser
+     * @dev Returns the current borrow allowance from one user to another.
+     * @param fromUser The user delegating borrowing power.
+     * @param toUser The user receiving borrowing power.
+     * @return The current borrowing allowance.
      */
     function borrowAllowance(address fromUser, address toUser)
         external
@@ -282,9 +276,9 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Decrease the amount of interests accumulated by the user
-     * @param user The address of the user
-     * @param amount The value to be decrease
+     * @dev Reduces a user's accumulated interest by a specified amount.
+     * @param user The address of the user.
+     * @param amount The amount to decrease.
      */
     function decreaseBalanceFromInterest(address user, uint256 amount) external onlyAToken {
         _userState[user].accumulatedDebtInterest =
@@ -292,25 +286,25 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Returns the amount of interests accumulated by the user
-     * @param user The address of the user
-     * @return The amount of interests accumulated by the user
+     * @dev Returns the total interest accumulated by a user.
+     * @param user The address of the user.
+     * @return The total accumulated interest.
      */
     function getBalanceFromInterest(address user) external view returns (uint256) {
         return _userState[user].accumulatedDebtInterest;
     }
 
     /**
-     * @dev Returns the principal debt balance of the user from
-     * @return The debt balance of the user since the last burn/mint action
+     * @dev Returns the user's debt balance excluding interest since last action.
+     * @return The principal debt balance.
      */
     function scaledBalanceOf(address user) public view virtual override returns (uint256) {
         return super.balanceOf(user);
     }
 
     /**
-     * @dev Returns the total supply of the variable debt token. Represents the total debt accrued by the users
-     * @return The total supply
+     * @dev Returns the total debt including all accrued interest.
+     * @return The total debt supply.
      */
     function totalSupply() public view virtual override returns (uint256) {
         return super.totalSupply().rayMul(
@@ -319,18 +313,17 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Returns the scaled total supply of the variable debt token. Represents sum(debt/index)
-     * @return the scaled total supply
+     * @dev Returns the total debt excluding interest since last action.
+     * @return The scaled total supply.
      */
     function scaledTotalSupply() public view virtual override returns (uint256) {
         return super.totalSupply();
     }
 
     /**
-     * @dev Returns the principal balance of the user and principal total supply.
-     * @param user The address of the user
-     * @return The principal balance of the user
-     * @return The principal total supply
+     * @dev Returns a user's principal balance and total principal supply.
+     * @param user The address of the user.
+     * @return The user's principal balance and total principal supply.
      */
     function getScaledUserBalanceAndSupply(address user)
         external
@@ -342,16 +335,16 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     * @return The address of the underlying asset
+     * @dev Returns the address of the underlying asset.
+     * @return The underlying asset address.
      */
     function UNDERLYING_ASSET_ADDRESS() public view returns (address) {
         return _underlyingAsset;
     }
 
     /**
-     * @dev Returns the address of the incentives controller contract
-     * @return The address of the incentives controller
+     * @dev Returns the address of the incentives controller.
+     * @return The incentives controller address.
      */
     function getIncentivesController() external view override returns (IRewarder) {
         return _getIncentivesController();
@@ -359,14 +352,14 @@ contract CdxUsdVariableDebtToken is
 
     /**
      * @dev Internal function to get the underlying asset address.
-     * @return The address of the underlying asset.
+     * @return The underlying asset address.
      */
     function _getUnderlyingAssetAddress() internal view returns (address) {
         return _underlyingAsset;
     }
 
     /**
-     * @dev Internal function to get the lending pool.
+     * @dev Internal function to get the lending pool interface.
      * @return The lending pool interface.
      */
     function _getLendingPool() internal view returns (ILendingPool) {
@@ -374,24 +367,24 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Returns the address of the lending pool where this aToken is used
-     * @return The address of the lending pool
+     * @dev Returns the address of the lending pool.
+     * @return The lending pool address.
      */
     function POOL() public view returns (ILendingPool) {
         return _pool;
     }
 
     /**
-     * @dev Internal function to get the incentives controller
-     * @return The incentives controller interface
+     * @dev Internal function to get the incentives controller interface.
+     * @return The incentives controller interface.
      */
     function _getIncentivesController() internal view override returns (IRewarder) {
         return _incentivesController;
     }
 
     /**
-     * @dev Sets a new incentives controller
-     * @param newController The address of the new incentives controller
+     * @dev Updates the incentives controller address.
+     * @param newController The address of the new controller.
      */
     function setIncentivesController(address newController) external onlyLendingPool {
         require(newController != address(0), "INVALID_CONTROLLER");
@@ -399,67 +392,61 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Returns the address of the associated AToken
-     * @return The address of the AToken
+     * @dev Returns the address of the associated AToken.
+     * @return The AToken address.
      */
     function getAToken() external view returns (address) {
         return _cdxUsdAToken;
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function transfer(address, uint256) public virtual override returns (bool) {
         revert("TRANSFER_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function allowance(address, address) public view virtual override returns (uint256) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function approve(address, uint256) public virtual override returns (bool) {
         revert("APPROVAL_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function transferFrom(address, address, uint256) public virtual override returns (bool) {
         revert("TRANSFER_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function increaseAllowance(address, uint256) public virtual override returns (bool) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Being non transferrable, the debt token does not implement any of the
-     * standard ERC20 functions for transfer and allowance.
+     * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function decreaseAllowance(address, uint256) public virtual override returns (bool) {
         revert("ALLOWANCE_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Accumulates debt of the user since last action.
-     * @param user The address of the user
-     * @param previousScaledBalance The previous scaled balance of the user
-     * @param index The variable debt index of the reserve
-     * @return The increase in scaled balance since the last action of `user`
+     * @dev Updates user's debt state and calculates interest accrued since last action.
+     * @param user The address of the user.
+     * @param previousScaledBalance The user's previous scaled balance.
+     * @param index The current debt index.
+     * @return The increase in balance since last action.
      */
     function _accrueDebtOnAction(address user, uint256 previousScaledBalance, uint256 index)
         internal
@@ -477,10 +464,10 @@ contract CdxUsdVariableDebtToken is
     }
 
     /**
-     * @dev Decreases the borrow allowance of a user
-     * @param delegator The address of the delegator
-     * @param delegatee The address of the delegatee
-     * @param amount The amount to decrease the allowance by
+     * @dev Reduces the borrowing allowance granted to a delegatee.
+     * @param delegator The address that granted the allowance.
+     * @param delegatee The address that received the allowance.
+     * @param amount The amount to decrease the allowance by.
      */
     function _decreaseBorrowAllowance(address delegator, address delegatee, uint256 amount)
         internal

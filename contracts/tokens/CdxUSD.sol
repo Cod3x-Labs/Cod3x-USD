@@ -13,12 +13,25 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 contract CdxUSD is ICdxUSD, OFTExtended {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /// @dev Maps facilitator addresses to their configuration and state.
     mapping(address => Facilitator) internal facilitators;
+    /// @dev Set of all facilitator addresses for enumeration.
     EnumerableSet.AddressSet internal facilitatorsList;
 
+    /// @dev Token name storage.
     string internal _name_;
+    /// @dev Token symbol storage.
     string internal _symbol_;
 
+    /**
+     * @dev Initializes the CdxUSD token with core parameters.
+     * @param _name The name of the token.
+     * @param _symbol The symbol of the token.
+     * @param _lzEndpoint The LayerZero endpoint address.
+     * @param _delegate The delegate address for token operations.
+     * @param _treasury The treasury address for fees.
+     * @param _guardian The guardian address for emergency functions.
+     */
     constructor(
         string memory _name,
         string memory _symbol,

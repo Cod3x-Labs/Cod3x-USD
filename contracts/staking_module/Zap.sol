@@ -23,31 +23,48 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  */
 contract Zap is Pausable, Ownable {
     using SafeERC20 for IERC20;
+    /// @dev Number of tokens in the Balancer pool. Must be 2 for this implementation.
 
     uint256 private NB_BALANCER_POOL_ASSET = 2;
+    /// @dev ID of the Reliquary pool where BPT tokens are staked.
     uint8 private RELIQUARY_POOL_ID = 0;
 
+    /// @dev Reference to the Balancer vault contract for pool interactions.
     IBalancerVault public immutable balancerVault;
+    /// @dev Reference to the Cod3x vault contract where scdxUSD is deposited.
     Cod3xVault public immutable cod3xVault;
+    /// @dev Reference to the vault strategy contract that manages scdxUSD deposits.
     ScdxUsdVaultStrategy public immutable strategy;
+    /// @dev Reference to the Reliquary staking contract.
     IReliquary public immutable reliquary;
+    /// @dev Reference to the Balancer pool token (BPT).
     IERC20 public immutable poolAdd;
+    /// @dev Reference to the cdxUSD token contract.
     IERC20 public immutable cdxUsd;
-    IERC20 public immutable counterAsset; // most likely usdc/usdt
+    /// @dev Reference to the counter asset token (USDC/USDT).
+    IERC20 public immutable counterAsset;
+    /// @dev Address with guardian privileges for emergency functions.
     address public guardian;
 
+    /// @dev Array of tokens in the Balancer pool.
     IAsset[] private poolTokens;
+    /// @dev Maps token addresses to their index in the pool tokens array.
     mapping(address => uint256) private tokenToIndex;
+    /// @dev Unique identifier of the Balancer pool.
     bytes32 private immutable poolId;
 
-    /// Errors
+    /// @dev Thrown when input parameters are invalid.
     error Zap__WRONG_INPUT();
+    /// @dev Thrown when contract configuration is incompatible.
     error Zap__CONTRACT_NOT_COMPATIBLE();
+    /// @dev Thrown when slippage protection check fails.
     error Zap__SLIPPAGE_CHECK_FAILED();
+    /// @dev Thrown when caller does not own the specified relic.
     error Zap__RELIC_NOT_OWNED();
+    /// @dev Thrown when caller is not the guardian.
     error Zap__ONLY_GUARDIAN();
 
-    /// Mofifiers
+    /// @dev Restricts function access to the guardian address.
     modifier onlyGuardian() {
         if (msg.sender != guardian) {
             revert Zap__ONLY_GUARDIAN();
@@ -55,6 +72,17 @@ contract Zap is Pausable, Ownable {
         _;
     }
 
+    /**
+     * @dev Initializes the contract with core dependencies and configuration.
+     * @param _balancerVault Address of the Balancer vault contract.
+     * @param _cod3xVault Address of the Cod3x vault contract.
+     * @param _strategy Address of the vault strategy contract.
+     * @param _reliquary Address of the Reliquary staking contract.
+     * @param _cdxUsd Address of the cdxUSD token.
+     * @param _counterAsset Address of the counter asset token.
+     * @param _owner Address that will own the contract.
+     * @param _guardian Address that will have guardian privileges.
+     */
     constructor(
         address _balancerVault,
         address _cod3xVault,

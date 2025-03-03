@@ -20,8 +20,10 @@ import {IRollingRewarder} from "contracts/interfaces/IRollingRewarder.sol";
 
 /**
  * @title CdxUSD A ERC20 AToken
- * @dev Implementation of the interest bearing token for the Cod3x Lend protocol
+ * @notice Implementation of the interest bearing token for the Cod3x Lend protocol.
  * @author Cod3x - Beirao
+ * @dev This contract represents the interest-bearing version of CdxUSD in the Cod3x Lend protocol.
+ * It tracks user deposits and accrues interest over time.
  */
 contract CdxUsdAToken is
     IncentivizedERC20("ATOKEN_IMPL", "ATOKEN_IMPL", 0),
@@ -30,25 +32,46 @@ contract CdxUsdAToken is
 {
     using WadRayMath for uint256;
 
+    /// @dev Tracks contract version for upgrades. Current version is 0x1.
     uint256 public constant ATOKEN_REVISION = 0x1;
+
+    /// @dev Used for percentage calculations. 10000 basis points = 100%.
     uint256 internal constant BPS = 10_000;
 
+    /// @dev Core lending pool contract that manages lending/borrowing operations.
     ILendingPool internal _pool;
+
+    /// @dev Associated variable debt token tracking borrowed amounts.
     CdxUsdVariableDebtToken internal _cdxUsdVariableDebtToken;
+
+    /// @dev Privileged address that can perform maintenance operations.
     address internal _keeper;
+
+    /// @dev Address receiving protocol fees.
     address internal _treasury;
+
+    /// @dev The CdxUSD token this aToken represents.
     address internal _underlyingAsset;
+
+    /// @dev Indicates reserve type configuration.
     bool internal _reserveType;
+
+    /// @dev Manages distribution of protocol incentives.
     IRewarder internal _incentivesController;
 
+    /// @dev Manages CdxUSD rewards in the Reliquary system.
     IRollingRewarder public _reliquaryCdxusdRewarder;
-    uint256 public _reliquaryAllocation; // In BPS.
 
+    /// @dev Percentage of fees allocated to Reliquary, in basis points.
+    uint256 public _reliquaryAllocation;
+
+    /// @dev Restricts function access to only the lending pool contract.
     modifier onlyLendingPool() {
         require(msg.sender == address(_pool), Errors.AT_CALLER_MUST_BE_LENDING_POOL);
         _;
     }
 
+    /// @dev Restricts function access to only the pool admin.
     modifier onlyPoolAdmin() {
         require(
             msg.sender == _pool.getAddressesProvider().getPoolAdmin(),
@@ -57,27 +80,27 @@ contract CdxUsdAToken is
         _;
     }
 
+    /// @dev Restricts function access to only the keeper address.
     modifier onlyKeeper() {
         require(msg.sender == _keeper, "CALLER_NOT_KEEPER");
         _;
     }
 
+    /// @dev Prevents initialization during construction.
     constructor() {
         _blockInitializing();
     }
 
     /**
-     * @dev Initializes the aToken.
-     * @notice MUST also call setVariableDebtToken() at initialization.
-     * @notice MUST also call setReliquaryInfo() at initialization.
-     * @notice MUST also call setKeeper() at initialization.
-     * @param pool The address of the lending pool where this aToken will be used
-     * @param treasury The address of the Cod3x treasury, receiving the fees on this aToken
-     * @param underlyingAsset The address of the underlying asset of this aToken (E.g. WETH for aWETH)
-     * @param incentivesController The smart contract managing potential incentives distribution
-     * @param aTokenDecimals The decimals of the aToken, same as the underlying asset's
-     * @param aTokenName The name of the aToken
-     * @param aTokenSymbol The symbol of the aToken
+     * @notice Sets up the aToken with initial configuration.
+     * @dev Must call setVariableDebtToken(), setReliquaryInfo(), and setKeeper() after init.
+     * @param pool The lending pool contract address.
+     * @param treasury Address receiving protocol fees.
+     * @param underlyingAsset The CdxUSD token address.
+     * @param incentivesController Contract managing reward distributions.
+     * @param aTokenDecimals Decimal places, matching underlying asset.
+     * @param aTokenName Token name.
+     * @param aTokenSymbol Token symbol.
      */
     function initialize(
         ILendingPool pool,
@@ -155,64 +178,62 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
-     * - Only callable by the LendingPool, as extra state updates there need to be managed
+     * @notice Burns aTokens and sends underlying tokens to receiver.
+     * @dev Only callable by LendingPool to handle state updates.
      */
     function burn(address, address, uint256, uint256) external override onlyLendingPool {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Mints `amount` aTokens to `user`
-     * - Only callable by the LendingPool, as extra state updates there need to be managed
-     * @return `true` if the the previous balance of the user was 0
+     * @notice Mints new aTokens to a user.
+     * @dev Only callable by LendingPool to handle state updates.
      */
     function mint(address, uint256, uint256) external override onlyLendingPool returns (bool) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Mints aTokens to the reserve treasury
-     * - Only callable by the LendingPool
+     * @notice Mints tokens to protocol treasury.
+     * @dev Only callable by LendingPool.
      */
     function mintToCod3xTreasury(uint256, uint256) external override onlyLendingPool {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Transfers aTokens in the event of a borrow being liquidated, in case the liquidators reclaims the aToken
-     * - Only callable by the LendingPool
+     * @notice Handles aToken transfers during liquidations.
+     * @dev Only callable by LendingPool.
      */
     function transferOnLiquidation(address, address, uint256) external override onlyLendingPool {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Calculates the balance of the user: principal balance + interest generated by the principal
-     * @return The balance of the user
-     *
+     * @notice Gets user balance including accrued interest.
+     * @dev Returns principal plus generated interest.
+     * @return The total balance.
      */
     function balanceOf(address) public view override(IncentivizedERC20, IERC20) returns (uint256) {
         return 0;
     }
 
     /**
-     * @dev Returns the scaled balance of the user. The scaled balance is the sum of all the
-     * updated stored balance divided by the reserve's liquidity index at the moment of the update
-     * @param user The user whose balance is calculated
-     * @return The scaled balance of the user
-     *
+     * @notice Gets user's scaled balance.
+     * @dev Returns stored balance divided by liquidity index at last update.
+     * @param user The user address.
+     * @return The scaled balance.
      */
     function scaledBalanceOf(address user) external view override returns (uint256) {
         return super.balanceOf(user);
     }
 
     /**
-     * @dev Returns the scaled balance of the user and the scaled total supply.
-     * @param user The address of the user
-     * @return The scaled balance of the user
-     * @return The scaled balance and the scaled total supply
-     *
+     * @notice Gets user's scaled balance and total supply.
+     * @dev Returns both individual and global scaled amounts.
+     * @param user The user address.
+     * @return The user's scaled balance.
+     * @return The total scaled supply.
      */
     function getScaledUserBalanceAndSupply(address user)
         external
@@ -224,86 +245,92 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev calculates the total supply of the specific aToken
-     * since the balance of every single user increases over time, the total supply
-     * does that too.
-     * @return the current total supply
-     *
+     * @notice Gets total token supply including interest.
+     * @dev Supply increases as interest accrues to all holders.
+     * @return The current total supply.
      */
     function totalSupply() public view override(IncentivizedERC20, IERC20) returns (uint256) {
         return 0;
     }
 
     /**
-     * @dev Returns the scaled total supply of the variable debt token. Represents sum(debt/index)
-     * @return the scaled total supply
-     *
+     * @notice Gets scaled total supply.
+     * @dev Returns sum of all debt divided by index.
+     * @return The scaled total supply.
      */
     function scaledTotalSupply() public view virtual override returns (uint256) {
         return super.totalSupply();
     }
 
     /**
-     * @dev Returns the address of the Cod3x treasury, receiving the fees on this aToken
-     *
+     * @notice Gets treasury address.
+     * @dev Returns address receiving protocol fees.
+     * @return The treasury address.
      */
     function RESERVE_TREASURY_ADDRESS() public view returns (address) {
         return _treasury;
     }
 
     /**
-     * @dev Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
+     * @notice Gets underlying asset address.
+     * @dev Returns CdxUSD token address.
+     * @return The underlying asset address.
      */
     function UNDERLYING_ASSET_ADDRESS() public view override returns (address) {
         return _underlyingAsset;
     }
 
     /**
-     * @dev Returns the type of the reserve
+     * @notice Gets reserve type.
+     * @dev Returns boolean flag indicating reserve configuration.
+     * @return The reserve type.
      */
     function RESERVE_TYPE() external view returns (bool) {
         return _reserveType;
     }
 
     /**
-     * @dev Returns the address of the keeper
-     *
+     * @notice Gets keeper address.
+     * @dev Returns address with maintenance privileges.
+     * @return The keeper address.
      */
     function KEEPER_ADDRESS() public view returns (address) {
         return _keeper;
     }
 
     /**
-     * @dev Returns the address of the lending pool where this aToken is used
-     *
+     * @notice Gets lending pool address.
+     * @dev Returns main protocol contract.
+     * @return The lending pool contract.
      */
     function POOL() public view returns (ILendingPool) {
         return _pool;
     }
 
     /**
-     * @dev For internal usage in the logic of the parent contract IncentivizedERC20
-     *
+     * @notice Gets incentives controller.
+     * @dev Internal helper for IncentivizedERC20.
+     * @return The incentives controller.
      */
     function _getIncentivesController() internal view override returns (IRewarder) {
         return _incentivesController;
     }
 
     /**
-     * @dev Returns the address of the incentives controller contract
-     *
+     * @notice Gets incentives controller.
+     * @dev External accessor for rewards contract.
+     * @return The incentives controller.
      */
     function getIncentivesController() external view override returns (IRewarder) {
         return _getIncentivesController();
     }
 
     /**
-     * @dev Transfers the underlying asset to `target`. Used by the LendingPool to transfer
-     * assets in borrow(), withdraw() and flashLoan()
-     * @param target The recipient of the aTokens
-     * @param amount The amount getting transferred
-     * @return The amount transferred
-     *
+     * @notice Transfers underlying tokens to target.
+     * @dev Used by LendingPool for borrows, withdrawals and flash loans.
+     * @param target Recipient address.
+     * @param amount Amount to transfer.
+     * @return The amount transferred.
      */
     function transferUnderlyingTo(address target, uint256 amount)
         external
@@ -316,9 +343,11 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev Invoked to execute actions on the aToken side after a repayment.
-     * @param user The user executing the repayment
-     * @param amount The amount getting repaid
+     * @notice Handles token repayment.
+     * @dev Processes interest and principal repayment.
+     * @param user User executing repayment.
+     * @param onBehalfOf User being repaid for.
+     * @param amount Amount being repaid.
      */
     function handleRepayment(address user, address onBehalfOf, uint256 amount)
         external
@@ -335,19 +364,26 @@ contract CdxUsdAToken is
     }
 
     /**
-     * @dev implements the permit function
+     * @notice EIP-2612 permit function.
+     * @dev Not supported in this implementation.
      */
     function permit(address, address, uint256, uint256, uint8, bytes32, bytes32) external {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Overrides the parent _transfer to force validated transfer() and transferFrom()
+     * @notice Internal transfer implementation.
+     * @dev Not supported in this implementation.
      */
     function _transfer(address, address, uint256) internal override {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Updates incentives controller.
+     * @dev Only callable by LendingPool.
+     * @param incentivesController New controller address.
+     */
     function setIncentivesController(address incentivesController)
         external
         override
@@ -357,14 +393,28 @@ contract CdxUsdAToken is
         _incentivesController = IRewarder(incentivesController);
     }
 
+    /**
+     * @notice Rebalances token holdings.
+     * @dev Not supported in this implementation.
+     */
     function rebalance() external override onlyLendingPool {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Gets lending pool address.
+     * @dev Returns address of main protocol contract.
+     * @return The lending pool address.
+     */
     function getPool() external view returns (address) {
         return address(_pool);
     }
 
+    /**
+     * @notice Gets contract revision number.
+     * @dev Used for upgrade management.
+     * @return The revision number.
+     */
     function getRevision() internal pure virtual override returns (uint256) {
         return ATOKEN_REVISION;
     }
@@ -388,29 +438,50 @@ contract CdxUsdAToken is
     }
 
     /// --------- Share logic ---------
+    /**
+     * @notice Transfers shares between accounts.
+     * @dev Not supported in this implementation.
+     */
     function transferShare(address from, address to, uint256 shareAmount) external {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Approves share spending.
+     * @dev Not supported in this implementation.
+     */
     function shareApprove(address owner, address spender, uint256 shareAmount) external {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Gets approved share amount.
+     * @dev Not supported in this implementation.
+     */
     function shareAllowances(address owner, address spender) external view returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Converts asset amount to shares.
+     * @dev Not supported in this implementation.
+     */
     function convertToShares(uint256 assetAmount) external view returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Converts shares to asset amount.
+     * @dev Not supported in this implementation.
+     */
     function convertToAssets(uint256 shareAmount) external view returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
-     * @dev Here we are not reverting because this is needed for the reserve initialization.
-     * @return The address of the aToken. No wrapper for cdxUSD aToken.
+     * @notice Gets wrapper address.
+     * @dev Returns self since no wrapper exists.
+     * @return The aToken address.
      */
     function WRAPPER_ADDRESS() external view returns (address) {
         return address(this);
@@ -418,6 +489,11 @@ contract CdxUsdAToken is
 
     /// --------- Rehypothecation logic ---------
 
+    /**
+     * @notice Updates treasury address.
+     * @dev Only callable by LendingPool.
+     * @param newTreasury New treasury address.
+     */
     function setTreasury(address newTreasury) external override onlyLendingPool {
         require(newTreasury != address(0), Errors.AT_INVALID_ADDRESS);
         _treasury = newTreasury;
@@ -426,26 +502,50 @@ contract CdxUsdAToken is
     }
 
     /// overrides
+    /**
+     * @notice Gets total managed assets.
+     * @dev Not supported in this implementation.
+     */
     function getTotalManagedAssets() external view override returns (uint256) {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Sets farming percentage.
+     * @dev Not supported in this implementation.
+     */
     function setFarmingPct(uint256) external override {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Sets claiming threshold.
+     * @dev Not supported in this implementation.
+     */
     function setClaimingThreshold(uint256) external override {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Sets farming percentage drift.
+     * @dev Not supported in this implementation.
+     */
     function setFarmingPctDrift(uint256) external override {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Sets profit handler.
+     * @dev Not supported in this implementation.
+     */
     function setProfitHandler(address) external override {
         revert("OPERATION_NOT_SUPPORTED");
     }
 
+    /**
+     * @notice Sets vault address.
+     * @dev Not supported in this implementation.
+     */
     function setVault(address) external override {
         revert("OPERATION_NOT_SUPPORTED");
     }
