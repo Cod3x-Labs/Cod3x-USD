@@ -16,6 +16,7 @@ import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol
 import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from
     "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
+import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 
 // Balancer Imports.
 import {
@@ -89,21 +90,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     /// @dev Accumulated integral error for PID calculations.
     int256 public _errI;
 
-    /// @dev Error thrown when caller is not lending pool.
-    error CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
-    /// @dev Error thrown when caller is not pool admin.
-    error CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
-    /// @dev Error thrown when base borrow rate is negative.
-    error CdxUsdIInterestRateStrategy__BASE_BORROW_RATE_CANT_BE_NEGATIVE();
-    /// @dev Error thrown when rate exceeds 100%.
-    error CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
-    /// @dev Error thrown when input is zero.
-    error CdxUsdIInterestRateStrategy__ZERO_INPUT();
-    /// @dev Error thrown when Balancer pool is incompatible.
-    error CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
-    /// @dev Error thrown when min controller error is negative.
-    error CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
-
     /// @dev Emitted on PID calculation. If stablePoolReserveUtilization=0, counter asset depegged.
     event PidLog(
         uint256 currentVariableBorrowRate,
@@ -171,11 +157,11 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         /// Checks.
         if (minControllerError <= 0) {
-            revert CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
+            revert(Errors.LP_BASE_BORROW_RATE_CANT_BE_NEGATIVE);
         }
 
         if ((transferFunction(initialErrIValue) > uint256(RAY))) {
-            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
+            revert(Errors.VL_INVALID_INPUT);
         }
 
         _errI = initialErrIValue;
@@ -184,14 +170,14 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         // 3 tokens [asset, counterAsset, BPT].
         if (poolTokens.length != 3) {
-            revert CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+            revert(Errors.VL_INVALID_INPUT);
         }
 
         if (
             address(poolTokens[0]) != asset && address(poolTokens[1]) != asset
                 && address(poolTokens[2]) != asset
         ) {
-            revert CdxUsdIInterestRateStrategy__BALANCER_POOL_NOT_COMPATIBLE();
+            revert(Errors.VL_INVALID_INPUT);
         }
     }
 
@@ -201,7 +187,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     modifier onlyPoolAdmin() {
         if (msg.sender != _addressesProvider.getPoolAdmin()) {
-            revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_POOL_ADMIN();
+            revert(Errors.VL_CALLER_NOT_POOL_ADMIN);
         }
         _;
     }
@@ -212,7 +198,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     modifier onlyLendingPool() {
         if (msg.sender != _addressesProvider.getLendingPool()) {
-            revert CdxUsdIInterestRateStrategy__ACCESS_RESTRICTED_TO_LENDING_POOL();
+            revert(Errors.VL_ACCESS_RESTRICTED_TO_LENDING_POOL);
         }
         _;
     }
@@ -226,7 +212,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setMinControllerError(int256 minControllerError) external onlyPoolAdmin {
         if (minControllerError <= 0) {
-            revert CdxUsdIInterestRateStrategy__NEGATIVE_MIN_CONTROLLER_ERROR();
+            revert(Errors.LP_BASE_BORROW_RATE_CANT_BE_NEGATIVE);
         }
 
         _minControllerError = minControllerError;
@@ -241,7 +227,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setPidValues(uint256 ki) external onlyPoolAdmin {
         if (ki == 0) {
-            revert CdxUsdIInterestRateStrategy__ZERO_INPUT();
+            revert(Errors.VL_INVALID_INPUT);
         }
         _ki = ki;
 
@@ -274,7 +260,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setBalancerPoolId(bytes32 newPoolId) external onlyPoolAdmin {
         if (newPoolId == bytes32(0)) {
-            revert CdxUsdIInterestRateStrategy__ZERO_INPUT();
+            revert(Errors.VL_INVALID_INPUT);
         }
         _poolId = newPoolId;
 
@@ -288,7 +274,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setManualInterestRate(uint256 manualInterestRate) external onlyPoolAdmin {
         if (manualInterestRate > uint256(RAY)) {
-            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
+            revert(Errors.VL_INVALID_INPUT);
         }
         _manualInterestRate = manualInterestRate;
 
@@ -302,7 +288,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      */
     function setErrI(int256 newErrI) external onlyPoolAdmin {
         if (transferFunction(newErrI) > uint256(RAY)) {
-            revert CdxUsdIInterestRateStrategy__RATE_MORE_THAN_100();
+            revert(Errors.VL_INVALID_INPUT);
         }
         _errI = newErrI;
 

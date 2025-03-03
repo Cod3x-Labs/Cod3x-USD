@@ -82,7 +82,7 @@ contract CdxUsdAToken is
 
     /// @dev Restricts function access to only the keeper address.
     modifier onlyKeeper() {
-        require(msg.sender == _keeper, "CALLER_NOT_KEEPER");
+        require(msg.sender == _keeper, Errors.AT_CALLER_NOT_KEEPER);
         _;
     }
 
@@ -144,8 +144,8 @@ contract CdxUsdAToken is
         override
         onlyPoolAdmin
     {
-        require(address(_cdxUsdVariableDebtToken) == address(0), "VARIABLE_DEBT_TOKEN_ALREADY_SET");
-        require(cdxUsdVariableDebtToken != address(0), "ZERO_INPUT");
+        require(address(_cdxUsdVariableDebtToken) == address(0), Errors.AT_DEBT_TOKEN_ALREADY_SET);
+        require(cdxUsdVariableDebtToken != address(0), Errors.VL_INVALID_INPUT);
 
         _cdxUsdVariableDebtToken = CdxUsdVariableDebtToken(cdxUsdVariableDebtToken);
 
@@ -158,8 +158,8 @@ contract CdxUsdAToken is
         override
         onlyPoolAdmin
     {
-        require(reliquaryCdxusdRewarder != address(0), "ZERO_INPUT");
-        require(reliquaryAllocation <= BPS, "RELIQUARY_ALLOCATION_MORE_THAN_100%");
+        require(reliquaryCdxusdRewarder != address(0), Errors.VL_INVALID_INPUT);
+        require(reliquaryAllocation <= BPS, Errors.AT_RELIQUARY_ALLOCATION_MORE_THAN_100);
 
         _reliquaryCdxusdRewarder = IRollingRewarder(reliquaryCdxusdRewarder);
         _reliquaryAllocation = reliquaryAllocation;
@@ -171,7 +171,7 @@ contract CdxUsdAToken is
 
     /// @inheritdoc ICdxUsdAToken
     function setKeeper(address keeper) external override onlyPoolAdmin {
-        require(keeper != address(0), "ZERO_INPUT");
+        require(keeper != address(0), Errors.VL_INVALID_INPUT);
         _keeper = keeper;
 
         emit SetKeeper(keeper);
@@ -389,7 +389,7 @@ contract CdxUsdAToken is
         override
         onlyLendingPool
     {
-        require(incentivesController != address(0), "85");
+        require(incentivesController != address(0), Errors.R_INVALID_ADDRESS);
         _incentivesController = IRewarder(incentivesController);
     }
 
@@ -426,7 +426,7 @@ contract CdxUsdAToken is
 
     /// @inheritdoc ICdxUSDFacilitators
     function distributeFeesToTreasury() external virtual override onlyKeeper {
-        require(_treasury != address(0), "NO_CDXUSD_TREASURY");
+        require(_treasury != address(0), Errors.AT_TREASURY_NOT_SET);
         uint256 balance = IERC20(_underlyingAsset).balanceOf(address(this));
 
         _reliquaryCdxusdRewarder.fund(_reliquaryAllocation * balance / BPS);

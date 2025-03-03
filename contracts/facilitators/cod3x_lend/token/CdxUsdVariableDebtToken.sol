@@ -91,7 +91,7 @@ contract CdxUsdVariableDebtToken is
 
     /// @dev Ensures only the AToken contract can call the modified function.
     modifier onlyAToken() {
-        require(msg.sender == _cdxUsdAToken, "CALLER_NOT_A_TOKEN");
+        require(msg.sender == _cdxUsdAToken, Errors.AT_CALLER_NOT_ATOKEN);
         _;
     }
 
@@ -160,8 +160,8 @@ contract CdxUsdVariableDebtToken is
      * @param cdxUsdAToken The address of the CdxUsdAToken to link.
      */
     function setAToken(address cdxUsdAToken) external onlyPoolAdmin {
-        require(_cdxUsdAToken == address(0), "ATOKEN_ALREADY_SET");
-        require(cdxUsdAToken != address(0), "ZERO_ADDRESS_NOT_VALID");
+        require(_cdxUsdAToken == address(0), Errors.AT_ATOKEN_ALREADY_SET);
+        require(cdxUsdAToken != address(0), Errors.AT_INVALID_ADDRESS);
         _cdxUsdAToken = cdxUsdAToken;
     }
 
@@ -387,7 +387,7 @@ contract CdxUsdVariableDebtToken is
      * @param newController The address of the new controller.
      */
     function setIncentivesController(address newController) external onlyLendingPool {
-        require(newController != address(0), "INVALID_CONTROLLER");
+        require(newController != address(0), Errors.AT_INVALID_CONTROLLER);
         _incentivesController = IRewarder(newController);
     }
 
@@ -403,42 +403,42 @@ contract CdxUsdVariableDebtToken is
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function transfer(address, uint256) public virtual override returns (bool) {
-        revert("TRANSFER_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function allowance(address, address) public view virtual override returns (uint256) {
-        revert("ALLOWANCE_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function approve(address, uint256) public virtual override returns (bool) {
-        revert("APPROVAL_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function transferFrom(address, address, uint256) public virtual override returns (bool) {
-        revert("TRANSFER_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function increaseAllowance(address, uint256) public virtual override returns (bool) {
-        revert("ALLOWANCE_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
      * @dev Debt tokens are non-transferrable. This function always reverts.
      */
     function decreaseAllowance(address, uint256) public virtual override returns (bool) {
-        revert("ALLOWANCE_NOT_SUPPORTED");
+        revert("OPERATION_NOT_SUPPORTED");
     }
 
     /**
