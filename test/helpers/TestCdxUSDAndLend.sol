@@ -583,7 +583,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         commonContracts.variableDebtToken = new VariableDebtToken();
         // stableDebtToken = new StableDebtToken();
         fixture_deployMocks(
-            address(deployedContracts.treasury), address(deployedContracts.lendingPoolConfigurator)
+            address(deployedContracts.treasury), address(deployedContracts.lendingPoolAddressesProvider)
         );
         deployedContracts.lendingPoolAddressesProvider.setPriceOracle(
             address(commonContracts.oracle)
@@ -633,7 +633,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         return (deployedContracts);
     }
 
-    function fixture_deployMocks(address _treasury, address _lendingPoolConfigurator) public {
+    function fixture_deployMocks(address _treasury, address _lendingPoolAddressesProvider) public {
         /* Prices to be changed here */
         ERC20[] memory erc20tokens = fixture_getErc20Tokens(tokens);
         int256[] memory prices = new int256[](3);
@@ -655,7 +655,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             FALLBACK_ORACLE,
             BASE_CURRENCY,
             BASE_CURRENCY_UNIT,
-            _lendingPoolConfigurator
+            _lendingPoolAddressesProvider
         );
 
         commonContracts.wETHGateway = new WETHGateway(weth);
