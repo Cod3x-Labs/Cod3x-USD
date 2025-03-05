@@ -12,7 +12,9 @@ import {
     AddLiquidityKind,
     RemoveLiquidityKind,
     AddLiquidityParams,
-    RemoveLiquidityParams
+    RemoveLiquidityParams,
+    VaultSwapParams,
+    SwapKind
 } from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
 import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
 import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
@@ -124,6 +126,63 @@ contract TRouter is Constants {
             // Transfer the token to the sender (amountOut).
             IVault(vaultV3).sendTo(token, params.from, amountOut);
         }
+    }
+
+    function swapSingleTokenExactIn(
+        address pool,
+        IERC20 tokenIn,
+        IERC20 tokenOut,
+        uint256 exactAmountIn,
+        uint256 minAmountOut
+    ) external returns (uint256) {
+        return abi.decode(
+            Vault(vaultV3).unlock(
+                abi.encodeCall(
+                    this.swapSingleTokenHook,
+                    (
+                        SwapKind.EXACT_IN,
+                        msg.sender,
+                        pool,
+                        tokenIn,
+                        tokenOut,
+                        exactAmountIn,
+                        minAmountOut,
+                        bytes("")
+                    )
+                )
+            ),
+            (uint256)
+        );
+    }
+
+    function swapSingleTokenHook(
+        SwapKind kind,
+        address sender,
+        address pool,
+        IERC20 tokenIn,
+        IERC20 tokenOut,
+        uint256 exactAmountIn,
+        uint256 minAmountOut,
+        bytes calldata userData
+    ) external returns (uint256) {
+        VaultSwapParams memory swapParams = VaultSwapParams({
+            kind: kind,
+            pool: pool,
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            amountGivenRaw: exactAmountIn,
+            limitRaw: minAmountOut,
+            userData: userData
+        });
+
+        (uint256 amountCalculated, uint256 amountIn, uint256 amountOut) =
+            Vault(vaultV3).swap(swapParams);
+
+        IVault(vaultV3).sendTo(tokenOut, sender, amountOut);
+        tokenIn.transferFrom(sender, address(vaultV3), amountIn);
+        Vault(vaultV3).settle(tokenIn, amountIn);
+
+        return amountCalculated;
     }
 
     // ========== Internal Functions ==========

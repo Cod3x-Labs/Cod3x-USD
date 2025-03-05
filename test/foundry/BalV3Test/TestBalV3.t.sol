@@ -110,5 +110,16 @@ contract TestBalV3 is TestCdxUSDAndLend {
 
         assertEq(counterAsset.balanceOf(userA), counterAssetBalanceBefore - 1e18);
         assertEq(cdxUsd.balanceOf(userA), cdxUsdBalanceBefore - 2e18);
+
+        cdxUsdBalanceBefore = cdxUsd.balanceOf(userA);
+        counterAssetBalanceBefore = counterAsset.balanceOf(userA);
+
+        vm.prank(userA);
+        tRouter.swapSingleTokenExactIn(
+            stablePool, cdxUsd, IERC20(address(counterAsset)), 1e18 / 2, 0
+        );
+
+        assertApproxEqRel(cdxUsd.balanceOf(userA), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
+        assertApproxEqRel(counterAsset.balanceOf(userA), counterAssetBalanceBefore + 1e18 / 2, 1e16); // 1%
     }
 }

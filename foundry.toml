@@ -7,7 +7,7 @@ src = 'contracts'
 out = 'out'
 test = 'test/foundry'
 cache_path = 'cache'
-verbosity = 4
+verbosity = 1
 # Enable traces for better error messages
 traces = true
 # Enable full error messages with custom errors
