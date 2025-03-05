@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.23;
 
-import {IERC20Detailed} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
+import {IERC20Detailed} from
+    "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
 import {IAToken} from "lib/Cod3x-Lend/contracts/interfaces/IAToken.sol";
-import {ILendingPoolAddressesProvider} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
+import {ILendingPoolAddressesProvider} from
+    "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
 import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
 import {IVariableDebtToken} from "lib/Cod3x-Lend/contracts/interfaces/IVariableDebtToken.sol";
-import {ReserveConfiguration} from "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
-import {UserConfiguration} from "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/UserConfiguration.sol";
+import {ReserveConfiguration} from
+    "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
+import {UserConfiguration} from
+    "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/UserConfiguration.sol";
 import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 
 /**

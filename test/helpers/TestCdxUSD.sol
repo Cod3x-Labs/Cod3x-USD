@@ -47,12 +47,7 @@ import {
     ComposableStablePool
 } from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/interfaces/IVault.sol";
+import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/interfaces/IVault.sol";
 import "forge-std/console2.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {

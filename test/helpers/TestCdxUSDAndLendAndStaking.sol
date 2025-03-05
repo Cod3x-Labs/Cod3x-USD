@@ -99,7 +99,7 @@
 //         /// ======= Balancer Pool Deploy =======
 //         {
 //             assets = [IERC20(address(cdxUsd)), IERC20(address(counterAsset))];
-            
+
 //             // balancer stable pool creation
 //             poolAdd = createStablePool(assets, 2500, userA);
 
@@ -242,7 +242,6 @@
 //             cdxUsdInterestRateStrategy.setOracleValues(
 //                 address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
 //             );
-
 
 //             fixture_configureCdxUsd(
 //                 address(deployedContracts.lendingPool),

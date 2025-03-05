@@ -120,7 +120,8 @@ import {CdxUsdVariableDebtToken} from
 import {RollingRewarder} from "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
 
 /// balancer V3 imports
-import {BalancerHelperV3} from "contracts/staking_module/vault_strategy/libraries/BalancerHelperV3.sol";
+import {BalancerHelperV3} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerHelperV3.sol";
 import {
     TokenConfig,
     TokenType,
@@ -131,12 +132,15 @@ import {
     AddLiquidityParams,
     RemoveLiquidityParams
 } from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
-import { IVault } from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
-import { Vault } from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
-import { StablePoolFactory } from "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
-import { IRateProvider } from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
-import { TRouter } from "./TRouter.sol";
-import { IVaultExplorer } from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {TRouter} from "./TRouter.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 // import { Router } from "lib/balancer-v3-monorepo/pkg/vault/contracts/Router.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
@@ -340,7 +344,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);
         vm.deal(userC, INITIAL_ETH_MINT);
-        
+
         tRouter = new TRouter();
 
         /// ======= cdxUSD deploy =======
@@ -395,9 +399,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
         }
 
-        deployedContracts.protocolDataProvider = new ProtocolDataProvider(
-            deployedContracts.lendingPoolAddressesProvider
-        );
+        deployedContracts.protocolDataProvider =
+            new ProtocolDataProvider(deployedContracts.lendingPoolAddressesProvider);
 
         /// ======= Faucet and Approve =======
         {
@@ -419,11 +422,11 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 vm.stopPrank();
             }
 
-            vm.startPrank(address(tRouter));
-            cdxUsd.approve(address(vaultV3), type(uint256).max);
-            counterAsset.approve(address(vaultV3), type(uint256).max);
-            vm.stopPrank();
-        }   
+            // vm.startPrank(address(tRouter));
+            // cdxUsd.approve(address(vaultV3), type(uint256).max);
+            // counterAsset.approve(address(vaultV3), type(uint256).max);
+            // vm.stopPrank();
+        }
     }
 
     // ======= Cod3x USD =======
@@ -614,7 +617,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         commonContracts.variableDebtToken = new VariableDebtToken();
         // stableDebtToken = new StableDebtToken();
         fixture_deployMocks(
-            address(deployedContracts.treasury), address(deployedContracts.lendingPoolAddressesProvider)
+            address(deployedContracts.treasury),
+            address(deployedContracts.lendingPoolAddressesProvider)
         );
         deployedContracts.lendingPoolAddressesProvider.setPriceOracle(
             address(commonContracts.oracle)
@@ -790,7 +794,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokens) {
         _aTokens = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokens[idx] = AToken(_aTokenAddress);
         }
@@ -802,7 +808,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokensW) {
         _aTokensW = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokensW[idx] = AToken(address(AToken(_aTokenAddress).WRAPPER_ADDRESS()));
         }
@@ -814,7 +822,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public returns (VariableDebtToken[] memory _varDebtTokens) {
         _varDebtTokens = new VariableDebtToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(_tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true);
+            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true
+            );
             // console2.log("Atoken address", _variableDebtToken);
             string memory debtToken = string.concat("debtToken", uintToString(idx));
             vm.label(_variableDebtToken, debtToken);
@@ -972,29 +982,29 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     }
 
     function fixture_getReserveData(address token, ProtocolDataProvider protocolDataProvider)
-    public
-    view
-    returns (ReserveDataParams memory)
-{
-    (
-        uint256 availableLiquidity,
-        uint256 totalVariableDebt,
-        uint256 liquidityRate,
-        uint256 variableBorrowRate,
-        uint256 liquidityIndex,
-        uint256 variableBorrowIndex,
-        uint40 lastUpdateTimestamp
-    ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
-    return ReserveDataParams(
-        availableLiquidity,
-        totalVariableDebt,
-        liquidityRate,
-        variableBorrowRate,
-        liquidityIndex,
-        variableBorrowIndex,
-        lastUpdateTimestamp
-    );
-}
+        public
+        view
+        returns (ReserveDataParams memory)
+    {
+        (
+            uint256 availableLiquidity,
+            uint256 totalVariableDebt,
+            uint256 liquidityRate,
+            uint256 variableBorrowRate,
+            uint256 liquidityIndex,
+            uint256 variableBorrowIndex,
+            uint40 lastUpdateTimestamp
+        ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
+        return ReserveDataParams(
+            availableLiquidity,
+            totalVariableDebt,
+            liquidityRate,
+            variableBorrowRate,
+            liquidityIndex,
+            variableBorrowIndex,
+            lastUpdateTimestamp
+        );
+    }
 
     // ======= Balancer =======
 
@@ -1021,20 +1031,20 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         roleAccounts.swapFeeManager = address(0);
         roleAccounts.poolCreator = address(0);
 
-        address stablePool = address(StablePoolFactory(
-            address(composableStablePoolFactoryV3)
-        ).create(
-            "Cod3x-USD-Pool",
-            "CUP",
-            tokenConfigs,
-            200, // test only
-            roleAccounts,
-            10e16, // 10% (in WAD)
-            address(0),
-            false,
-            false,
-            bytes32(0x64a595969a110db1d73160536da4a6410f757b6b5fab907addabb71a14d64d2a)
-        ));
+        address stablePool = address(
+            StablePoolFactory(address(composableStablePoolFactoryV3)).create(
+                "Cod3x-USD-Pool",
+                "CUP",
+                tokenConfigs,
+                200, // test only
+                roleAccounts,
+                10e16, // 10% (in WAD)
+                address(0),
+                false,
+                false,
+                bytes32(0x64a595969a110db1d73160536da4a6410f757b6b5fab907addabb71a14d64d2a)
+            )
+        );
 
         return (address(stablePool));
     }
