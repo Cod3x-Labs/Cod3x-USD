@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";

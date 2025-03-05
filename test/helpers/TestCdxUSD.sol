@@ -66,12 +66,12 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
 
     uint128 public constant INITIAL_ETH_MINT = 1000 ether;
 
-    address public userA = address(0x1);
-    address public userB = address(0x2);
-    address public userC = address(0x3);
+    address public userA = address(0x111);
+    address public userB = address(0x222);
+    address public userC = address(0x333);
     address public owner = address(this);
-    address public guardian = address(0x4);
-    address public treasury = address(0x5);
+    address public guardian = address(0x444);
+    address public treasury = address(0x555);
 
     CdxUSD public cdxUSD;
     IERC20 public usdc;
