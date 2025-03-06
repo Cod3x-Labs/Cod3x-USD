@@ -27,6 +27,8 @@ import {BalancerHelperV3} from "./libraries/BalancerHelperV3.sol";
 contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// @dev ID of the relic used by this strategy.
     uint256 private constant RELIC_ID = 1;
+    /// @dev Number of tokens in the Balancer pool.
+    uint256 private constant NB_BALANCER_POOL_ASSET = 2;
 
     /// @dev Reference to the cdxUSD token contract.
     IERC20 public cdxUSD;
@@ -35,8 +37,6 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// @dev Reference to the Balancer vault contract.
     IBalancerVault public balancerVault;
 
-    /// @dev Array of tokens in the Balancer pool.
-    IERC20[] public poolTokens;
     /// @dev Address of the Balancer pool.
     address public balancerPool;
     /// @dev Index of cdxUSD in the pool tokens array.
@@ -112,15 +112,13 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
         balancerPool = _balancerPool;
 
         IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(_balancerPool);
-        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
-
-        for (uint256 i = 0; i < poolTokens_.length; i++) {
-            poolTokens.push(poolTokens_[i]);
+        if (poolTokens_.length != NB_BALANCER_POOL_ASSET) {
+            revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
         }
 
         IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
 
-        for (uint256 i = 0; i < poolTokens_.length; i++) {
+        for (uint256 i = 0; i < NB_BALANCER_POOL_ASSET; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
             }
@@ -212,7 +210,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
 
         uint256 balanceCdxUSD = cdxUSD.balanceOf(address(this));
         if (balanceCdxUSD != 0) {
-            uint256[] memory amountsToAdd_ = new uint256[](poolTokens.length - 1);
+            uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
             // TODO

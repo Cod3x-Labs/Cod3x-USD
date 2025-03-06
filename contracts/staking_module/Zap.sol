@@ -49,8 +49,6 @@ contract Zap is Pausable, Ownable {
     /// @dev Address with guardian privileges for emergency functions.
     address public guardian;
 
-    /// @dev Array of tokens in the Balancer pool.
-    IERC20[] private poolTokens;
     /// @dev Maps token addresses to their index in the pool tokens array.
     mapping(address => uint256) private tokenToIndex;
     /// @dev Address of the Balancer pool.
@@ -107,10 +105,6 @@ contract Zap is Pausable, Ownable {
         balancerPool = ScdxUsdVaultStrategy(_strategy).balancerPool();
 
         IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(balancerPool);
-
-        for (uint256 i = 0; i < poolTokens_.length; i++) {
-            poolTokens.push(poolTokens_[i]);
-        }
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             tokenToIndex[address(poolTokens_[i])] = i;
