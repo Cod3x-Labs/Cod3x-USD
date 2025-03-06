@@ -101,18 +101,6 @@ import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {Constants} from "test/helpers/Constants.sol";
 import {Sort} from "test/helpers/Sort.sol";
-// import {
-//     IComposableStablePoolFactory,
-//     IRateProvider,
-//     ComposableStablePool
-// } from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-// import {
-//     IVault,
-//     JoinKind,
-//     ExitKind,
-//     SwapKind
-// } from "contracts/interfaces/IVault.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
@@ -141,7 +129,6 @@ import {IRateProvider} from
 import {TRouter} from "./TRouter.sol";
 import {IVaultExplorer} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
-// import { Router } from "lib/balancer-v3-monorepo/pkg/vault/contracts/Router.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     using WadRayMath for uint256;
@@ -422,10 +409,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 vm.stopPrank();
             }
 
-            // vm.startPrank(address(tRouter));
-            // cdxUsd.approve(address(vaultV3), type(uint256).max);
-            // counterAsset.approve(address(vaultV3), type(uint256).max);
-            // vm.stopPrank();
+            vm.startPrank(owner); // address(0x1) == address(1)
+            cdxUsd.approve(address(vaultV3), type(uint256).max);
+            counterAsset.approve(address(vaultV3), type(uint256).max);
+            cdxUsd.approve(address(tRouter), type(uint256).max);
+            counterAsset.approve(address(tRouter), type(uint256).max);
+            vm.stopPrank();
         }
     }
 
@@ -1048,35 +1037,4 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
         return (address(stablePool));
     }
-
-    // TODO
-    // function swap(
-    //     bytes32 poolId,
-    //     address user,
-    //     address assetIn,
-    //     address assetOut,
-    //     uint256 amount,
-    //     uint256 limit,
-    //     uint256 deadline,
-    //     SwapKind kind
-    // ) public {
-    //     require(kind == SwapKind.GIVEN_IN, "Operation not supported");
-
-    //     IVault.SingleSwap memory singleSwap;
-    //     singleSwap.poolId = poolId;
-    //     singleSwap.kind = kind;
-    //     singleSwap.assetIn = IAsset(assetIn);
-    //     singleSwap.assetOut = IAsset(assetOut);
-    //     singleSwap.amount = amount;
-    //     singleSwap.userData = bytes("");
-
-    //     IVault.FundManagement memory fundManagement;
-    //     fundManagement.sender = user;
-    //     fundManagement.fromInternalBalance = false;
-    //     fundManagement.recipient = payable(user);
-    //     fundManagement.toInternalBalance = false;
-
-    //     vm.prank(user);
-    //     IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
-    // }
 }

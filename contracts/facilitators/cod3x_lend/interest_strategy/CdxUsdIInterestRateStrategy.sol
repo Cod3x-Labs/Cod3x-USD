@@ -18,13 +18,9 @@ import {ReserveConfiguration} from
     "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 
-// Balancer Imports.
-import {
-    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
-} from "contracts/interfaces/IVault.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "contracts/interfaces/IBaseBalancerPool.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
+/// Balancer imports
+import {IVault as IBalancerVault} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
 
 // OZ imports.
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -62,10 +58,8 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
     /// @dev Reference to Balancer vault contract for pool interactions.
     IBalancerVault public immutable _balancerVault;
-    /// @dev ID of the Balancer pool this strategy monitors.
-    bytes32 public _poolId;
-    /// @dev Array of tokens in the stable pool (typically [cdxUSD, USDC/USDT]).
-    IERC20[] public /* immutable */ stablePoolTokens;
+    /// @dev Address of the Balancer pool this strategy monitors.
+    address public _balancerPool;
 
     /// @dev Minimum error threshold for the PID controller.
     int256 public _minControllerError;
@@ -106,7 +100,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         address counterAssetPriceFeed, int256 priceFeedReference, uint256 pegMargin, uint256 timeout
     );
     /// @dev Emitted when Balancer pool ID is set.
-    event SetBalancerPoolId(bytes32 newPoolId);
+    event SetBalancerPoolId(address newBalancerPool);
     /// @dev Emitted when manual interest rate is set.
     event SetManualInterestRate(uint256 manualInterestRate);
     /// @dev Emitted when errI value is set.
@@ -118,7 +112,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
      * @param provider Address of LendingPoolAddressesProvider contract.
      * @param asset Address of cdxUSD token.
      * @param balancerVault Address of Balancer Vault contract.
-     * @param poolId ID of Balancer pool.
+     * @param balancerPool Address of the Balancer pool.
      * @param minControllerError Minimum error threshold for PID controller.
      * @param initialErrIValue Initial value for integral error term.
      * @param ki Integral coefficient for PID controller.
@@ -128,7 +122,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         address asset, // cdxUSD
         bool,
         address balancerVault,
-        bytes32 poolId,
+        address balancerPool,
         int256 minControllerError,
         int256 initialErrIValue,
         uint256 ki
@@ -140,43 +134,32 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
 
         /// PID values.
         _ki = ki;
+        _errI = initialErrIValue;
         _lastTimestamp = block.timestamp;
         _minControllerError = minControllerError;
 
         // Balancer.
         _balancerVault = IBalancerVault(balancerVault);
-        _poolId = poolId;
-        (IERC20[] memory tokens,,) = IBalancerVault(balancerVault).getPoolTokens(poolId); //? is returning an array with BPT token?.
-        (address pool,) = IBalancerVault(balancerVault).getPool(poolId);
-        tokens = BalancerHelper._dropBptItem(tokens, pool);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            IERC20 token_ = tokens[i];
-            stablePoolTokens.push(token_);
-        }
-        _optimalStablePoolReserveUtilization = uint256(RAY) / tokens.length;
+        _balancerPool = balancerPool;
+        IERC20[] memory poolTokens_ = IBalancerVault(balancerVault).getPoolTokens(balancerPool);
+
+        _optimalStablePoolReserveUtilization = uint256(RAY) / poolTokens_.length;
 
         /// Checks.
+        // 2 tokens [asset (cdxUSD), counterAsset (USDC/USDT)].
+        if (poolTokens_.length != 2) {
+            revert(Errors.VL_INVALID_INPUT);
+        }
+
+        if (address(poolTokens_[0]) != asset && address(poolTokens_[1]) != asset) {
+            revert(Errors.VL_INVALID_INPUT);
+        }
+
         if (minControllerError <= 0) {
             revert(Errors.LP_BASE_BORROW_RATE_CANT_BE_NEGATIVE);
         }
 
         if ((transferFunction(initialErrIValue) > uint256(RAY))) {
-            revert(Errors.VL_INVALID_INPUT);
-        }
-
-        _errI = initialErrIValue;
-
-        (IERC20[] memory poolTokens,,) = _balancerVault.getPoolTokens(poolId);
-
-        // 3 tokens [asset, counterAsset, BPT].
-        if (poolTokens.length != 3) {
-            revert(Errors.VL_INVALID_INPUT);
-        }
-
-        if (
-            address(poolTokens[0]) != asset && address(poolTokens[1]) != asset
-                && address(poolTokens[2]) != asset
-        ) {
             revert(Errors.VL_INVALID_INPUT);
         }
     }
@@ -256,15 +239,15 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
     /**
      * @notice Sets the poolId variable.
      * @dev Only admin can call. Reverts if poolId = 0.
-     * @param newPoolId New Balancer pool id.
+     * @param newBalancerPool New Balancer pool address.
      */
-    function setBalancerPoolId(bytes32 newPoolId) external onlyPoolAdmin {
-        if (newPoolId == bytes32(0)) {
+    function setBalancerPoolId(address newBalancerPool) external onlyPoolAdmin {
+        if (newBalancerPool == address(0)) {
             revert(Errors.VL_INVALID_INPUT);
         }
-        _poolId = newPoolId;
+        _balancerPool = newBalancerPool;
 
-        emit SetBalancerPoolId(newPoolId);
+        emit SetBalancerPoolId(newBalancerPool);
     }
 
     /**
@@ -383,26 +366,18 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         uint256 totalInPool_;
         uint256 cdxUsdAmtInPool_;
 
-        for (uint256 i = 0; i < stablePoolTokens.length; i++) {
-            IERC20 token_ = stablePoolTokens[i];
-            (uint256 cash_,,,) = IBalancerVault(_balancerVault).getPoolTokenInfo(_poolId, token_);
-            cash_ = scaleDecimals(cash_, token_);
-            totalInPool_ += cash_;
+        // TODO :: verify lastBalancesLiveScaled18_ is the value we want.
+        (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
+            _balancerVault.getPoolTokenInfo(_balancerPool);
 
-            if (address(token_) == _asset) cdxUsdAmtInPool_ = cash_;
+        for (uint256 i = 0; i < tokens_.length; i++) {
+            uint256 lastBalance_ = lastBalancesLiveScaled18_[i];
+            totalInPool_ += lastBalance_;
+
+            if (address(tokens_[i]) == _asset) cdxUsdAmtInPool_ = lastBalance_;
         }
 
         return cdxUsdAmtInPool_ * uint256(RAY) / totalInPool_;
-    }
-
-    /**
-     * @notice Scales an amount to 18 decimals based on token's decimal precision.
-     * @param amount Amount to scale.
-     * @param token ERC20 token contract.
-     * @return Scaled amount with 18 decimals.
-     */
-    function scaleDecimals(uint256 amount, IERC20 token) internal view returns (uint256) {
-        return amount * 10 ** (SCALING_DECIMAL - ERC20(address(token)).decimals());
     }
 
     /**

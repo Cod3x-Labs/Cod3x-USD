@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
+/// Cod3x Vault imports
 import "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import "lib/Cod3x-Vault/lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+
+/// Reliquary imports
 import "contracts/interfaces/IReliquary.sol";
+
+/// OpenZeppelin imports
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {
-    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
-} from "contracts/interfaces/IVault.sol"; // balancer Vault
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "contracts/interfaces/IBaseBalancerPool.sol";
-import "./libraries/BalancerHelper.sol";
+
+/// Balancer imports
+import {IVault as IBalancerVault} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+
+/// Internal imports
+import {BalancerHelperV3} from "./libraries/BalancerHelperV3.sol";
 
 /**
  * @title ScdxUsdVaultStrategy Contract.
@@ -30,9 +36,9 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     IBalancerVault public balancerVault;
 
     /// @dev Array of tokens in the Balancer pool.
-    IAsset[] public poolTokens;
-    /// @dev ID of the Balancer pool.
-    bytes32 public poolId;
+    IERC20[] public poolTokens;
+    /// @dev Address of the Balancer pool.
+    address public balancerPool;
     /// @dev Index of cdxUSD in the pool tokens array.
     uint256 public cdxUsdIndex;
     /// @dev Minimum BPT tokens to receive when joining pool, used for slippage protection.
@@ -63,7 +69,6 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
      * @param _cdxUSD Address of the cdxUSD token.
      * @param _reliquary Address of the Reliquary staking contract.
      * @param _balancerPool Address of the Balancer pool.
-     * @param _poolId ID of the Balancer pool.
      */
     function initialize(
         address _code3xVault,
@@ -73,8 +78,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
         address[] memory _keepers,
         address _cdxUSD,
         address _reliquary,
-        address _balancerPool,
-        bytes32 _poolId
+        address _balancerPool
     ) public initializer {
         if (
             _code3xVault == address(0) || _reliquary == address(0) || _strategists.length == 0
@@ -103,22 +107,18 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
         IERC20(poolToken_).approve(_reliquary, type(uint256).max);
 
         reliquary = IReliquary(_reliquary);
-        poolId = _poolId;
         minBPTAmountOut = 1;
         cdxUsdIndex = type(uint256).max;
+        balancerPool = _balancerPool;
 
-        (IERC20[] memory poolTokens_,,) = IBalancerVault(_balancerVault).getPoolTokens(_poolId);
+        IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(_balancerPool);
+        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
-            poolTokens.push(IAsset(address(poolTokens_[i])));
+            poolTokens.push(poolTokens_[i]);
         }
 
         IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
-
-        (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
-        poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
-
-        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             if (cdxUSD == poolTokens_[i]) {
@@ -215,9 +215,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
             uint256[] memory amountsToAdd_ = new uint256[](poolTokens.length - 1);
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
-            BalancerHelper._joinPool(
-                balancerVault, amountsToAdd_, poolId, poolTokens, minBPTAmountOut
-            );
+            // TODO
+            // BalancerHelperV3._joinPool(balancerVault, amountsToAdd_, 0, poolTokens, minBPTAmountOut);
         }
 
         minBPTAmountOut = 1;

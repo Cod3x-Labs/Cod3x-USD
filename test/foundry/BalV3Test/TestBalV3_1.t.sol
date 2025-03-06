@@ -23,7 +23,7 @@ import {
 } from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console2.sol";
 
-import {TestCdxUSDAndLend} from "test/helpers/TestCdxUSDAndLend.sol";
+import {TestCdxUSDAndLendAndStaking} from "test/helpers/TestCdxUSDAndLendAndStaking.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
 // reliquary
@@ -62,30 +62,12 @@ import {TRouter} from "test/helpers/TRouter.sol";
 import {IVaultExplorer} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
-contract TestBalV3 is TestCdxUSDAndLend {
-    IERC20[] public assets;
-    address public poolAdd;
-
+contract TestBalV3_1 is TestCdxUSDAndLendAndStaking {
     function setUp() public override {
         super.setUp();
-        vm.selectFork(forkIdEth);
-        assets.push(IERC20(address(counterAsset)));
-        assets.push(IERC20(address(cdxUsd)));
-
-        console2.log("assets[0] ::: ", address(assets[0]));
-        console2.log("assets[1] ::: ", address(assets[1]));
-
-        poolAdd = createStablePool(assets, 2500, address(this));
-
-        uint256[] memory amounts = new uint256[](assets.length);
-        amounts[0] = 1e18;
-        amounts[1] = 1e18;
-
-        vm.prank(userA);
-        tRouter.initialize(poolAdd, assets, amounts);
     }
 
-    function test_TRouter() public {
+    function test_TRouter_1() public {
         assertEq(assets.length, 2);
         assertNotEq(poolAdd, address(0));
 
@@ -93,14 +75,14 @@ contract TestBalV3 is TestCdxUSDAndLend {
         amounts[0] = 1e18;
         amounts[1] = 1e18;
 
-        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userA);
-        uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userA);
+        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
-        vm.startPrank(userA);
-        tRouter.addLiquidity(poolAdd, userA, amounts);
+        vm.startPrank(userB);
+        tRouter.addLiquidity(poolAdd, userB, amounts);
 
-        assertEq(counterAsset.balanceOf(userA), counterAssetBalanceBefore - amounts[0]);
-        assertEq(cdxUsd.balanceOf(userA), cdxUsdBalanceBefore - amounts[1]);
+        assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[0]);
+        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[1]);
 
         amounts[0] = 1e18;
         amounts[1] = 0;
@@ -111,19 +93,19 @@ contract TestBalV3 is TestCdxUSDAndLend {
 
         IERC20(poolAdd).approve(address(tRouter), type(uint256).max);
 
-        tRouter.removeLiquidity(poolAdd, userA, amounts);
+        tRouter.removeLiquidity(poolAdd, userB, amounts);
         vm.stopPrank();
 
-        assertEq(counterAsset.balanceOf(userA), counterAssetBalanceBefore);
-        assertEq(cdxUsd.balanceOf(userA), cdxUsdBalanceBefore - 1e18);
+        assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore);
+        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - 1e18);
 
-        cdxUsdBalanceBefore = cdxUsd.balanceOf(userA);
-        counterAssetBalanceBefore = counterAsset.balanceOf(userA);
+        cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
-        vm.prank(userA);
+        vm.prank(userB);
         tRouter.swapSingleTokenExactIn(poolAdd, cdxUsd, IERC20(address(counterAsset)), 1e18 / 2, 0);
 
-        assertApproxEqRel(cdxUsd.balanceOf(userA), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
-        assertApproxEqRel(counterAsset.balanceOf(userA), counterAssetBalanceBefore + 1e18 / 2, 1e16); // 1%
+        assertApproxEqRel(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
+        assertApproxEqRel(counterAsset.balanceOf(userB), counterAssetBalanceBefore + 1e18 / 2, 1e16); // 1%
     }
 }

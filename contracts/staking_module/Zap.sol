@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
+/// Reliquary imports
 import "contracts/interfaces/IReliquary.sol";
+
+/// Cod3x imports
 import {ReaperVaultV2 as Cod3xVault} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
 import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
-import {
-    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
-} from "contracts/interfaces/IVault.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 
-// OZ
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// Balancer imports
+import {IVault as IBalancerVault} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {BalancerHelperV3} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerHelperV3.sol";
+
+/// OZ imports
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Zap
@@ -37,8 +42,6 @@ contract Zap is Pausable, Ownable {
     ScdxUsdVaultStrategy public immutable strategy;
     /// @dev Reference to the Reliquary staking contract.
     IReliquary public immutable reliquary;
-    /// @dev Reference to the Balancer pool token (BPT).
-    IERC20 public immutable poolAdd;
     /// @dev Reference to the cdxUSD token contract.
     IERC20 public immutable cdxUsd;
     /// @dev Reference to the counter asset token (USDC/USDT).
@@ -47,11 +50,11 @@ contract Zap is Pausable, Ownable {
     address public guardian;
 
     /// @dev Array of tokens in the Balancer pool.
-    IAsset[] private poolTokens;
+    IERC20[] private poolTokens;
     /// @dev Maps token addresses to their index in the pool tokens array.
     mapping(address => uint256) private tokenToIndex;
-    /// @dev Unique identifier of the Balancer pool.
-    bytes32 private immutable poolId;
+    /// @dev Address of the Balancer pool.
+    address private immutable balancerPool;
 
     /// @dev Thrown when input parameters are invalid.
     error Zap__WRONG_INPUT();
@@ -101,17 +104,13 @@ contract Zap is Pausable, Ownable {
         counterAsset = IERC20(_counterAsset);
         guardian = _guardian;
 
-        poolId = ScdxUsdVaultStrategy(_strategy).poolId();
+        balancerPool = ScdxUsdVaultStrategy(_strategy).balancerPool();
 
-        (IERC20[] memory poolTokens_,,) = IBalancerVault(_balancerVault).getPoolTokens(poolId);
+        IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(balancerPool);
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
-            poolTokens.push(IAsset(address(poolTokens_[i])));
+            poolTokens.push(poolTokens_[i]);
         }
-
-        (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
-        poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd);
-        poolAdd = IERC20(_poolAdd);
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             tokenToIndex[address(poolTokens_[i])] = i;
@@ -120,16 +119,16 @@ contract Zap is Pausable, Ownable {
         // Compatibility checks
         {
             if (poolTokens_.length != NB_BALANCER_POOL_ASSET) revert Zap__CONTRACT_NOT_COMPATIBLE();
-            if (IReliquary(_reliquary).getPoolInfo(RELIQUARY_POOL_ID).poolToken != _poolAdd) {
+            if (IReliquary(_reliquary).getPoolInfo(RELIQUARY_POOL_ID).poolToken != balancerPool) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
-            if (ScdxUsdVaultStrategy(_strategy).want() != _poolAdd) {
+            if (ScdxUsdVaultStrategy(_strategy).want() != balancerPool) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
             if (ScdxUsdVaultStrategy(_strategy).vault() != _cod3xVault) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
-            if (address(Cod3xVault(_cod3xVault).token()) != _poolAdd) {
+            if (address(Cod3xVault(_cod3xVault).token()) != balancerPool) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
             if (address(ScdxUsdVaultStrategy(_strategy).cdxUSD()) != _cdxUsd) {
@@ -141,7 +140,7 @@ contract Zap is Pausable, Ownable {
             if (address(ScdxUsdVaultStrategy(_strategy).balancerVault()) != _balancerVault) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
-            if (ScdxUsdVaultStrategy(_strategy).poolId() != poolId) {
+            if (ScdxUsdVaultStrategy(_strategy).balancerPool() != balancerPool) {
                 revert Zap__CONTRACT_NOT_COMPATIBLE();
             }
             if (ScdxUsdVaultStrategy(_strategy).cdxUsdIndex() != tokenToIndex[address(cdxUsd)]) {
@@ -153,8 +152,8 @@ contract Zap is Pausable, Ownable {
         {
             IERC20(_cdxUsd).approve(_balancerVault, type(uint256).max);
             IERC20(_counterAsset).approve(_balancerVault, type(uint256).max);
-            IERC20(_poolAdd).approve(_cod3xVault, type(uint256).max);
-            IERC20(_poolAdd).approve(_reliquary, type(uint256).max);
+            IERC20(balancerPool).approve(_cod3xVault, type(uint256).max);
+            IERC20(balancerPool).approve(_reliquary, type(uint256).max);
             IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
         }
     }
@@ -217,9 +216,10 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        BalancerHelper._joinPool(
-            balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
-        );
+        // TODO
+        // BalancerHelperV3._joinPool(
+        //     balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
+        // );
 
         /// Cod3x Vault deposit
         cod3xVault.depositAll();
@@ -257,15 +257,16 @@ contract Zap is Pausable, Ownable {
         cod3xVault.withdraw(_scdxUsdAmount);
 
         /// withdraw pool
-        BalancerHelper._exitPool(
-            balancerVault,
-            poolAdd.balanceOf(address(this)),
-            poolId,
-            poolTokens,
-            _tokenToWithdraw,
-            tokenToIndex[_tokenToWithdraw],
-            _minAmountOut
-        );
+        // TODO
+        // BalancerHelperV3._exitPool(
+        //     balancerVault,
+        //     IERC20(balancerPool).balanceOf(address(this)),
+        //     poolId,
+        //     poolTokens,
+        //     _tokenToWithdraw,
+        //     tokenToIndex[_tokenToWithdraw],
+        //     _minAmountOut
+        // );
 
         /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(
@@ -307,17 +308,18 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        BalancerHelper._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
+        // TODO
+        // BalancerHelperV3._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
 
         /// Reliquary deposit
         if (_relicId != 0) {
             if (!reliquary.isApprovedOrOwner(msg.sender, _relicId) || _to != msg.sender) {
                 revert Zap__RELIC_NOT_OWNED();
             }
-            reliquary.deposit(poolAdd.balanceOf(address(this)), _relicId, address(0));
+            reliquary.deposit(IERC20(balancerPool).balanceOf(address(this)), _relicId, address(0));
         } else {
             reliquary.createRelicAndDeposit(
-                _to, RELIQUARY_POOL_ID, poolAdd.balanceOf(address(this))
+                _to, RELIQUARY_POOL_ID, IERC20(balancerPool).balanceOf(address(this))
             );
         }
     }
@@ -353,15 +355,16 @@ contract Zap is Pausable, Ownable {
         reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
 
         /// withdraw pool
-        BalancerHelper._exitPool(
-            balancerVault,
-            poolAdd.balanceOf(address(this)),
-            poolId,
-            poolTokens,
-            _tokenToWithdraw,
-            tokenToIndex[_tokenToWithdraw],
-            _minAmountOut
-        );
+        // TODO
+        // BalancerHelperV3._exitPool(
+        //     balancerVault,
+        //     IERC20(balancerPool).balanceOf(address(this)),
+        //     poolId,
+        //     poolTokens,
+        //     _tokenToWithdraw,
+        //     tokenToIndex[_tokenToWithdraw],
+        //     _minAmountOut
+        // );
 
         /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(
