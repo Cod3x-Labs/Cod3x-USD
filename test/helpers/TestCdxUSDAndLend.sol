@@ -1027,7 +1027,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 tokenConfigs,
                 200, // test only
                 roleAccounts,
-                10e16, // 10% (in WAD)
+                5e15, // 0.5% (in WAD)
                 address(0),
                 false,
                 false,

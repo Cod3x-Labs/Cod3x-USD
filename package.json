@@ -16,7 +16,6 @@
     "test:forge": "forge test",
     "test:hardhat": "hardhat test",
     "fmt": "forge fmt ./test && forge fmt"
-
   },
   "resolutions": {
     "@nomicfoundation/edr": "0.3.5",
@@ -39,7 +38,7 @@
     "@layerzerolabs/toolbox-hardhat": "~0.2.21",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@openzeppelin/contracts": "^5.0.1",
+    "@openzeppelin/contracts": "^5.2.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.1",
     "@rushstack/eslint-patch": "^1.7.0",
     "@types/chai": "^4.3.11",

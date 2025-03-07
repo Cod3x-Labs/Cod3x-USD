@@ -62,12 +62,118 @@ import {TRouter} from "test/helpers/TRouter.sol";
 import {IVaultExplorer} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
-contract TestBalV3_1 is TestCdxUSDAndLendAndStaking {
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+
+contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
+    BalancerV3Router public router;
+
     function setUp() public override {
         super.setUp();
+
+        address[] memory interactors = new address[](4);
+        interactors[0] = address(this);
+        interactors[1] = address(userA);
+        interactors[2] = address(userB);
+        interactors[3] = address(userC);
+
+        router = new BalancerV3Router(vaultV3, address(this), interactors);
+
+        // all user approve max router
+        for (uint256 i = 0; i < interactors.length; i++) {
+            vm.startPrank(interactors[i]);
+            cdxUsd.approve(address(router), type(uint256).max);
+            counterAsset.approve(address(router), type(uint256).max);
+            IERC20(poolAdd).approve(address(router), type(uint256).max);
+            vm.stopPrank();
+        }
     }
 
-    function test_TRouter_1() public {
+    function test_BalancerV3Router1() public {
+        uint256[] memory amounts = new uint256[](assets.length);
+        amounts[0] = 1e18;
+        amounts[1] = 1e18;
+
+        // balance before
+        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
+
+        vm.startPrank(userB);
+        router.addLiquidityUnbalanced(poolAdd, amounts, 0);
+        vm.stopPrank();
+
+        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
+        assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[1]);
+
+        // remove liquidity
+        uint256[] memory amountsOut = new uint256[](assets.length);
+        amountsOut[0] = 1e18;
+        amountsOut[1] = 1e18;
+
+        // balance before remove liquidity
+        uint256 cdxUsdBalanceBeforeRemove = cdxUsd.balanceOf(userB);
+        uint256 counterAssetBalanceBeforeRemove = counterAsset.balanceOf(userB);
+
+        vm.startPrank(userB);
+        router.removeLiquiditySingleTokenExactIn(poolAdd, 0, IERC20(poolAdd).balanceOf(userB), 1);
+        vm.stopPrank();
+
+        console2.log(
+            "cdxUsd.balanceOf(userB) ::: ", cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove
+        );
+        console2.log(
+            "counterAsset.balanceOf(userB) ::: ",
+            counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove
+        );
+
+        assertApproxEqRel(
+            counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove, 2e18, 1e16
+        );
+        assertEq(IERC20(poolAdd).balanceOf(userB), 0);
+    }
+
+    function test_BalancerV3Router2() public {
+        uint256[] memory amounts = new uint256[](assets.length);
+        amounts[0] = 1e18;
+        amounts[1] = 1e18;
+
+        // balance before
+        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
+
+        vm.startPrank(userB);
+        router.addLiquidityUnbalanced(poolAdd, amounts, 0);
+        vm.stopPrank();
+
+        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
+        assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[1]);
+
+        // remove liquidity
+        uint256[] memory amountsOut = new uint256[](assets.length);
+        amountsOut[0] = 1e18;
+        amountsOut[1] = 1e18;
+
+        // balance before remove liquidity
+        uint256 cdxUsdBalanceBeforeRemove = cdxUsd.balanceOf(userB);
+        uint256 counterAssetBalanceBeforeRemove = counterAsset.balanceOf(userB);
+
+        vm.startPrank(userB);
+        router.removeLiquiditySingleTokenExactIn(poolAdd, 1, IERC20(poolAdd).balanceOf(userB), 1);
+        vm.stopPrank();
+
+        console2.log(
+            "cdxUsd.balanceOf(userB) ::: ", cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove
+        );
+        console2.log(
+            "counterAsset.balanceOf(userB) ::: ",
+            counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove
+        );
+
+        assertApproxEqRel(cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove, 2e18, 1e16);
+        assertEq(IERC20(poolAdd).balanceOf(userB), 0);
+    }
+
+    function test_TRouter() public {
         assertEq(assets.length, 2);
         assertNotEq(poolAdd, address(0));
 
