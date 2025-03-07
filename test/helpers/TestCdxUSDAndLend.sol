@@ -108,8 +108,8 @@ import {CdxUsdVariableDebtToken} from
 import {RollingRewarder} from "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
 
 /// balancer V3 imports
-import {BalancerHelperV3} from
-    "contracts/staking_module/vault_strategy/libraries/BalancerHelperV3.sol";
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
 import {
     TokenConfig,
     TokenType,

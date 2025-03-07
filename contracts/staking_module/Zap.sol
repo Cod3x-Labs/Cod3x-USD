@@ -12,8 +12,8 @@ import {ScdxUsdVaultStrategy} from
 // Balancer imports
 import {IVault as IBalancerVault} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
-import {BalancerHelperV3} from
-    "contracts/staking_module/vault_strategy/libraries/BalancerHelperV3.sol";
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
 
 /// OZ imports
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
@@ -211,7 +211,7 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
         // TODO
-        // BalancerHelperV3._joinPool(
+        // BalancerV3Router._joinPool(
         //     balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
         // );
 
@@ -252,7 +252,7 @@ contract Zap is Pausable, Ownable {
 
         /// withdraw pool
         // TODO
-        // BalancerHelperV3._exitPool(
+        // BalancerV3Router._exitPool(
         //     balancerVault,
         //     IERC20(balancerPool).balanceOf(address(this)),
         //     poolId,
@@ -303,7 +303,7 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
         // TODO
-        // BalancerHelperV3._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
+        // BalancerV3Router._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
 
         /// Reliquary deposit
         if (_relicId != 0) {
@@ -350,7 +350,7 @@ contract Zap is Pausable, Ownable {
 
         /// withdraw pool
         // TODO
-        // BalancerHelperV3._exitPool(
+        // BalancerV3Router._exitPool(
         //     balancerVault,
         //     IERC20(balancerPool).balanceOf(address(this)),
         //     poolId,

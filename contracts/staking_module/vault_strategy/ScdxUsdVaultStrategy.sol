@@ -16,7 +16,7 @@ import {IVault as IBalancerVault} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
 
 /// Internal imports
-import {BalancerHelperV3} from "./libraries/BalancerHelperV3.sol";
+import {BalancerV3Router} from "./libraries/BalancerV3Router.sol";
 
 /**
  * @title ScdxUsdVaultStrategy Contract.
@@ -214,7 +214,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
             // TODO
-            // BalancerHelperV3._joinPool(balancerVault, amountsToAdd_, 0, poolTokens, minBPTAmountOut);
+            // BalancerV3Router._joinPool(balancerVault, amountsToAdd_, 0, poolTokens, minBPTAmountOut);
         }
 
         minBPTAmountOut = 1;
