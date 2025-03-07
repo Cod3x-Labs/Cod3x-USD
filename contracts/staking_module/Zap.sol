@@ -48,6 +48,8 @@ contract Zap is Pausable, Ownable {
     IERC20 public immutable counterAsset;
     /// @dev Address with guardian privileges for emergency functions.
     address public guardian;
+    /// @dev Reference to the BalancerV3Router contract.
+    BalancerV3Router public immutable balancerV3Router;
 
     /// @dev Maps token addresses to their index in the pool tokens array.
     mapping(address => uint256) private tokenToIndex;
@@ -77,6 +79,7 @@ contract Zap is Pausable, Ownable {
      * @dev Initializes the contract with core dependencies and configuration.
      * @param _balancerVault Address of the Balancer vault contract.
      * @param _cod3xVault Address of the Cod3x vault contract.
+     * @param _balancerV3Router Address of the BalancerV3Router contract.
      * @param _strategy Address of the vault strategy contract.
      * @param _reliquary Address of the Reliquary staking contract.
      * @param _cdxUsd Address of the cdxUSD token.
@@ -87,6 +90,7 @@ contract Zap is Pausable, Ownable {
     constructor(
         address _balancerVault,
         address _cod3xVault,
+        address _balancerV3Router,
         address _strategy,
         address _reliquary,
         address _cdxUsd,
@@ -103,12 +107,14 @@ contract Zap is Pausable, Ownable {
         guardian = _guardian;
 
         balancerPool = ScdxUsdVaultStrategy(_strategy).balancerPool();
+        balancerV3Router = BalancerV3Router(_balancerV3Router);
 
         IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(balancerPool);
 
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             tokenToIndex[address(poolTokens_[i])] = i;
         }
+
 
         // Compatibility checks
         {
@@ -210,10 +216,10 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        // TODO
-        // BalancerV3Router._joinPool(
-        //     balancerVault, amountsToAdd_, poolId, poolTokens, 0 /* minBPTAmountOut */
-        // );
+        // TODO done
+        balancerV3Router.addLiquidityUnbalanced(
+            balancerPool, amountsToAdd_, 0 /* minBPTAmountOut */
+        );
 
         /// Cod3x Vault deposit
         cod3xVault.depositAll();
@@ -251,16 +257,13 @@ contract Zap is Pausable, Ownable {
         cod3xVault.withdraw(_scdxUsdAmount);
 
         /// withdraw pool
-        // TODO
-        // BalancerV3Router._exitPool(
-        //     balancerVault,
-        //     IERC20(balancerPool).balanceOf(address(this)),
-        //     poolId,
-        //     poolTokens,
-        //     _tokenToWithdraw,
-        //     tokenToIndex[_tokenToWithdraw],
-        //     _minAmountOut
-        // );
+        // TODO done
+        balancerV3Router.removeLiquiditySingleTokenExactIn(
+            balancerPool,
+            tokenToIndex[_tokenToWithdraw],
+            IERC20(balancerPool).balanceOf(address(this)),
+            _minAmountOut
+        );
 
         /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(
@@ -302,8 +305,10 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        // TODO
-        // BalancerV3Router._joinPool(balancerVault, amountsToAdd_, poolId, poolTokens, _minBPTAmountOut);
+        // TODO done 
+        balancerV3Router.addLiquidityUnbalanced(
+            balancerPool, amountsToAdd_, _minBPTAmountOut
+        );
 
         /// Reliquary deposit
         if (_relicId != 0) {
@@ -349,16 +354,13 @@ contract Zap is Pausable, Ownable {
         reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
 
         /// withdraw pool
-        // TODO
-        // BalancerV3Router._exitPool(
-        //     balancerVault,
-        //     IERC20(balancerPool).balanceOf(address(this)),
-        //     poolId,
-        //     poolTokens,
-        //     _tokenToWithdraw,
-        //     tokenToIndex[_tokenToWithdraw],
-        //     _minAmountOut
-        // );
+        // TODO done
+        balancerV3Router.removeLiquiditySingleTokenExactIn(
+            balancerPool,
+            tokenToIndex[_tokenToWithdraw],
+            IERC20(balancerPool).balanceOf(address(this)),
+            _minAmountOut
+        );
 
         /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(

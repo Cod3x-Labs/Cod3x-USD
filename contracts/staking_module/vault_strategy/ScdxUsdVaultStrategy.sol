@@ -36,6 +36,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     IReliquary public reliquary;
     /// @dev Reference to the Balancer vault contract.
     IBalancerVault public balancerVault;
+    /// @dev Reference to the BalancerV3Router contract.
+    BalancerV3Router public balancerV3Router;
 
     /// @dev Address of the Balancer pool.
     address public balancerPool;
@@ -63,6 +65,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
      * @dev Initializes the strategy with core parameters and permissions.
      * @param _code3xVault Address of the Cod3x vault contract.
      * @param _balancerVault Address of the Balancer vault contract.
+     * @param _balancerV3Router Address of the BalancerV3Router contract.
      * @param _strategists Array of strategist addresses.
      * @param _multisigRoles Array of multisig role addresses.
      * @param _keepers Array of keeper addresses.
@@ -73,6 +76,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     function initialize(
         address _code3xVault,
         address _balancerVault,
+        address _balancerV3Router,
         address[] memory _strategists,
         address[] memory _multisigRoles,
         address[] memory _keepers,
@@ -110,6 +114,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
         minBPTAmountOut = 1;
         cdxUsdIndex = type(uint256).max;
         balancerPool = _balancerPool;
+        balancerV3Router = BalancerV3Router(_balancerV3Router);
 
         IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(_balancerPool);
         if (poolTokens_.length != NB_BALANCER_POOL_ASSET) {
@@ -213,8 +218,12 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
             uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
-            // TODO
-            // BalancerV3Router._joinPool(balancerVault, amountsToAdd_, 0, poolTokens, minBPTAmountOut);
+            // TODO done
+            balancerV3Router.addLiquidityUnbalanced(
+                balancerPool,
+                amountsToAdd_,
+                minBPTAmountOut
+            );
         }
 
         minBPTAmountOut = 1;

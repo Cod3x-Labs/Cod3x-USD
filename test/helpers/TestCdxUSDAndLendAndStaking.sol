@@ -86,6 +86,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
     ReaperVaultV2 public cod3xVault;
     ScdxUsdVaultStrategy public strategy;
     IERC20 public mockRewardToken;
+    BalancerV3Router public balancerV3Router;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
@@ -120,7 +121,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            (IERC20[] memory setupPoolTokens) = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
+            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexCounterAssetTemp;
@@ -210,91 +211,96 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), "");
             strategy = ScdxUsdVaultStrategy(address(proxy));
 
+            address[] memory ownerArr2 = new address[](2);
+            ownerArr2[0] = address(strategy);
+            ownerArr2[1] = address(this);
+            balancerV3Router = new BalancerV3Router(address(cod3xVault), address(this), ownerArr2);
+
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
-                // strategy.initialize(
-                //     address(cod3xVault),
-                //     address(vault),
-                //     ownerArr1,
-                //     ownerArr,
-                //     ownerArr1,
-                //     address(cdxUsd),
-                //     address(reliquary),
-                //     address(poolAdd),
-                //     poolId
-                // );
+            strategy.initialize(
+                address(cod3xVault),
+                address(vaultV3),
+                address(balancerV3Router),
+                ownerArr1,
+                ownerArr,
+                ownerArr1,
+                address(cdxUsd),
+                address(reliquary),
+                address(poolAdd)
+            );
 
-            // // console2.log(address(cod3xVault));
-            // // console2.log(address(vault));
-            // // console2.log(address(cdxUSD));
-            // // console2.log(address(reliquary));
-            // // console2.log(address(poolAdd));
+            // console2.log(address(cod3xVault));
+            // console2.log(address(vaultV3));
+            // console2.log(address(cdxUSD));
+            // console2.log(address(reliquary));
+            // console2.log(address(poolAdd));
 
-            // cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
+            cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
         }
 
-        // // ======= cdxUSD Cod3x Lend dependencies deploy and configure =======
-        // {
-        //     cdxUsdAToken = new CdxUsdAToken();
-        //     cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
-        //     cdxUsdOracle = new CdxUsdOracle();
-        //     cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
-        //         address(deployedContracts.lendingPoolAddressesProvider),
-        //         address(cdxUsd),
-        //         false,
-        //         vault, // balancerVault,
-        //         poolId,
-        //         1e25,
-        //         2e25, // starts at 2% interest rate
-        //         13e19
-        //     );
-        //     counterAssetPriceFeed =
-        //         new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
-        //     cdxUsdInterestRateStrategy.setOracleValues(
-        //         address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
-        //     );
+        // ======= cdxUSD Cod3x Lend dependencies deploy and configure =======
+        {
+            cdxUsdAToken = new CdxUsdAToken();
+            cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
+            cdxUsdOracle = new CdxUsdOracle();
+            cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
+                address(deployedContracts.lendingPoolAddressesProvider),
+                address(cdxUsd),
+                false,
+                address(vaultV3), // balancerVault,
+                address(poolAdd),
+                1e25,
+                2e25, // starts at 2% interest rate
+                13e19
+            );
+            counterAssetPriceFeed =
+                new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
+            cdxUsdInterestRateStrategy.setOracleValues(
+                address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
+            );
 
-        //     fixture_configureCdxUsd(
-        //         address(deployedContracts.lendingPool),
-        //         address(cdxUsdAToken),
-        //         address(cdxUsdVariableDebtToken),
-        //         address(cdxUsdOracle),
-        //         address(cdxUsd),
-        //         address(cdxUsdInterestRateStrategy),
-        //         address(rewarder),
-        //         configAddresses,
-        //         deployedContracts.lendingPoolConfigurator,
-        //         deployedContracts.lendingPoolAddressesProvider
-        //     );
+            fixture_configureCdxUsd(
+                address(deployedContracts.lendingPool),
+                address(cdxUsdAToken),
+                address(cdxUsdVariableDebtToken),
+                address(cdxUsdOracle),
+                address(cdxUsd),
+                address(cdxUsdInterestRateStrategy),
+                address(rewarder),
+                configAddresses,
+                deployedContracts.lendingPoolConfigurator,
+                deployedContracts.lendingPoolAddressesProvider
+            );
 
-        //     cdxUsd.addFacilitator(
-        //         deployedContracts.lendingPool.getReserveData(address(cdxUsd), false).aTokenAddress,
-        //         "Cod3x Lend",
-        //         DEFAULT_CAPACITY
-        //     );
-        //     // configAddresses = ConfigAddresses(
-        //     //     address(deployedContracts.cod3xLendDataProvider),
-        //     //     address(deployedContracts.stableStrategy),
-        //     //     address(deployedContracts.volatileStrategy),
-        //     //     address(deployedContracts.treasury),
-        //     //     address(deployedContracts.rewarder),
-        //     //     address(deployedContracts.aTokensAndRatesHelper)
-        //     // );
+            cdxUsd.addFacilitator(
+                deployedContracts.lendingPool.getReserveData(address(cdxUsd), false).aTokenAddress,
+                "Cod3x Lend",
+                DEFAULT_CAPACITY
+            );
+            // configAddresses = ConfigAddresses(
+            //     address(deployedContracts.cod3xLendDataProvider),
+            //     address(deployedContracts.stableStrategy),
+            //     address(deployedContracts.volatileStrategy),
+            //     address(deployedContracts.treasury),
+            //     address(deployedContracts.rewarder),
+            //     address(deployedContracts.aTokensAndRatesHelper)
+            // );
 
-        //     tokens.push(address(cdxUsd));
-        //     commonContracts.aTokens =
-        //         fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
+            tokens.push(address(cdxUsd));
+            commonContracts.aTokens =
+                fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
 
-        //     erc20Tokens.push(ERC20(address(cdxUsd)));
-        //     // console2.log("Index: ", idx);
-        //     (address _aTokenAddress,) = deployedContracts
-        //         .protocolDataProvider
-        //         .getReserveTokensAddresses(address(cdxUsd), false);
-        //     aTokens.push(AToken(_aTokenAddress));
-        //     (, address _variableDebtToken) = deployedContracts
-        //         .protocolDataProvider
-        //         .getReserveTokensAddresses(address(cdxUsd), false);
-        //     variableDebtTokens.push(VariableDebtToken(_variableDebtToken));
-        // }
+            erc20Tokens.push(ERC20(address(cdxUsd)));
+            // console2.log("Index: ", idx);
+            (address _aTokenAddress,) = deployedContracts
+                .protocolDataProvider
+                .getReserveTokensAddresses(address(cdxUsd), false);
+            aTokens.push(AToken(_aTokenAddress));
+            (, address _variableDebtToken) = deployedContracts
+                .protocolDataProvider
+                .getReserveTokensAddresses(address(cdxUsd), false);
+            variableDebtTokens.push(VariableDebtToken(_variableDebtToken));
+        }
 
         // MAX approve "cod3xVault" by all users
         for (uint160 i = 1; i <= 3; i++) {
