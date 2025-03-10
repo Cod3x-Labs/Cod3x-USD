@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
+import "forge-std/console2.sol";
+
 // Cod3x Lend
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
@@ -9,20 +11,10 @@ import "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
 import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import {VariableDebtToken} from
     "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/VariableDebtToken.sol";
-
 import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/MathUtils.sol";
-// import {ReserveBorrowConfiguration} from  "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 
 // Balancer
-import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/interfaces/IVault.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import "forge-std/console2.sol";
-
 import {TestCdxUSDAndLendAndStaking} from "test/helpers/TestCdxUSDAndLendAndStaking.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
@@ -43,7 +35,6 @@ import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 // CdxUSD
 import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
@@ -126,9 +117,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
             counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove
         );
 
-        assertApproxEqRel(
-            counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove, 2e18, 1e16
-        );
+        assertApproxEqRel(cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove, 2e18, 1e16);
         assertEq(IERC20(poolAdd).balanceOf(userB), 0);
     }
 
@@ -169,7 +158,9 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
             counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove
         );
 
-        assertApproxEqRel(cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove, 2e18, 1e16);
+        assertApproxEqRel(
+            counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove, 2e18, 1e16
+        );
         assertEq(IERC20(poolAdd).balanceOf(userB), 0);
     }
 
@@ -190,8 +181,8 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[0]);
         assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[1]);
 
-        amounts[0] = 1e18;
-        amounts[1] = 0;
+        amounts[0] = 0;
+        amounts[1] = 1e18;
 
         // get BPT token address
         IERC20[] memory tokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);

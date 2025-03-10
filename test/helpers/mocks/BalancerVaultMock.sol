@@ -3,7 +3,6 @@ pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "forge-std/console2.sol";
-import {IVault} from "contracts/interfaces/IVault.sol";
 
 contract BalancerVaultMock {
     mapping(bytes32 => mapping(address => uint256)) _idToTokenAndCash;
@@ -55,9 +54,9 @@ contract BalancerVaultMock {
         }
     }
 
-    function getPool(bytes32 poolId) external view returns (address, IVault.PoolSpecialization) {
-        return (address(this), IVault.PoolSpecialization.GENERAL);
-    }
+    // function getPool(bytes32 poolId) external view returns (address, IVault.PoolSpecialization) {
+    //     return (address(this), IVault.PoolSpecialization.GENERAL);
+    // }
 
     function getBptIndex() external view returns (uint256) {
         return 2;

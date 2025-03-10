@@ -38,7 +38,6 @@ import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 // CdxUSD
 import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
