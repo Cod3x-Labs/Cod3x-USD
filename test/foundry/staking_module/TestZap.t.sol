@@ -3,11 +3,10 @@ pragma solidity ^0.8.22;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "forge-std/console2.sol";
-
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
-// reliquary
+/// reliquary imports
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
@@ -17,7 +16,7 @@ import "contracts/staking_module/reliquary/rewarders/ParentRollingRewarder.sol";
 import "contracts/interfaces/ICurves.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-// vault
+/// vault imports
 import {ReaperBaseStrategyv4} from "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import {ReaperVaultV2} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
 import {ScdxUsdVaultStrategy} from
@@ -48,7 +47,7 @@ import {IVaultExplorer} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 import {TRouter} from "../../helpers/TRouter.sol";
 
-// Zap
+/// Zap
 import "contracts/staking_module/Zap.sol";
 
 contract TestZap is TestCdxUSD, ERC721Holder {
@@ -161,6 +160,10 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         /// ========== scdxUSD Vault Strategy Deploy ===========
         {
+            address[] memory interactors = new address[](1);
+            interactors[0] = address(this);
+            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
+
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
             ownerArr[1] = address(this);
@@ -192,7 +195,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
             strategy.initialize(
                 address(cod3xVault),
                 address(vaultV3),
-                address(tRouter),
+                address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
                 ownerArr1,
@@ -212,11 +215,6 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         /// ========== Zap Deploy ===========
         {
-            address[] memory interactors = new address[](2);
-            interactors[0] = address(this);
-            interactors[1] = address(strategy);
-            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
-
             zap = new Zap(
                 address(vaultV3),
                 address(cod3xVault),
@@ -229,8 +227,9 @@ contract TestZap is TestCdxUSD, ERC721Holder {
                 address(this)
             );
 
-            address[] memory interactors2 = new address[](1);
+            address[] memory interactors2 = new address[](2);
             interactors2[0] = address(zap);
+            interactors2[1] = address(strategy);
             balancerV3Router.setInteractors(interactors2);
         }
 

@@ -177,7 +177,7 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
                 "Cod3x-USD-Pool",
                 "CUP",
                 tokenConfigs,
-                2500, // test only
+                amplificationParameter, // test only
                 roleAccounts,
                 1e12, // 0.001% (in WAD)
                 address(0),

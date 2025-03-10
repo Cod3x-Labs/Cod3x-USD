@@ -121,7 +121,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
             revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
         }
 
-        IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
+        IERC20(_cdxUSD).approve(_balancerV3Router, type(uint256).max);
 
         for (uint256 i = 0; i < NB_BALANCER_POOL_ASSET; i++) {
             if (cdxUSD == poolTokens_[i]) {
