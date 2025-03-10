@@ -21,6 +21,29 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
+import {TRouter} from "test/helpers/TRouter.sol";
+
 /**
  * @title Zap
  * @author Cod3x - Beirao
@@ -114,7 +137,6 @@ contract Zap is Pausable, Ownable {
         for (uint256 i = 0; i < poolTokens_.length; i++) {
             tokenToIndex[address(poolTokens_[i])] = i;
         }
-
 
         // Compatibility checks
         {
@@ -305,10 +327,8 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        // TODO done 
-        balancerV3Router.addLiquidityUnbalanced(
-            balancerPool, amountsToAdd_, _minBPTAmountOut
-        );
+        // TODO done
+        balancerV3Router.addLiquidityUnbalanced(balancerPool, amountsToAdd_, _minBPTAmountOut);
 
         /// Reliquary deposit
         if (_relicId != 0) {

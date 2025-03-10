@@ -219,11 +219,7 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
             // TODO done
-            balancerV3Router.addLiquidityUnbalanced(
-                balancerPool,
-                amountsToAdd_,
-                minBPTAmountOut
-            );
+            balancerV3Router.addLiquidityUnbalanced(balancerPool, amountsToAdd_, minBPTAmountOut);
         }
 
         minBPTAmountOut = 1;
