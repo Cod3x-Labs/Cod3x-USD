@@ -24,25 +24,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// balancer V3 imports
 import {BalancerV3Router} from
     "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
-import {
-    TokenConfig,
-    TokenType,
-    PoolRoleAccounts,
-    LiquidityManagement,
-    AddLiquidityKind,
-    RemoveLiquidityKind,
-    AddLiquidityParams,
-    RemoveLiquidityParams
-} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
-import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
-import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
-import {StablePoolFactory} from
-    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
-import {IRateProvider} from
-    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
-import {IVaultExplorer} from
-    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
-import {TRouter} from "test/helpers/TRouter.sol";
 
 /**
  * @title Zap
@@ -174,9 +155,14 @@ contract Zap is Pausable, Ownable {
         {
             IERC20(_cdxUsd).approve(_balancerVault, type(uint256).max);
             IERC20(_counterAsset).approve(_balancerVault, type(uint256).max);
+            IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
+
+            IERC20(_cdxUsd).approve(_balancerV3Router, type(uint256).max);
+            IERC20(_counterAsset).approve(_balancerV3Router, type(uint256).max);
+
             IERC20(balancerPool).approve(_cod3xVault, type(uint256).max);
             IERC20(balancerPool).approve(_reliquary, type(uint256).max);
-            IERC20(_cod3xVault).approve(_balancerVault, type(uint256).max);
+            IERC20(balancerPool).approve(_balancerV3Router, type(uint256).max);
         }
     }
 

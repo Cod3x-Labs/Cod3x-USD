@@ -59,7 +59,8 @@ import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol
 import {IERC20Detailed} from
     "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/IERC20Detailed.sol";
 
-import {BalancerV3Router} from "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
 
 /// events
 event Deposit(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount);

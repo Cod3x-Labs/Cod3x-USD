@@ -287,8 +287,9 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             // );
 
             tokens.push(address(cdxUsd));
-            commonContracts.aTokens =
-                fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
+            commonContracts.aTokens = fixture_getATokens(
+                tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider)
+            );
 
             erc20Tokens.push(ERC20(address(cdxUsd)));
             // console2.log("Index: ", idx);
