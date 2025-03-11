@@ -208,7 +208,6 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (, uint256 currentVariableBorrowRate,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
-        // TODO
         (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
             IVault(vaultV3).getPoolTokenInfo(poolAdd);
 

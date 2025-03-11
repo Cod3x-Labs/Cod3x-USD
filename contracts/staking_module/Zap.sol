@@ -224,7 +224,6 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        // TODO done
         balancerV3Router.addLiquidityUnbalanced(
             balancerPool, amountsToAdd_, 0 /* minBPTAmountOut */
         );
@@ -265,7 +264,6 @@ contract Zap is Pausable, Ownable {
         cod3xVault.withdraw(_scdxUsdAmount);
 
         /// withdraw pool
-        // TODO done
         balancerV3Router.removeLiquiditySingleTokenExactIn(
             balancerPool,
             tokenToIndex[_tokenToWithdraw],
@@ -313,7 +311,6 @@ contract Zap is Pausable, Ownable {
         amountsToAdd_[tokenToIndex[address(cdxUsd)]] = _cdxUsdAmt;
         amountsToAdd_[tokenToIndex[address(counterAsset)]] = _caAmt;
 
-        // TODO done
         balancerV3Router.addLiquidityUnbalanced(balancerPool, amountsToAdd_, _minBPTAmountOut);
 
         /// Reliquary deposit
@@ -360,7 +357,6 @@ contract Zap is Pausable, Ownable {
         reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
 
         /// withdraw pool
-        // TODO done
         balancerV3Router.removeLiquiditySingleTokenExactIn(
             balancerPool,
             tokenToIndex[_tokenToWithdraw],
