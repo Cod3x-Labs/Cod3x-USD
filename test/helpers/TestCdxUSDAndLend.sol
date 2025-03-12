@@ -343,7 +343,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                     abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
                 )
             );
-            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userB, "user b", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userC, "user c", DEFAULT_CAPACITY * 1000);
         }
 
         /// ======= Counter Asset deployments =======
@@ -1031,7 +1033,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 address(0),
                 false,
                 false,
-                bytes32(0x64a595969a110db1d73160536da4a6410f757b6b5fab907addabb71a14d64d2a)
+                bytes32(keccak256(abi.encode(tokenConfigs, bytes("Cod3x-USD-Pool"), bytes("CUP"))))
             )
         );
 

@@ -59,8 +59,32 @@ import {BalancerV3Router} from
 contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
     BalancerV3Router public router;
 
+    IERC20 public counterAsset2;
+    address public poolAdd2;
+    IERC20[] public assets2;
+
+    uint256 indexCdxUsd2;
+    uint256 indexCounterAsset2;
+
     function setUp() public override {
         super.setUp();
+
+        counterAsset2 = IERC20(address(new ERC20Mock(8)));
+
+        /// initial mint
+        ERC20Mock(address(counterAsset2)).mint(userA, INITIAL_COUNTER_ASSET_AMT);
+        ERC20Mock(address(counterAsset2)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
+        ERC20Mock(address(counterAsset2)).mint(userC, INITIAL_COUNTER_ASSET_AMT);
+        vm.startPrank(userC);
+        ERC20Mock(address(cdxUsd)).mint(userC, INITIAL_CDXUSD_AMT);
+        vm.stopPrank();
+
+        vm.startPrank(userC); // address(0x1) == address(1)
+        cdxUsd.approve(address(vaultV3), type(uint256).max);
+        counterAsset2.approve(address(vaultV3), type(uint256).max);
+        cdxUsd.approve(address(tRouter), type(uint256).max);
+        counterAsset2.approve(address(tRouter), type(uint256).max);
+        vm.stopPrank();
 
         address[] memory interactors = new address[](4);
         interactors[0] = address(this);
@@ -70,13 +94,124 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
 
         router = new BalancerV3Router(vaultV3, address(this), interactors);
 
+        // ======= Balancer Pool 2 Deploy =======
+        {
+            assets2.push(IERC20(address(counterAsset2)));
+            assets2.push(IERC20(address(cdxUsd)));
+
+            IERC20[] memory assetsSorted = sort(assets2);
+            assets2[0] = assetsSorted[0];
+            assets2[1] = assetsSorted[1];
+
+            // balancer stable pool creation
+            poolAdd2 = createStablePool(assets2, 2500, userC);
+
+            // join Pool
+            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd2);
+
+            for (uint256 i = 0; i < setupPoolTokens.length; i++) {
+                if (setupPoolTokens[i] == cdxUsd) indexCdxUsd2 = i;
+                if (setupPoolTokens[i] == IERC20(address(counterAsset2))) indexCounterAsset2 = i;
+            }
+
+            uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
+            amountsToAdd[indexCdxUsd2] = 1_000_000e18;
+            amountsToAdd[indexCounterAsset2] = 1_000_000e8;
+
+            vm.prank(userC);
+            tRouter.initialize(poolAdd2, assets2, amountsToAdd);
+
+            vm.prank(userC);
+            IERC20(poolAdd2).transfer(address(this), 1);
+
+            for (uint256 i = 0; i < assets2.length; i++) {
+                if (assets2[i] == cdxUsd) indexCdxUsd = i;
+                if (assets2[i] == IERC20(address(counterAsset2))) {
+                    indexCounterAsset = i;
+                }
+            }
+        }
+
         // all user approve max router
         for (uint256 i = 0; i < interactors.length; i++) {
             vm.startPrank(interactors[i]);
             cdxUsd.approve(address(router), type(uint256).max);
             counterAsset.approve(address(router), type(uint256).max);
+            counterAsset2.approve(address(router), type(uint256).max);
             IERC20(poolAdd).approve(address(router), type(uint256).max);
+            IERC20(poolAdd2).approve(address(router), type(uint256).max);
             vm.stopPrank();
+        }
+    }
+
+    // Make sure 18decScaled(balancesRaw_) == lastBalancesLiveScaled18_
+    function test_getPoolTokenInfo() public {
+        {
+            (
+                IERC20[] memory tokens_,
+                ,
+                uint256[] memory balancesRaw_,
+                uint256[] memory lastBalancesLiveScaled18_
+            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+
+            for (uint256 i = 0; i < tokens_.length; i++) {
+                console2.log("token ::: ", address(tokens_[i]));
+                console2.log("balanceRaw              ::: ", balancesRaw_[i]);
+                console2.log("lastBalanceLiveScaled18 ::: ", lastBalancesLiveScaled18_[i]);
+                console2.log("--------------------------------");
+
+                assertEq(scaleDecimals(balancesRaw_[i], tokens_[i]), lastBalancesLiveScaled18_[i]);
+            }
+        }
+
+        // add liquidity
+        uint256[] memory amountsToAdd = new uint256[](assets2.length);
+        amountsToAdd[indexCdxUsd2] = 101100e18;
+        amountsToAdd[indexCounterAsset2] = 1900e8;
+
+        vm.startPrank(userB);
+        router.addLiquidityUnbalanced(poolAdd2, amountsToAdd, 0);
+        vm.stopPrank();
+
+        {
+            (
+                IERC20[] memory tokens_,
+                ,
+                uint256[] memory balancesRaw_,
+                uint256[] memory lastBalancesLiveScaled18_
+            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+
+            for (uint256 i = 0; i < tokens_.length; i++) {
+                console2.log("token ::: ", address(tokens_[i]));
+                console2.log("balanceRaw              ::: ", balancesRaw_[i]);
+                console2.log("lastBalanceLiveScaled18 ::: ", lastBalancesLiveScaled18_[i]);
+                console2.log("--------------------------------");
+
+                assertEq(scaleDecimals(balancesRaw_[i], tokens_[i]), lastBalancesLiveScaled18_[i]);
+            }
+        }
+
+        // remove liquidity
+        vm.startPrank(userB);
+        router.removeLiquiditySingleTokenExactIn(poolAdd2, 0, IERC20(poolAdd2).balanceOf(userB), 1);
+        vm.stopPrank();
+
+        {
+            (
+                IERC20[] memory tokens_,
+                ,
+                uint256[] memory balancesRaw_,
+                uint256[] memory lastBalancesLiveScaled18_
+            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+
+            for (uint256 i = 0; i < tokens_.length; i++) {
+                console2.log("token ::: ", address(tokens_[i]));
+                console2.log("balanceRaw              ::: ", balancesRaw_[i]);
+                console2.log("lastBalanceLiveScaled18 ::: ", lastBalancesLiveScaled18_[i]);
+                console2.log("--------------------------------");
+
+                assertEq(scaleDecimals(balancesRaw_[i], tokens_[i]), lastBalancesLiveScaled18_[i]);
+            }
         }
     }
 
@@ -204,5 +339,17 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
 
         assertApproxEqRel(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
         assertApproxEqRel(counterAsset.balanceOf(userB), counterAssetBalanceBefore + 1e18 / 2, 1e16); // 1%
+    }
+
+    /// ================ Helper functions ================
+
+    /**
+     * @notice Scales an amount to the appropriate number of decimals (18) based on the token's decimal precision.
+     * @param amount The value representing the amount to be scaled.
+     * @param token The address of the IERC20 token contract.
+     * @return The scaled amount.
+     */
+    function scaleDecimals(uint256 amount, IERC20 token) internal view returns (uint256) {
+        return amount * 10 ** (18 - ERC20(address(token)).decimals());
     }
 }
