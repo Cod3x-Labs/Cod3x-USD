@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+// todo remove
+import "forge-std/console2.sol";
+
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/interfaces/IRehypothecation.sol";
 import "contracts/interfaces/IBalancerGauge.sol";
+import "contracts/interfaces/IBalancerMinter.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -18,11 +22,21 @@ contract GaugeBalancer is IRehypothecation, Ownable {
     IReliquary public immutable reliquary;
     IBalancerGauge public immutable gauge;
     IERC20 public immutable token;
+    IERC20 public immutable balToken;
+    IBalancerMinter public immutable balancerMinter;
 
-    constructor(address _reliquary, address _gauge, address _token) Ownable(_reliquary) {
+    constructor(
+        address _reliquary,
+        address _gauge,
+        address _token,
+        address _balToken,
+        address _balancerMinter
+    ) Ownable(_reliquary) {
         reliquary = IReliquary(_reliquary);
         gauge = IBalancerGauge(_gauge);
         token = IERC20(_token);
+        balToken = IERC20(_balToken);
+        balancerMinter = IBalancerMinter(_balancerMinter);
 
         // Approvals
         token.approve(_gauge, type(uint256).max);
@@ -41,13 +55,20 @@ contract GaugeBalancer is IRehypothecation, Ownable {
     }
 
     function claim(address _receiver) external onlyOwner {
-        gauge.claim_rewards();
+        // check what hapen if there is nothng to claim/mint
+        // TODO ::: if reward to claim is not 0, then claim
 
+        // Claim rewards.
+        gauge.claim_rewards();
         for (uint256 i = 0; i < gauge.reward_count(); i++) {
             IERC20 tokenToClaim_ = gauge.reward_tokens(i);
             uint256 amtToClaim_ = tokenToClaim_.balanceOf(address(this));
             if (amtToClaim_ != 0) tokenToClaim_.safeTransfer(_receiver, amtToClaim_);
         }
+
+        // Mint BAL tokens.
+        uint256 amtToMint_ = balancerMinter.mint(address(gauge));
+        if (amtToMint_ != 0) balToken.safeTransfer(_receiver, amtToMint_);
     }
 
     /// ============= Views =============
