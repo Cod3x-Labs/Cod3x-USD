@@ -366,7 +366,6 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         uint256 totalInPool_;
         uint256 cdxUsdAmtInPool_;
 
-        // TODO :: verify lastBalancesLiveScaled18_ is the value we want.
         (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
             _balancerVault.getPoolTokenInfo(_balancerPool);
 

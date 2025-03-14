@@ -225,6 +225,40 @@ contract ReliquaryBalancerGaugeV3 is ERC721Holder, Test {
         assertApproxEqAbs(oath.balanceOf(address(this)) / 1e18, 17280, 1);
     }
 
+    function testHarvest2() public {
+        IERC20(balancerPool).transfer(address(1), 1.25 ether);
+
+        vm.startPrank(address(1));
+        IERC20(balancerPool).approve(address(reliquary), type(uint256).max);
+        uint256 relicIdA = reliquary.createRelicAndDeposit(address(1), 0, 1 ether);
+        skip(360 days); // consume all rewards
+        reliquary.withdraw(0.75 ether, relicIdA, address(0));
+        reliquary.deposit(1 ether, relicIdA, address(0));
+
+        /// Gauge claim gho + bal
+        uint256 treasuryBalanceBeforeGho = IERC20(gho).balanceOf(treasury);
+        uint256 treasuryBalanceBeforeBal = IERC20(balToken).balanceOf(treasury);
+        reliquary.claimRehypothecation(0);
+        assertGt(IERC20(gho).balanceOf(treasury), treasuryBalanceBeforeGho);
+        assertGt(IERC20(balToken).balanceOf(treasury), treasuryBalanceBeforeBal);
+
+        skip(10 days);
+        uint256 treasuryBalanceMidGho = IERC20(gho).balanceOf(treasury);
+        uint256 treasuryBalanceMidBal = IERC20(balToken).balanceOf(treasury);
+        reliquary.claimRehypothecation(0);
+        assertEq(IERC20(gho).balanceOf(treasury), treasuryBalanceMidGho);
+        assertEq(IERC20(balToken).balanceOf(treasury), treasuryBalanceMidBal);
+
+        vm.stopPrank();
+        uint256 relicIdB = reliquary.createRelicAndDeposit(address(this), 0, 100 ether);
+        skip(1 days);
+        reliquary.update(relicIdB, address(this));
+
+        vm.startPrank(address(1));
+        reliquary.update(relicIdA, address(this));
+        vm.stopPrank();
+    }
+
     function testDisableRehypothecation() public {
         IERC20(balancerPool).transfer(address(1), 1.25 ether);
 
@@ -502,14 +536,13 @@ contract ReliquaryBalancerGaugeV3 is ERC721Holder, Test {
         skip(366 days);
         reliquary.update(idParent, address(0));
 
-        // TODO uncomment
-        // for (uint256 i = 0; i < 10; i++) {
-        //     uint256 idChild = reliquary.createRelicAndDeposit(address(this), 0, 10 ether);
-        //     reliquary.shift(idParent, idChild, 1);
-        //     reliquary.update(idParent, address(0));
-        //     uint256 levelChild = reliquary.getPositionForId(idChild).level;
-        //     assertEq(levelChild, 0); // assert max level
-        // }
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 idChild = reliquary.createRelicAndDeposit(address(this), 0, 10 ether);
+            reliquary.shift(idParent, idChild, 1);
+            reliquary.update(idParent, address(0));
+            uint256 levelChild = reliquary.getPositionForId(idChild).level;
+            assertEq(levelChild, 0); // assert max level
+        }
     }
 
     function testPause() public {
