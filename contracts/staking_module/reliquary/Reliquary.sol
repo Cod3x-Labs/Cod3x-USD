@@ -139,12 +139,6 @@ contract Reliquary is
         {
             if (_poolToken == rewardToken) revert Reliquary__REWARD_TOKEN_AS_POOL_TOKEN();
 
-            // TODO evaluate risk
-            // // Tokens with more than the maximum allowed supply can't serve as pool tokens.
-            // if (IERC20(_poolToken).totalSupply() > MAX_SUPPLY_ALLOWED) {
-            //     revert Reliquary__TOKEN_NOT_COMPATIBLE();
-            // }
-
             // Multiplier at f(0) must not be 0.
             if (_curve.getFunction(0) == 0) {
                 revert Reliquary__MULTIPLIER_AT_LEVEL_ZERO_SHOULD_BE_GT_ZERO();

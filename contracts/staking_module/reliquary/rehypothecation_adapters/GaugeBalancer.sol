@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-// todo
-import "forge-std/console2.sol";
-
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/interfaces/IRehypothecation.sol";
 import "contracts/interfaces/IBalancerGauge.sol";
@@ -99,9 +96,7 @@ contract GaugeBalancer is IRehypothecation, Ownable {
     function claim(address _receiver) external onlyOwner {
         // Claim rewards.
         gauge.claim_rewards();
-        console2.log("Reward count ::: ", gauge.reward_count());
         for (uint256 i = 0; i < gauge.reward_count(); i++) {
-            // todo does the reward_count() function return 0 when there are no more rewards? If true, some previously accumulated rewards could be stuck in the contract.
             IERC20 tokenToClaim_ = gauge.reward_tokens(i);
             uint256 amtToClaim_ = tokenToClaim_.balanceOf(address(this));
             if (amtToClaim_ != 0) tokenToClaim_.safeTransfer(_receiver, amtToClaim_);
