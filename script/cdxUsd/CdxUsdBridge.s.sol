@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import "../Constants.sol";
+import "../DeploymentConstants.s.sol";
 import "contracts/tokens/CdxUSD.sol";
 
 // OApp imports
@@ -17,7 +17,7 @@ import {
     MessagingFee, MessagingReceipt
 } from "@layerzerolabs/lz-evm-oapp-v2/contracts/oft/OFTCore.sol";
 
-contract CdxUsdBridge is Script, Constants {
+contract CdxUsdBridge is Script, DeploymentConstants {
     using OptionsBuilder for bytes;
 
     function setUp() public {}

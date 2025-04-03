@@ -12,10 +12,10 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     uint256 DEFAULT_TIME_BEFORE_OP = 6 hours;
     int256 counterAssetPrice = int256(1 * 10 ** PRICE_FEED_DECIMALS);
 
-    ERC20 WBTC; // wbtcPrice =  670000,0000000$
-    ERC20 ETH; // ethPrice =  3700,00000000$
-    ERC20 DAI; // daiPrice =  1,00000000$
-    ERC20 CDXUSD; // cdxUsdPrice =  1,00000000$
+    ERC20 wbtcEr20; // wbtcPrice =  670000,0000000$
+    ERC20 ethErc220; // ethPrice =  3700,00000000$
+    ERC20 daiErc20; // daiPrice =  1,00000000$
+    ERC20 cdxUsdErc20; // cdxUsdPrice =  1,00000000$
 
     int256 ONE = int256(1 * 10 ** PRICE_FEED_DECIMALS);
     int256 RAY = int256(1e27);
@@ -50,22 +50,22 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
         ERC20Mock(address(cdxUsd)).approve(address(tRouter), type(uint256).max);
         ERC20(address(poolAdd)).approve(address(tRouter), type(uint256).max);
 
-        WBTC = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
-        ETH = erc20Tokens[1]; // ethPrice =  3700,00000000$
-        DAI = erc20Tokens[2]; // daiPrice =  1,00000000$
-        CDXUSD = erc20Tokens[3]; // cdxUsdPrice =  1,00000000$
+        wbtcEr20 = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
+        ethErc220 = erc20Tokens[1]; // ethPrice =  3700,00000000$
+        daiErc20 = erc20Tokens[2]; // daiPrice =  1,00000000$
+        cdxUsdErc20 = erc20Tokens[3]; // cdxUsdPrice =  1,00000000$
     }
 
     function testInterestRateIncrease() public {
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
-        swapBalancer(users[1], CDXUSD, 2_000_000e18);
+        swapBalancer(users[1], cdxUsdErc20, 2_000_000e18);
         plateau(20);
         (, uint256 currentVariableBorrowRateAfter,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
@@ -74,11 +74,11 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     }
 
     function testInterestRateDecrease() public {
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
@@ -95,17 +95,17 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function testCounterAssetDeppegIncrease(uint256 priceSeed) public {
         int256 price_ = int256(bound(priceSeed, 1, uint256(ONE * 2)));
 
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
         counterAssetPriceFeed.updateAnswer(price_);
 
-        swapBalancer(users[1], CDXUSD, 2_000_000e18);
+        swapBalancer(users[1], cdxUsdErc20, 2_000_000e18);
         plateau(20);
         (, uint256 currentVariableBorrowRateAfter,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
@@ -120,11 +120,11 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function testCounterAssetDeppegDecrease(uint256 priceSeed) public {
         int256 price_ = int256(bound(priceSeed, 1, uint256(ONE * 2)));
 
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
@@ -145,11 +145,11 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     }
 
     function testManuelInterestRate() public {
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         setManualInterestRate(1e27);
 
         (, uint256 currentVariableBorrowRateBefore,) =
@@ -164,11 +164,11 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     }
 
     function testSetErrI() public {
-        deposit(users[0], WBTC, 2e8);
-        deposit(users[1], WBTC, 20_000e8);
-        deposit(users[1], DAI, 100_000e18);
+        deposit(users[0], wbtcEr20, 2e8);
+        deposit(users[1], wbtcEr20, 20_000e8);
+        deposit(users[1], daiErc20, 100_000e18);
 
-        borrow(users[1], CDXUSD, 9_000_000e18);
+        borrow(users[1], cdxUsdErc20, 9_000_000e18);
         (, uint256 currentVariableBorrowRateBefore,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
@@ -221,13 +221,13 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
             CdxUsdAToken(address(commonContracts.aTokens[3]))._reliquaryAllocation();
 
         assertGt(balanceCdxUsdATokenBefore, 0);
-        assertEq(cdxusd.balanceOf(treasury), 0);
+        assertEq(cdxusd.balanceOf(extContracts.treasury), 0);
 
         CdxUsdAToken(address(commonContracts.aTokens[3])).distributeFeesToTreasury();
 
         assertEq(cdxusd.balanceOf(address(commonContracts.aTokens[3])), 0);
         assertEq(
-            cdxusd.balanceOf(treasury),
+            cdxusd.balanceOf(extContracts.treasury),
             balanceCdxUsdATokenBefore - bpsReliquaryAlloc * balanceCdxUsdATokenBefore / 10000
         );
     }

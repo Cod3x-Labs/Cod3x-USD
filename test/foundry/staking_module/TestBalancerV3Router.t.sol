@@ -80,9 +80,9 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         vm.stopPrank();
 
         vm.startPrank(userC); // address(0x1) == address(1)
-        cdxUsd.approve(address(vaultV3), type(uint256).max);
-        counterAsset2.approve(address(vaultV3), type(uint256).max);
-        cdxUsd.approve(address(tRouter), type(uint256).max);
+        cdxUsdContract.approve(address(balancerContracts.balVault), type(uint256).max);
+        counterAsset2.approve(address(balancerContracts.balVault), type(uint256).max);
+        cdxUsdContract.approve(address(tRouter), type(uint256).max);
         counterAsset2.approve(address(tRouter), type(uint256).max);
         vm.stopPrank();
 
@@ -92,7 +92,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         interactors[2] = address(userB);
         interactors[3] = address(userC);
 
-        router = new BalancerV3Router(vaultV3, address(this), interactors);
+        router = new BalancerV3Router(balancerContracts.balVault, address(this), interactors);
 
         // ======= Balancer Pool 2 Deploy =======
         {
@@ -107,10 +107,11 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
             poolAdd2 = createStablePool(assets2, 2500, userC);
 
             // join Pool
-            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd2);
+            IERC20[] memory setupPoolTokens =
+                IVaultExplorer(balancerContracts.balVault).getPoolTokens(poolAdd2);
 
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-                if (setupPoolTokens[i] == cdxUsd) indexCdxUsd2 = i;
+                if (setupPoolTokens[i] == cdxUsdContract) indexCdxUsd2 = i;
                 if (setupPoolTokens[i] == IERC20(address(counterAsset2))) indexCounterAsset2 = i;
             }
 
@@ -125,7 +126,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
             IERC20(poolAdd2).transfer(address(this), 1);
 
             for (uint256 i = 0; i < assets2.length; i++) {
-                if (assets2[i] == cdxUsd) indexCdxUsd = i;
+                if (assets2[i] == cdxUsdContract) indexCdxUsd = i;
                 if (assets2[i] == IERC20(address(counterAsset2))) {
                     indexCounterAsset = i;
                 }
@@ -135,7 +136,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         // all user approve max router
         for (uint256 i = 0; i < interactors.length; i++) {
             vm.startPrank(interactors[i]);
-            cdxUsd.approve(address(router), type(uint256).max);
+            cdxUsdContract.approve(address(router), type(uint256).max);
             counterAsset.approve(address(router), type(uint256).max);
             counterAsset2.approve(address(router), type(uint256).max);
             IERC20(poolAdd).approve(address(router), type(uint256).max);
@@ -152,7 +153,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
                 ,
                 uint256[] memory balancesRaw_,
                 uint256[] memory lastBalancesLiveScaled18_
-            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+            ) = IVaultExplorer(balancerContracts.balVault).getPoolTokenInfo(poolAdd2);
 
             for (uint256 i = 0; i < tokens_.length; i++) {
                 console2.log("token ::: ", address(tokens_[i]));
@@ -179,7 +180,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
                 ,
                 uint256[] memory balancesRaw_,
                 uint256[] memory lastBalancesLiveScaled18_
-            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+            ) = IVaultExplorer(balancerContracts.balVault).getPoolTokenInfo(poolAdd2);
 
             for (uint256 i = 0; i < tokens_.length; i++) {
                 console2.log("token ::: ", address(tokens_[i]));
@@ -202,7 +203,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
                 ,
                 uint256[] memory balancesRaw_,
                 uint256[] memory lastBalancesLiveScaled18_
-            ) = IVaultExplorer(vaultV3).getPoolTokenInfo(poolAdd2);
+            ) = IVaultExplorer(balancerContracts.balVault).getPoolTokenInfo(poolAdd2);
 
             for (uint256 i = 0; i < tokens_.length; i++) {
                 console2.log("token ::: ", address(tokens_[i]));
@@ -221,14 +222,14 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         amounts[1] = 1e18;
 
         // balance before
-        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 cdxUsdBalanceBefore = cdxUsdContract.balanceOf(userB);
         uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
         vm.startPrank(userB);
         router.addLiquidityUnbalanced(poolAdd, amounts, 0);
         vm.stopPrank();
 
-        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
+        assertEq(cdxUsdContract.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
         assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[1]);
 
         // remove liquidity
@@ -237,7 +238,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         amountsOut[1] = 1e18;
 
         // balance before remove liquidity
-        uint256 cdxUsdBalanceBeforeRemove = cdxUsd.balanceOf(userB);
+        uint256 cdxUsdBalanceBeforeRemove = cdxUsdContract.balanceOf(userB);
         uint256 counterAssetBalanceBeforeRemove = counterAsset.balanceOf(userB);
 
         vm.startPrank(userB);
@@ -245,14 +246,15 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         vm.stopPrank();
 
         console2.log(
-            "cdxUsd.balanceOf(userB) ::: ", cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove
+            "cdxUsd.balanceOf(userB) ::: ",
+            cdxUsdContract.balanceOf(userB) - cdxUsdBalanceBeforeRemove
         );
         console2.log(
             "counterAsset.balanceOf(userB) ::: ",
             counterAsset.balanceOf(userB) - counterAssetBalanceBeforeRemove
         );
 
-        assertApproxEqRel(cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove, 2e18, 1e16);
+        assertApproxEqRel(cdxUsdContract.balanceOf(userB) - cdxUsdBalanceBeforeRemove, 2e18, 1e16);
         assertEq(IERC20(poolAdd).balanceOf(userB), 0);
     }
 
@@ -262,14 +264,14 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         amounts[1] = 1e18;
 
         // balance before
-        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 cdxUsdBalanceBefore = cdxUsdContract.balanceOf(userB);
         uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
         vm.startPrank(userB);
         router.addLiquidityUnbalanced(poolAdd, amounts, 0);
         vm.stopPrank();
 
-        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
+        assertEq(cdxUsdContract.balanceOf(userB), cdxUsdBalanceBefore - amounts[0]);
         assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[1]);
 
         // remove liquidity
@@ -278,7 +280,7 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         amountsOut[1] = 1e18;
 
         // balance before remove liquidity
-        uint256 cdxUsdBalanceBeforeRemove = cdxUsd.balanceOf(userB);
+        uint256 cdxUsdBalanceBeforeRemove = cdxUsdContract.balanceOf(userB);
         uint256 counterAssetBalanceBeforeRemove = counterAsset.balanceOf(userB);
 
         vm.startPrank(userB);
@@ -286,7 +288,8 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         vm.stopPrank();
 
         console2.log(
-            "cdxUsd.balanceOf(userB) ::: ", cdxUsd.balanceOf(userB) - cdxUsdBalanceBeforeRemove
+            "cdxUsd.balanceOf(userB) ::: ",
+            cdxUsdContract.balanceOf(userB) - cdxUsdBalanceBeforeRemove
         );
         console2.log(
             "counterAsset.balanceOf(userB) ::: ",
@@ -307,20 +310,20 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         amounts[0] = 1e18;
         amounts[1] = 1e18;
 
-        uint256 cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        uint256 cdxUsdBalanceBefore = cdxUsdContract.balanceOf(userB);
         uint256 counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
         vm.startPrank(userB);
         tRouter.addLiquidity(poolAdd, userB, amounts);
 
         assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore - amounts[0]);
-        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - amounts[1]);
+        assertEq(cdxUsdContract.balanceOf(userB), cdxUsdBalanceBefore - amounts[1]);
 
         amounts[0] = 0;
         amounts[1] = 1e18;
 
         // get BPT token address
-        IERC20[] memory tokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
+        IERC20[] memory tokens = IVaultExplorer(balancerContracts.balVault).getPoolTokens(poolAdd);
         console2.log("bptToken ::: ", tokens.length);
 
         IERC20(poolAdd).approve(address(tRouter), type(uint256).max);
@@ -329,15 +332,17 @@ contract TestBalancerV3Router is TestCdxUSDAndLendAndStaking {
         vm.stopPrank();
 
         assertEq(counterAsset.balanceOf(userB), counterAssetBalanceBefore);
-        assertEq(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - 1e18);
+        assertEq(cdxUsdContract.balanceOf(userB), cdxUsdBalanceBefore - 1e18);
 
-        cdxUsdBalanceBefore = cdxUsd.balanceOf(userB);
+        cdxUsdBalanceBefore = cdxUsdContract.balanceOf(userB);
         counterAssetBalanceBefore = counterAsset.balanceOf(userB);
 
         vm.prank(userB);
-        tRouter.swapSingleTokenExactIn(poolAdd, cdxUsd, IERC20(address(counterAsset)), 1e18 / 2, 0);
+        tRouter.swapSingleTokenExactIn(
+            poolAdd, cdxUsdContract, IERC20(address(counterAsset)), 1e18 / 2, 0
+        );
 
-        assertApproxEqRel(cdxUsd.balanceOf(userB), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
+        assertApproxEqRel(cdxUsdContract.balanceOf(userB), cdxUsdBalanceBefore - 1e18 / 2, 1e16); // 1%
         assertApproxEqRel(counterAsset.balanceOf(userB), counterAssetBalanceBefore + 1e18 / 2, 1e16); // 1%
     }
 

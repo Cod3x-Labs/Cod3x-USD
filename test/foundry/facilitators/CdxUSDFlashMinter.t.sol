@@ -16,8 +16,9 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
 
     function setUp() public virtual override {
         super.setUp();
-        flashMinter =
-            new CdxUSDFlashMinter(address(cdxUSD), treasury, DEFAULT_FLASH_FEE, address(this));
+        flashMinter = new CdxUSDFlashMinter(
+            address(cdxUSD), extContracts.treasury, DEFAULT_FLASH_FEE, address(this)
+        );
         flashBorrower = new MockFlashBorrower(IERC3156FlashLender(flashMinter));
         cdxUSD.addFacilitator(address(flashMinter), "Bonjour", uint128(DEFAULT_BUCKET_CAPACITY));
         flashMinter.updateFee(DEFAULT_FLASH_FEE);
@@ -25,14 +26,19 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
 
     function testConstructor() public {
         vm.expectEmit(true, true, false, false);
-        emit CdxUSDFlashMinter.TreasurySet(treasury);
+        emit CdxUSDFlashMinter.TreasurySet(extContracts.treasury);
         vm.expectEmit(false, false, false, true);
         emit FeeUpdated(0, DEFAULT_FLASH_FEE);
-        CdxUSDFlashMinter flashMinterTemp =
-            new CdxUSDFlashMinter(address(cdxUSD), treasury, DEFAULT_FLASH_FEE, address(this));
+        CdxUSDFlashMinter flashMinterTemp = new CdxUSDFlashMinter(
+            address(cdxUSD), extContracts.treasury, DEFAULT_FLASH_FEE, address(this)
+        );
         assertEq(address(flashMinterTemp.cdxUSD()), address(cdxUSD), "Wrong GHO token address");
         assertEq(flashMinterTemp.getFee(), DEFAULT_FLASH_FEE, "Wrong fee");
-        assertEq(flashMinterTemp.getTreasury(), treasury, "Wrong treasury address");
+        assertEq(
+            flashMinterTemp.getTreasury(),
+            extContracts.treasury,
+            "Wrong extContracts.treasury address"
+        );
         assertEq(
             address(flashMinterTemp.owner()), address(this), "Wrong addresses provider address"
         );
@@ -40,7 +46,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
 
     function testRevertConstructorFeeOutOfRange() public {
         vm.expectRevert(CdxUSDFlashMinter.CdxUSDFlashMinter__FEE_OUT_OF_RANGE.selector);
-        new CdxUSDFlashMinter(address(cdxUSD), treasury, 10001, address(this));
+        new CdxUSDFlashMinter(address(cdxUSD), extContracts.treasury, 10001, address(this));
     }
 
     function testRevertFlashloanNonRecipient() public {
@@ -123,7 +129,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
     }
 
     function testDistributeFeesToTreasury() public {
-        uint256 treasuryBalanceBefore = cdxUSD.balanceOf(treasury);
+        uint256 treasuryBalanceBefore = cdxUSD.balanceOf(extContracts.treasury);
 
         _cdxUsdFaucet(address(flashMinter), 100e18);
         assertEq(
@@ -131,7 +137,9 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
         );
 
         vm.expectEmit(true, true, false, true, address(flashMinter));
-        emit ICdxUSDFacilitators.FeesDistributedToTreasury(treasury, address(cdxUSD), 100e18);
+        emit ICdxUSDFacilitators.FeesDistributedToTreasury(
+            extContracts.treasury, address(cdxUSD), 100e18
+        );
         flashMinter.distributeFeesToTreasury();
 
         assertEq(
@@ -140,7 +148,7 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
             "GhoFlashMinter should have no GHO left after fee distribution"
         );
         assertEq(
-            cdxUSD.balanceOf(treasury),
+            cdxUSD.balanceOf(extContracts.treasury),
             treasuryBalanceBefore + 100e18,
             "Treasury should have 100 more GHO"
         );
@@ -155,8 +163,10 @@ contract TestCdxUSDFlashMinter is TestCdxUSD {
     }
 
     function testUpdateGhoTreasury() public {
-        assertEq(flashMinter.getTreasury(), treasury, "Flashminter non-default TREASURY");
-        assertTrue(treasury != address(this));
+        assertEq(
+            flashMinter.getTreasury(), extContracts.treasury, "Flashminter non-default TREASURY"
+        );
+        assertTrue(extContracts.treasury != address(this));
         vm.expectEmit(true, true, false, false, address(flashMinter));
         emit CdxUSDFlashMinter.TreasurySet(address(this));
         flashMinter.setTreasury(address(this));

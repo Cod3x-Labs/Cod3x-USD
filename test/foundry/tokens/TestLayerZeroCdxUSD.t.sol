@@ -45,14 +45,18 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         aOFT = OFTMock(
             _deployOApp(
                 type(OFTMock).creationCode,
-                abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
+                abi.encode(
+                    "aOFT", "aOFT", address(endpoints[aEid]), owner, extContracts.treasury, guardian
+                )
             )
         );
 
         bOFT = OFTMock(
             _deployOApp(
                 type(OFTMock).creationCode,
-                abi.encode("bOFT", "bOFT", address(endpoints[bEid]), owner, treasury, guardian)
+                abi.encode(
+                    "bOFT", "bOFT", address(endpoints[bEid]), owner, extContracts.treasury, guardian
+                )
             )
         );
 
@@ -74,8 +78,8 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         assertEq(aOFT.owner(), address(this));
         assertEq(bOFT.owner(), address(this));
 
-        assertEq(aOFT.treasury(), treasury);
-        assertEq(bOFT.treasury(), treasury);
+        assertEq(aOFT.treasury(), extContracts.treasury);
+        assertEq(bOFT.treasury(), extContracts.treasury);
 
         assertEq(aOFT.guardian(), guardian);
         assertEq(bOFT.guardian(), guardian);
@@ -573,10 +577,13 @@ contract TestLayerZeroCdxUSD is TestCdxUSD {
         verifyPackets(bEid, addressToBytes32(address(bOFT)));
 
         uint256 tokensToSendWithFee = _removeDust(tokensToSend - (tokensToSend * feeT / 10000));
-        assertEq(aOFT.balanceOf(treasury), tokensToSend - tokensToSendWithFee);
+        assertEq(aOFT.balanceOf(extContracts.treasury), tokensToSend - tokensToSendWithFee);
         assertEq(aOFT.balanceOf(userA), initialBalance - tokensToSend);
         assertEq(bOFT.balanceOf(userB), _removeDust(initialBalance + tokensToSendWithFee));
-        assertEq(bOFT.balanceOf(userB) + aOFT.balanceOf(treasury) - initialBalance, tokensToSend);
+        assertEq(
+            bOFT.balanceOf(userB) + aOFT.balanceOf(extContracts.treasury) - initialBalance,
+            tokensToSend
+        );
     }
 
     function testHourlyBridgingLimit(uint256 _seedHourlyLimit, uint256 _seedAmountToSend) public {

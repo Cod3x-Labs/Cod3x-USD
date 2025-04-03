@@ -99,7 +99,11 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Events} from "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Constants} from "test/helpers/Constants.sol";
+import {
+    Constants,
+    ExtContractsForConfiguration,
+    PoolReserversConfig
+} from "test/helpers/Constants.sol";
 import {Sort} from "test/helpers/Sort.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
@@ -129,8 +133,9 @@ import {IRateProvider} from
 import {TRouter} from "./TRouter.sol";
 import {IVaultExplorer} from
     "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
+import "test/helpers/BalancerFixtures.sol";
 
-contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
+contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, BalancerFixtures {
     using WadRayMath for uint256;
 
     uint32 aEid = 1;
@@ -171,9 +176,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     address public userC = address(0x3);
     address public owner = address(this);
     address public guardian = address(0x4);
-    address public treasury = address(0x5);
+    // address public treasury = address(0x5);
 
-    CdxUSD public cdxUsd;
+    CdxUSD public cdxUsdContract;
     ERC20 public counterAsset;
 
     address[] public aggregators;
@@ -337,15 +342,22 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         /// ======= cdxUSD deploy =======
         {
             setUpEndpoints(2, LibraryType.UltraLightNode);
-            cdxUsd = CdxUSD(
+            cdxUsdContract = CdxUSD(
                 _deployOApp(
                     type(CdxUSD).creationCode,
-                    abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
+                    abi.encode(
+                        "aOFT",
+                        "aOFT",
+                        address(endpoints[aEid]),
+                        owner,
+                        extContracts.treasury,
+                        guardian
+                    )
                 )
             );
-            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY * 1000);
-            cdxUsd.addFacilitator(userB, "user b", DEFAULT_CAPACITY * 1000);
-            cdxUsd.addFacilitator(userC, "user c", DEFAULT_CAPACITY * 1000);
+            cdxUsdContract.addFacilitator(userA, "user a", DEFAULT_CAPACITY * 1000);
+            cdxUsdContract.addFacilitator(userB, "user b", DEFAULT_CAPACITY * 1000);
+            cdxUsdContract.addFacilitator(userC, "user c", DEFAULT_CAPACITY * 1000);
         }
 
         /// ======= Counter Asset deployments =======
@@ -394,9 +406,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         /// ======= Faucet and Approve =======
         {
             vm.startPrank(userA);
-            cdxUsd.mint(userA, INITIAL_CDXUSD_AMT);
-            cdxUsd.mint(userB, INITIAL_CDXUSD_AMT);
-            cdxUsd.mint(address(this), INITIAL_CDXUSD_AMT);
+            cdxUsdContract.mint(userA, INITIAL_CDXUSD_AMT);
+            cdxUsdContract.mint(userB, INITIAL_CDXUSD_AMT);
+            cdxUsdContract.mint(address(this), INITIAL_CDXUSD_AMT);
             vm.stopPrank();
 
             ERC20Mock(address(counterAsset)).mint(userB, INITIAL_COUNTER_ASSET_AMT);
@@ -404,17 +416,17 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             // MAX approve "vault" by all users
             for (uint160 i = 1; i <= 3; i++) {
                 vm.startPrank(address(i)); // address(0x1) == address(1)
-                cdxUsd.approve(address(vaultV3), type(uint256).max);
-                counterAsset.approve(address(vaultV3), type(uint256).max);
-                cdxUsd.approve(address(tRouter), type(uint256).max);
+                cdxUsdContract.approve(address(balancerContracts.balVault), type(uint256).max);
+                counterAsset.approve(address(balancerContracts.balVault), type(uint256).max);
+                cdxUsdContract.approve(address(tRouter), type(uint256).max);
                 counterAsset.approve(address(tRouter), type(uint256).max);
                 vm.stopPrank();
             }
 
             vm.startPrank(owner); // address(0x1) == address(1)
-            cdxUsd.approve(address(vaultV3), type(uint256).max);
-            counterAsset.approve(address(vaultV3), type(uint256).max);
-            cdxUsd.approve(address(tRouter), type(uint256).max);
+            cdxUsdContract.approve(address(balancerContracts.balVault), type(uint256).max);
+            counterAsset.approve(address(balancerContracts.balVault), type(uint256).max);
+            cdxUsdContract.approve(address(tRouter), type(uint256).max);
             counterAsset.approve(address(tRouter), type(uint256).max);
             vm.stopPrank();
         }
@@ -423,49 +435,42 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     // ======= Cod3x USD =======
 
     function fixture_configureCdxUsd(
-        address _lendingPool,
-        address _aToken,
-        address _variableDebtToken,
-        address _cdxUsdOracle,
+        ExtContractsForConfiguration memory _extContractsForConfiguration,
+        PoolReserversConfig memory _poolReserversConfig,
         address _cdxUsd,
-        address _interestStrategy,
-        address _reliquaryCdxusdRewarder,
-        ConfigAddresses memory configAddresses,
-        LendingPoolConfigurator lendingPoolConfiguratorProxy,
-        LendingPoolAddressesProvider lendingPoolAddressesProvider
+        address _reliquaryCdxUsdRewarder,
+        address _cdxUsdAggregator
     ) public {
         address[] memory asset = new address[](1);
         address[] memory aggregator = new address[](1);
         uint256[] memory timeout = new uint256[](1);
 
         asset[0] = _cdxUsd;
-        aggregator[0] = _cdxUsdOracle;
+        aggregator[0] = _cdxUsdAggregator;
         timeout[0] = 1000 days;
 
-        commonContracts.oracle.setAssetSources(asset, aggregator, timeout);
+        Oracle(_extContractsForConfiguration.oracle).setAssetSources(asset, aggregator, timeout);
 
         fixture_configureReservesCdxUsd(
-            configAddresses,
-            lendingPoolConfiguratorProxy,
-            lendingPoolAddressesProvider,
-            _aToken,
-            _variableDebtToken,
-            _cdxUsd,
-            _interestStrategy
+            _extContractsForConfiguration, _poolReserversConfig, _cdxUsd, owner
         );
-
+        address lendingPool = ILendingPoolAddressesProvider(
+            _extContractsForConfiguration.lendingPoolAddressesProvider
+        ).getLendingPool();
         DataTypes.ReserveData memory reserveDataTemp =
-            deployedContracts.lendingPool.getReserveData(_cdxUsd, false);
+            ILendingPool(lendingPool).getReserveData(_cdxUsd, false);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        deployedContracts.lendingPoolConfigurator.setTreasury(address(cdxUsd), false, treasury);
+        ILendingPoolConfigurator(_extContractsForConfiguration.lendingPoolConfigurator).setTreasury(
+            address(cdxUsd), false, extContracts.treasury
+        );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
-            _reliquaryCdxusdRewarder, 8000 /* 80% */
+            _reliquaryCdxUsdRewarder, 8000 /* 80% */
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(address(this));
         DataTypes.ReserveData memory reserve =
-            ILendingPool(_lendingPool).getReserveData(_cdxUsd, false);
+            ILendingPool(lendingPool).getReserveData(_cdxUsd, false);
 
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
@@ -473,13 +478,10 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     }
 
     function fixture_configureReservesCdxUsd(
-        ConfigAddresses memory configAddresses,
-        LendingPoolConfigurator lendingPoolConfigurator,
-        LendingPoolAddressesProvider lendingPoolAddressesProvider,
-        address _aTokenAddress,
-        address _variableDebtToken,
+        ExtContractsForConfiguration memory _extContractsForConfiguration,
+        PoolReserversConfig memory poolReserversConfig,
         address _cdxUsd,
-        address _interestStrategy
+        address _owner
     ) public {
         ILendingPoolConfigurator.InitReserveInput[] memory initInputParams =
             new ILendingPoolConfigurator.InitReserveInput[](1);
@@ -489,14 +491,14 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         string memory tmpSymbol = ERC20(_cdxUsd).symbol();
 
         initInputParams[0] = ILendingPoolConfigurator.InitReserveInput({
-            aTokenImpl: _aTokenAddress,
-            variableDebtTokenImpl: address(_variableDebtToken),
+            aTokenImpl: _extContractsForConfiguration.aTokenImpl,
+            variableDebtTokenImpl: _extContractsForConfiguration.variableDebtTokenImpl,
             underlyingAssetDecimals: ERC20(_cdxUsd).decimals(),
-            interestRateStrategyAddress: _interestStrategy,
+            interestRateStrategyAddress: _extContractsForConfiguration.interestStrat,
             underlyingAsset: _cdxUsd,
-            reserveType: false,
-            treasury: configAddresses.treasury,
-            incentivesController: configAddresses.rewarder,
+            reserveType: poolReserversConfig.reserveType,
+            treasury: _extContractsForConfiguration.treasury,
+            incentivesController: _extContractsForConfiguration.rewarder,
             underlyingAssetName: tmpSymbol,
             aTokenName: string.concat("Cod3x Lend ", tmpSymbol),
             aTokenSymbol: string.concat("cl", tmpSymbol),
@@ -505,25 +507,56 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             params: "0x10"
         });
 
-        vm.prank(owner);
-        LendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
-        // revert("eeee");
+        vm.startPrank(_owner);
+        LendingPoolConfigurator(address(_extContractsForConfiguration.lendingPoolConfigurator))
+            .batchInitReserve(initInputParams);
 
-        inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
-            asset: _cdxUsd,
-            reserveType: false,
-            baseLTV: 8000,
-            liquidationThreshold: 8500,
-            liquidationBonus: 10500,
-            reserveFactor: 0,
-            borrowingEnabled: true
-        });
+        // uint256 tokenPrice = _extContractsForConfiguration.oracle.getAssetPrice(_cdxUsd);
+        // uint256 tokenAmount = usdBootstrapAmount * contracts.oracle.BASE_CURRENCY_UNIT()
+        //     * 10 ** IERC20Detailed(_cdxUsd).decimals() / tokenPrice;
 
-        lendingPoolAddressesProvider.setPoolAdmin(configAddresses.aTokensAndRatesHelper);
-        ATokensAndRatesHelper(configAddresses.aTokensAndRatesHelper).configureReserves(
-            inputConfigParams
+        // console2.log(
+        //     "Bootstrap amount: %s %s for price: %s",
+        //     tokenAmount,
+        //     IERC20Detailed(_cdxUsd).symbol(),
+        //     tokenPrice
+        // );
+        LendingPoolConfigurator(_extContractsForConfiguration.lendingPoolConfigurator)
+            .enableBorrowingOnReserve(_cdxUsd, poolReserversConfig.reserveType);
+        // _contracts.lendingPool.borrow(
+        //     _cdxUsd,
+        //     reserveConfig.reserveType,
+        //     tokenAmount / 2,
+        //     _contracts.lendingPoolAddressesProvider.getPoolAdmin()
+        // );
+        // reserveData = _contracts.lendingPool.getReserveData(_cdxUsd, reserveConfig.reserveType);
+        // require(
+        //     IERC20Detailed(reserveData.variableDebtTokenAddress).totalSupply() == tokenAmount / 2,
+        //     "TotalSupply of debt not equal to borrowed amount!"
+        // );
+
+        if (!poolReserversConfig.borrowingEnabled) {
+            LendingPoolConfigurator(_extContractsForConfiguration.lendingPoolConfigurator)
+                .disableBorrowingOnReserve(_cdxUsd, poolReserversConfig.reserveType);
+        }
+        ILendingPool lp = ILendingPool(
+            ILendingPoolAddressesProvider(
+                _extContractsForConfiguration.lendingPoolAddressesProvider
+            ).getLendingPool()
         );
-        lendingPoolAddressesProvider.setPoolAdmin(owner);
+        DataTypes.ReserveData memory reserveDataTemp =
+            lp.getReserveData(_cdxUsd, poolReserversConfig.reserveType);
+        console2.log(
+            "reserveDataTemp.variableDebtTokenAddress: ", reserveDataTemp.variableDebtTokenAddress
+        );
+
+        LendingPoolConfigurator(_extContractsForConfiguration.lendingPoolConfigurator)
+            .setCod3xReserveFactor(
+            _cdxUsd, poolReserversConfig.reserveType, poolReserversConfig.reserveFactor
+        );
+        LendingPoolConfigurator(_extContractsForConfiguration.lendingPoolConfigurator)
+            .enableFlashloan(_cdxUsd, poolReserversConfig.reserveType);
+        vm.stopPrank();
     }
 
     // ======= Cod3x Lend =======
@@ -995,48 +1028,5 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             variableBorrowIndex,
             lastUpdateTimestamp
         );
-    }
-
-    // ======= Balancer =======
-
-    function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
-        public
-        returns (address)
-    {
-        // sort tokens
-        IERC20[] memory tokens = new IERC20[](assets.length);
-
-        tokens = sort(assets);
-
-        TokenConfig[] memory tokenConfigs = new TokenConfig[](assets.length);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenConfigs[i] = TokenConfig({
-                token: tokens[i],
-                tokenType: TokenType.STANDARD,
-                rateProvider: IRateProvider(address(0)),
-                paysYieldFees: false
-            });
-        }
-        PoolRoleAccounts memory roleAccounts;
-        roleAccounts.pauseManager = address(0);
-        roleAccounts.swapFeeManager = address(0);
-        roleAccounts.poolCreator = address(0);
-
-        address stablePool = address(
-            StablePoolFactory(address(composableStablePoolFactoryV3)).create(
-                "Cod3x-USD-Pool",
-                "CUP",
-                tokenConfigs,
-                200, // test only
-                roleAccounts,
-                5e15, // 0.5% (in WAD)
-                address(0),
-                false,
-                false,
-                bytes32(keccak256(abi.encode(tokenConfigs, bytes("Cod3x-USD-Pool"), bytes("CUP"))))
-            )
-        );
-
-        return (address(stablePool));
     }
 }

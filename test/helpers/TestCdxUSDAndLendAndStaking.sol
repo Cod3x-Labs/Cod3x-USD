@@ -18,7 +18,11 @@ import {Cod3xLendDataProvider} from "lib/Cod3x-Lend/contracts/misc/Cod3xLendData
 // Balancer
 import "forge-std/console2.sol";
 
-import {TestCdxUSDAndLend} from "test/helpers/TestCdxUSDAndLend.sol";
+import {
+    TestCdxUSDAndLend,
+    ExtContractsForConfiguration,
+    PoolReserversConfig
+} from "test/helpers/TestCdxUSDAndLend.sol";
 import {ERC20Mock} from "test/helpers/mocks/ERC20Mock.sol";
 
 // reliquary
@@ -120,12 +124,13 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
+            IERC20[] memory setupPoolTokens =
+                IVaultExplorer(balancerContracts.balVault).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexCounterAssetTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-                if (setupPoolTokens[i] == cdxUsd) indexCdxUsdTemp = i;
+                if (setupPoolTokens[i] == IERC20(cdxUsd)) indexCdxUsdTemp = i;
                 if (setupPoolTokens[i] == IERC20(address(counterAsset))) indexCounterAssetTemp = i;
             }
 
@@ -140,7 +145,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             IERC20(poolAdd).transfer(address(this), 1);
 
             for (uint256 i = 0; i < assets.length; i++) {
-                if (assets[i] == cdxUsd) indexCdxUsd = i;
+                if (assets[i] == cdxUsdContract) indexCdxUsd = i;
                 if (assets[i] == IERC20(address(counterAsset))) {
                     indexCounterAsset = i;
                 }
@@ -200,7 +205,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 "scdxUSD",
                 type(uint256).max,
                 0,
-                treasury,
+                extContracts.treasury,
                 ownerArr,
                 ownerArr,
                 address(feeControllerMock)
@@ -218,7 +223,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vaultV3),
+                address(balancerContracts.balVault),
                 address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
@@ -229,7 +234,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             );
 
             // console2.log(address(cod3xVault));
-            // console2.log(address(vaultV3));
+            // console2.log(address(balancerContracts.balVault));
             // console2.log(address(cdxUSD));
             // console2.log(address(reliquary));
             // console2.log(address(poolAdd));
@@ -246,7 +251,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(deployedContracts.lendingPoolAddressesProvider),
                 address(cdxUsd),
                 false,
-                address(vaultV3), // balancerVault,
+                address(balancerContracts.balVault), // balancerVault,
                 address(poolAdd),
                 1e25,
                 2e25, // starts at 2% interest rate
@@ -258,20 +263,33 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
             );
 
+            ExtContractsForConfiguration memory extContractsForConfiguration =
+            ExtContractsForConfiguration({
+                treasury: address(deployedContracts.treasury),
+                rewarder: address(rewarder),
+                oracle: address(commonContracts.oracle),
+                lendingPoolConfigurator: address(deployedContracts.lendingPoolConfigurator),
+                lendingPoolAddressesProvider: address(deployedContracts.lendingPoolAddressesProvider),
+                aTokenImpl: address(cdxUsdAToken),
+                variableDebtTokenImpl: address(cdxUsdVariableDebtToken),
+                interestStrat: address(cdxUsdInterestRateStrategy)
+            });
+
+            PoolReserversConfig memory poolReserversConfig = PoolReserversConfig({
+                borrowingEnabled: true,
+                reserveFactor: 1000,
+                reserveType: true
+            });
+
             fixture_configureCdxUsd(
-                address(deployedContracts.lendingPool),
-                address(cdxUsdAToken),
-                address(cdxUsdVariableDebtToken),
-                address(cdxUsdOracle),
+                extContractsForConfiguration,
+                poolReserversConfig,
                 address(cdxUsd),
-                address(cdxUsdInterestRateStrategy),
                 address(rewarder),
-                configAddresses,
-                deployedContracts.lendingPoolConfigurator,
-                deployedContracts.lendingPoolAddressesProvider
+                address(cdxUsdOracle)
             );
 
-            cdxUsd.addFacilitator(
+            cdxUsdContract.addFacilitator(
                 deployedContracts.lendingPool.getReserveData(address(cdxUsd), false).aTokenAddress,
                 "Cod3x Lend",
                 DEFAULT_CAPACITY
