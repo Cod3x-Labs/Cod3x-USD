@@ -286,7 +286,10 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 poolReserversConfig,
                 address(cdxUsd),
                 address(rewarder),
-                address(cdxUsdOracle)
+                address(cdxUsdOracle),
+                8000,
+                100 days,
+                owner
             );
 
             cdxUsdContract.addFacilitator(

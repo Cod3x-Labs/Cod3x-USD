@@ -2,7 +2,7 @@
 
 -include .env
 
-prepare:; foundryup-zksync && forge clean && forge update && forge install && forge build
+prepare:; foundryup && forge clean && forge update && forge install && forge build
 
 build:; forge build
 testAll:; forge test -vv

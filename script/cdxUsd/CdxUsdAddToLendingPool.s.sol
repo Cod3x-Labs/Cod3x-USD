@@ -24,11 +24,14 @@ import {TRouter} from "test/helpers/TRouter.sol";
 import "test/helpers/TestCdxUSDAndLend.sol";
 import {CdxUsdIInterestRateStrategy} from
     "contracts/facilitators/cod3x_lend/interest_strategy/CdxUsdIInterestRateStrategy.sol";
+import {CdxUsdOracle} from "contracts/facilitators/cod3x_lend/oracle/CdxUSDOracle.sol";
+import {Oracle} from "lib/Cod3x-Lend/contracts/protocol/core/Oracle.sol";
 
 //Temporary
 import {console2} from "forge-std/console2.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {ERC20Mock} from "test/helpers/mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
 
 contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
     struct ReliquaryParams {
@@ -46,6 +49,7 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
         ScdxUsdVaultStrategy strategy;
         CdxUsdAToken cdxUsdAToken;
         CdxUsdVariableDebtToken cdxUsdVariableDebtToken;
+        CdxUsdOracle cdxUsdAggregator;
     }
 
     function setUp() public override {}
@@ -208,46 +212,98 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
             contractsToDeploy.balancerV3Router.setInteractors(interactors2);
         }
 
+        PoolReserversConfig memory poolReserversConfig =
+            PoolReserversConfig({borrowingEnabled: true, reserveFactor: 1000, reserveType: false});
+
         /// ========= aTokens Deploy =========
-        contractsToDeploy.cdxUsdAToken = new CdxUsdAToken();
-        contractsToDeploy.cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
+        {
+            contractsToDeploy.cdxUsdAToken = new CdxUsdAToken();
+            contractsToDeploy.cdxUsdVariableDebtToken = new CdxUsdVariableDebtToken();
+        }
 
         /// ========= Interest strat Deploy =========
-        int256 MIN_CONTROLLER_ERROR = 1e25;
-        int256 INITIAL_ERR_I_VALUE = 1e25;
-        uint256 KI = 13e19;
+        CdxUsdIInterestRateStrategy cdxUsdInterestRateStrategy;
+        {
+            int256 MIN_CONTROLLER_ERROR = 1e25;
+            int256 INITIAL_ERR_I_VALUE = 1e25;
+            uint256 KI = 13e19;
 
-        CdxUsdIInterestRateStrategy cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
-            extContracts.lendingPoolConfigurator,
-            address(cdxUsd),
-            false, // Not used
-            address(balancerContracts.balVault), // balancerVault,
-            address(contractsToDeploy.stablePool),
-            MIN_CONTROLLER_ERROR,
-            INITIAL_ERR_I_VALUE, // starts at 2% interest rate
-            KI
-        );
+            cdxUsdInterestRateStrategy = new CdxUsdIInterestRateStrategy(
+                extContracts.lendingPoolAddressesProvider,
+                address(cdxUsd),
+                false, // Not used
+                address(balancerContracts.balVault), // balancerVault,
+                address(contractsToDeploy.stablePool),
+                MIN_CONTROLLER_ERROR,
+                INITIAL_ERR_I_VALUE, // starts at 2% interest rate
+                KI
+            );
+        }
+        uint256 ORACLE_TIMEOUT = 86400; // 1 day
+        /// ========= Oracle Deploy =========
+        {
+            uint256 PEG_MARGIN = 1e26; // 10%
+
+            contractsToDeploy.cdxUsdAggregator = new CdxUsdOracle();
+            MockV3Aggregator counterAssetPriceFeed =
+                new MockV3Aggregator(PRICE_FEED_DECIMALS, int256(1 * 10 ** PRICE_FEED_DECIMALS));
+            vm.startPrank(deployer);
+            cdxUsdInterestRateStrategy.setOracleValues(
+                address(counterAssetPriceFeed), PEG_MARGIN, ORACLE_TIMEOUT
+            );
+            vm.stopPrank();
+        }
 
         /// ========= Init cod3xUsd on cod3x lend =========
         console2.log("====== Init cod3xUsd on cod3x lend ======");
+        {
+            uint256 RELIQUARY_ALLOCATION = 8000; /* 80% */
 
-        PoolReserversConfig memory poolReserversConfig =
-            PoolReserversConfig({borrowingEnabled: true, reserveFactor: 1000, reserveType: true});
-        ExtContractsForConfiguration memory extContractsForConfiguration =
-        ExtContractsForConfiguration({
-            treasury: multisignAdmin,
-            rewarder: extContracts.rewarder,
-            oracle: extContracts.oracle,
-            lendingPoolConfigurator: extContracts.lendingPoolConfigurator,
-            lendingPoolAddressesProvider: extContracts.lendingPoolConfigurator,
-            aTokenImpl: address(contractsToDeploy.cdxUsdAToken),
-            variableDebtTokenImpl: address(contractsToDeploy.cdxUsdVariableDebtToken),
-            interestStrat: address(cdxUsdInterestRateStrategy)
-        });
-        vm.stopPrank();
-        fixture_configureReservesCdxUsd(
-            extContractsForConfiguration, poolReserversConfig, cdxUsd, deployer
-        );
-        // CdxUSD(cdxUsd).addFacilitator(admin, "admin", 100_000e18);
+            ExtContractsForConfiguration memory extContractsForConfiguration =
+            ExtContractsForConfiguration({
+                treasury: multisignAdmin,
+                rewarder: extContracts.rewarder,
+                oracle: extContracts.oracle,
+                lendingPoolConfigurator: extContracts.lendingPoolConfigurator,
+                lendingPoolAddressesProvider: extContracts.lendingPoolAddressesProvider,
+                aTokenImpl: address(contractsToDeploy.cdxUsdAToken),
+                variableDebtTokenImpl: address(contractsToDeploy.cdxUsdVariableDebtToken),
+                interestStrat: address(cdxUsdInterestRateStrategy)
+            });
+            vm.stopPrank();
+
+            fixture_configureCdxUsd(
+                extContractsForConfiguration,
+                poolReserversConfig,
+                cdxUsd,
+                address(contractsToDeploy.reliquary),
+                address(contractsToDeploy.cdxUsdAggregator),
+                RELIQUARY_ALLOCATION,
+                ORACLE_TIMEOUT,
+                deployer
+            );
+            // fixture_configureReservesCdxUsd(
+            //     extContractsForConfiguration, poolReserversConfig, cdxUsd, deployer
+            // );
+
+            /// CdxUsdAToken settings
+            // contractsToDeploy.cdxUsdAToken.setVariableDebtToken(
+            //     address(contractsToDeploy.cdxUsdVariableDebtToken)
+            // );
+            // ILendingPoolConfigurator(extContracts.lendingPoolConfigurator).setTreasury(
+            //     address(cdxUsd), poolReserversConfig.reserveType, extContracts.treasury
+            // );
+            // contractsToDeploy.cdxUsdAToken.setReliquaryInfo(
+            //     address(contractsToDeploy.reliquary), RELIQUARY_ALLOCATION
+            // );
+            // contractsToDeploy.cdxUsdAToken.setKeeper(address(this));
+
+            // /// CdxUsdVariableDebtToken settings
+            // contractsToDeploy.cdxUsdVariableDebtToken.setAToken(
+            //     address(contractsToDeploy.cdxUsdAToken)
+            // );
+
+            CdxUSD(cdxUsd).addFacilitator(admin, "admin", 100_000e18);
+        }
     }
 }

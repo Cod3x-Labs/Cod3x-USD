@@ -439,7 +439,10 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, BalancerFixtures {
         PoolReserversConfig memory _poolReserversConfig,
         address _cdxUsd,
         address _reliquaryCdxUsdRewarder,
-        address _cdxUsdAggregator
+        address _cdxUsdAggregator,
+        uint256 _reliquaryAllocation,
+        uint256 _oracleTimeout,
+        address _deployer
     ) public {
         address[] memory asset = new address[](1);
         address[] memory aggregator = new address[](1);
@@ -447,18 +450,20 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, BalancerFixtures {
 
         asset[0] = _cdxUsd;
         aggregator[0] = _cdxUsdAggregator;
-        timeout[0] = 1000 days;
+        timeout[0] = _oracleTimeout;
 
+        vm.prank(deployer);
         Oracle(_extContractsForConfiguration.oracle).setAssetSources(asset, aggregator, timeout);
 
         fixture_configureReservesCdxUsd(
-            _extContractsForConfiguration, _poolReserversConfig, _cdxUsd, owner
+            _extContractsForConfiguration, _poolReserversConfig, _cdxUsd, _deployer
         );
         address lendingPool = ILendingPoolAddressesProvider(
             _extContractsForConfiguration.lendingPoolAddressesProvider
         ).getLendingPool();
         DataTypes.ReserveData memory reserveDataTemp =
-            ILendingPool(lendingPool).getReserveData(_cdxUsd, false);
+            ILendingPool(lendingPool).getReserveData(_cdxUsd, _poolReserversConfig.reserveType);
+        vm.startPrank(deployer);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
@@ -466,7 +471,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, BalancerFixtures {
             address(cdxUsd), false, extContracts.treasury
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
-            _reliquaryCdxUsdRewarder, 8000 /* 80% */
+            _reliquaryCdxUsdRewarder, _reliquaryAllocation
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(address(this));
         DataTypes.ReserveData memory reserve =
@@ -475,6 +480,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, BalancerFixtures {
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
         );
+        vm.stopPrank();
     }
 
     function fixture_configureReservesCdxUsd(

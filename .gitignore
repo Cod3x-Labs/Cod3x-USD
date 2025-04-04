@@ -6,6 +6,7 @@ typechain
 typechain-types
 broadcast/*
 yarn-error.log
+*.zip
 
 # Hardhat files
 cache
