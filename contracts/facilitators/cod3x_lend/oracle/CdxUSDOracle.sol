@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.10;
 
+import {IAggregatorV3Interface} from "contracts/interfaces/IAggregatorV3Interface.sol";
+
 /**
  * @title CdxUsdOracle
  * @notice A price feed oracle for CdxUSD that maintains a fixed 1:1 peg to USD.
@@ -8,7 +10,7 @@ pragma solidity ^0.8.10;
  * to 1 USD.
  * @author Cod3x - Beirao
  */
-contract CdxUsdOracle {
+contract CdxUsdOracle is IAggregatorV3Interface {
     /// @dev The fixed price of 1 CdxUSD in USD, with 8 decimal precision (1.00000000).
     int256 public constant CDXUSD_PRICE = 1e8;
 
@@ -41,5 +43,30 @@ contract CdxUsdOracle {
      */
     function decimals() external pure returns (uint8) {
         return 8;
+    }
+
+    /**
+     * @notice Returns a description of the price feed.
+     */
+    function description() external view returns (string memory) {
+        return "CdxUSD/USD";
+    }
+
+    /**
+     * @notice Returns the version number of the oracle.
+     */
+    function version() external view returns (uint256) {
+        return 1;
+    }
+
+    /**
+     * @dev This function always reverts with "NOT_IMPLEMENTED".
+     */
+    function getRoundData(uint80 _roundId)
+        external
+        view
+        returns (uint80, int256, uint256, uint256, uint80)
+    {
+        revert("NOT_IMPLEMENTED");
     }
 }

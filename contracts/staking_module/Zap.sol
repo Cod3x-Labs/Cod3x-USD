@@ -336,16 +336,19 @@ contract Zap is Pausable, Ownable {
      * @param _amountBptToWithdraw amount of token to withdraw.
      * @param _tokenToWithdraw address of the token to be withdrawn.
      * @param _minAmountOut slippage protection.
-     * @param _to address receiving tokens. (harvest rewards and principal)
+     * @param _harvestTo address receiving tokens. (harvest rewards and principal)
      */
     function zapOutRelic(
         uint256 _relicId,
         uint256 _amountBptToWithdraw,
         address _tokenToWithdraw,
         uint256 _minAmountOut,
-        address _to
+        address _harvestTo
     ) external whenNotPaused {
-        if (_relicId == 0 || _amountBptToWithdraw == 0 || _minAmountOut == 0 || _to == address(0)) {
+        if (
+            _relicId == 0 || _amountBptToWithdraw == 0 || _minAmountOut == 0
+                || _harvestTo == address(0)
+        ) {
             revert Zap__WRONG_INPUT();
         }
 
@@ -354,7 +357,7 @@ contract Zap is Pausable, Ownable {
         }
 
         /// Reliquary withdraw
-        reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_to));
+        reliquary.withdraw(_amountBptToWithdraw, _relicId, address(_harvestTo));
 
         /// withdraw pool
         balancerV3Router.removeLiquiditySingleTokenExactIn(
@@ -366,7 +369,7 @@ contract Zap is Pausable, Ownable {
 
         /// Send token
         IERC20(_tokenToWithdraw).safeTransfer(
-            _to, IERC20(_tokenToWithdraw).balanceOf(address(this))
+            _harvestTo, IERC20(_tokenToWithdraw).balanceOf(address(this))
         );
     }
 }

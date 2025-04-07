@@ -304,13 +304,14 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         returns (uint256, uint256)
     {
         uint256 stablePoolReserveUtilization;
+        int256 err;
 
         if (address(_counterAssetPriceFeed) == address(0) || isCounterAssetPegged()) {
             /// Calculate the cdxUSD stablePool reserve utilization.
             stablePoolReserveUtilization = getCdxUsdStablePoolReserveUtilization();
 
             /// PID state update.
-            int256 err = getNormalizedError(stablePoolReserveUtilization);
+            err = getNormalizedError(stablePoolReserveUtilization);
             _errI += int256(_ki).rayMulInt(err * int256(block.timestamp - _lastTimestamp));
             if (_errI < 0) _errI = 0; // Limit the negative accumulation.
             _lastTimestamp = block.timestamp;
@@ -319,7 +320,7 @@ contract CdxUsdIInterestRateStrategy is IReserveInterestRateStrategy {
         uint256 currentVariableBorrowRate =
             _manualInterestRate != 0 ? _manualInterestRate : transferFunction(_errI);
 
-        emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, _errI, _errI);
+        emit PidLog(currentVariableBorrowRate, stablePoolReserveUtilization, err, _errI);
 
         return (0, currentVariableBorrowRate);
     }

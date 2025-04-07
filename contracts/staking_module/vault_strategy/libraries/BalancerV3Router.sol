@@ -188,7 +188,7 @@ contract BalancerV3Router is ReentrancyGuardTransient, AccessControl {
             }
 
             // Settle the token
-            token.transferFrom(params.sender, address(vault), amountIn);
+            token.safeTransferFrom(params.sender, address(vault), amountIn);
             vault.settle(token, amountIn);
         }
     }
