@@ -2,18 +2,11 @@
 pragma solidity ^0.8.22;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/interfaces/IVault.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import "forge-std/console.sol";
-
+import "forge-std/console2.sol";
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
-// reliquary
+/// reliquary imports
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
@@ -23,14 +16,36 @@ import "contracts/staking_module/reliquary/rewarders/ParentRollingRewarder.sol";
 import "contracts/interfaces/ICurves.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-// vault
+/// vault imports
 import {ReaperBaseStrategyv4} from "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import {ReaperVaultV2} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
 import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
+
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
+import {TRouter} from "../../helpers/TRouter.sol";
 
 contract TestStakingModule is TestCdxUSD, ERC721Holder {
     bytes32 public poolId;
@@ -41,6 +56,8 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
     ReaperVaultV2 public cod3xVault;
     ScdxUsdVaultStrategy public strategy;
     IERC20 public mockRewardToken;
+    TRouter public tRouter;
+    BalancerV3Router public balancerV3Router;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
@@ -55,41 +72,49 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         super.setUp();
         vm.selectFork(forkIdEth);
 
+        tRouter = new TRouter();
+        vm.startPrank(userA);
+        cdxUSD.approve(address(tRouter), type(uint256).max);
+        usdc.approve(address(tRouter), type(uint256).max);
+        vm.stopPrank();
+
         /// ======= Balancer Pool Deploy =======
         {
-            assets = [IERC20(address(cdxUSD)), usdc];
+            assets.push(IERC20(address(usdc)));
+            assets.push(IERC20(address(cdxUSD)));
+
+            IERC20[] memory assetsSorted = sort(assets);
+            assets[0] = assetsSorted[0];
+            assets[1] = assetsSorted[1];
 
             // balancer stable pool creation
-            (poolId, poolAdd) = createStablePool(assets, 2500, userA);
+            poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexUsdcTemp;
-            uint256 indexBtpTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
                 if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
                 if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
-                if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
             }
 
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
             amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
             amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
-            amountsToAdd[indexBtpTemp] = 0;
 
-            joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+            vm.prank(userA);
+            tRouter.initialize(poolAdd, assets, amountsToAdd);
 
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
 
-            IERC20[] memory setupPoolTokensWithoutBTP =
-                BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
-
-            for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
-                if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
-                if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
+            for (uint256 i = 0; i < assets.length; i++) {
+                if (assets[i] == cdxUSD) indexCdxUsd = i;
+                if (assets[i] == IERC20(address(usdc))) {
+                    indexCdxUsd = i;
+                }
             }
         }
 
@@ -129,6 +154,10 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
 
         /// ========== scdxUSD Vault Strategy Deploy ===========
         {
+            address[] memory interactors = new address[](1);
+            interactors[0] = address(this);
+            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
+
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
             ownerArr[1] = address(this);
@@ -159,29 +188,41 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vault),
+                address(vaultV3),
+                address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
                 ownerArr1,
                 address(cdxUSD),
                 address(reliquary),
-                address(poolAdd),
-                poolId
+                address(poolAdd)
             );
 
-            // console.log(address(cod3xVault));
-            // console.log(address(vault));
-            // console.log(address(cdxUSD));
-            // console.log(address(reliquary));
-            // console.log(address(poolAdd));
+            // console2.log(address(cod3xVault));
+            // console2.log(address(vaultV3));
+            // console2.log(address(cdxUSD));
+            // console2.log(address(reliquary));
+            // console2.log(address(poolAdd));
 
             cod3xVault.addStrategy(address(strategy), 0, 10_000); // 100 % invested
+
+            address[] memory interactors2 = new address[](1);
+            interactors2[0] = address(strategy);
+            balancerV3Router.setInteractors(interactors2);
         }
 
         // MAX approve "cod3xVault" by all users
         for (uint160 i = 1; i <= 3; i++) {
-            vm.prank(address(i)); // address(0x1) == address(1)
+            vm.startPrank(address(i)); // address(0x1) == address(1)
+
             IERC20(poolAdd).approve(address(cod3xVault), type(uint256).max);
+
+            cdxUSD.approve(address(balancerV3Router), type(uint256).max);
+            usdc.approve(address(balancerV3Router), type(uint256).max);
+
+            IERC20(poolAdd).approve(address(balancerV3Router), type(uint256).max);
+
+            vm.stopPrank();
         }
     }
 
@@ -203,7 +244,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         // strategy
         assertEq(address(strategy.cdxUSD()), address(cdxUSD));
         assertEq(address(strategy.reliquary()), address(reliquary));
-        assertEq(address(strategy.balancerVault()), address(vault));
+        assertEq(address(strategy.balancerVault()), address(vaultV3));
         assertNotEq(strategy.cdxUsdIndex(), type(uint256).max);
         assertEq(strategy.minBPTAmountOut(), 1);
         assertEq(strategy.want(), poolAdd);

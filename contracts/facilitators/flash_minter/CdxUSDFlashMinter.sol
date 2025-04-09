@@ -7,35 +7,47 @@ import {IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156Fl
 import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ICdxUSDFacilitators} from "contracts/interfaces/ICdxUSDFacilitators.sol";
+import {Errors} from "lib/Cod3x-Lend/contracts/protocol/libraries/helpers/Errors.sol";
 
 /**
- * @title CdxUSDFlashMinter
+ * @title A contract enabling flash minting of CdxUSD tokens.
  * @author Cod3x - Beirao
- * @notice Contract that enables FlashMinting of cdxUSD.
- * @dev Based heavily on the EIP3156 reference implementation.
- * Based on: https://github.com/aave/gho-core/blob/main/src/contracts/facilitators/flashMinter/GhoFlashMinter.sol
+ * @notice Allows users to flash mint CdxUSD tokens by implementing EIP-3156.
+ * @dev Based on EIP-3156 reference implementation and Aave's GHO flash minter.
  */
 contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable {
     using PercentageMath for uint256;
 
+    /// @dev Expected return value from a successful flash loan callback as keccak256 hash.
     bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
+    /// @dev Maximum fee settable in basis points (10000 = 100%).
     uint256 public constant MAX_FEE = 1e4;
 
+    /// @dev Reference to the CdxUSD token contract.
     ICdxUSD public immutable cdxUSD;
 
-    // The flashmint fee, expressed in bps (a value of 10000 results in 100.00%)
+    /// @dev Flash mint fee in basis points (10000 = 100%).
     uint256 private fee;
 
-    // The cdxUSD treasury, the recipient of fee distributions
-    address private cdxUsdTreasury;
+    /// @dev Address receiving collected flash mint fees.
+    address private treasury;
 
-    /// Errors
+    /// @dev Thrown when fee exceeds MAX_FEE.
     error CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
+    /// @dev Thrown when flash loan requested for unsupported token.
     error CdxUSDFlashMinter__UNSUPPORTED_ASSET();
+    /// @dev Thrown when flash loan callback returns unexpected value.
     error CdxUSDFlashMinter__CALLBACK_FAILED();
 
-    /// Events
+    /**
+     * @dev Emitted on successful flash mint.
+     * @param receiver Address receiving flash minted tokens.
+     * @param initiator Address initiating flash mint.
+     * @param asset Address of flash minted token.
+     * @param amount Number of tokens flash minted.
+     * @param fee Fee charged for flash mint.
+     */
     event FlashMint(
         address indexed receiver,
         address indexed initiator,
@@ -44,25 +56,45 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
         uint256 fee
     );
 
+    /**
+     * @dev Emitted when flash mint fee changes.
+     * @param oldFee Previous fee in basis points.
+     * @param newFee New fee in basis points.
+     */
     event FeeUpdated(uint256 oldFee, uint256 newFee);
 
     /**
-     * @dev Constructor
-     * @param _cdxUsdToken The address of the cdxUSD token contract
-     * @param _cdxUsdTreasury The address of the cdxUSD treasury
-     * @param _fee The percentage of the flash-mint amount that needs to be repaid, on top of the principal (in bps)
-     * @param _admin The address of the flashminter admin.
+     * @dev Emitted when treasury address changes.
+     * @param treasury New treasury address.
      */
-    constructor(address _cdxUsdToken, address _cdxUsdTreasury, uint256 _fee, address _admin)
+    event TreasurySet(address indexed treasury);
+
+    /**
+     * @notice Sets up initial flash minting configuration.
+     * @dev Validates fee and initializes contract state.
+     * @param _cdxUsdToken Address of CdxUSD token contract.
+     * @param _treasury Address receiving flash mint fees.
+     * @param _fee Initial flash mint fee in basis points.
+     * @param _admin Address with admin privileges.
+     */
+    constructor(address _cdxUsdToken, address _treasury, uint256 _fee, address _admin)
         Ownable(_admin)
     {
         if (_fee > MAX_FEE) revert CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
         cdxUSD = ICdxUSD(_cdxUsdToken);
-        _updateCdxUsdTreasury(_cdxUsdTreasury);
+        _setTreasury(_treasury);
         _updateFee(_fee);
     }
 
-    /// @inheritdoc IERC3156FlashLender
+    /**
+     * @notice Executes a flash loan of CdxUSD tokens.
+     * @dev Mints tokens, calls receiver callback, verifies repayment, burns principal.
+     * @param _receiver Contract receiving flash loan.
+     * @param _token Address of token to flash loan.
+     * @param _amount Number of tokens to flash loan.
+     * @param _data Arbitrary data passed to receiver.
+     * @return true if flash loan succeeds.
+     */
     function flashLoan(
         IERC3156FlashBorrower _receiver,
         address _token,
@@ -88,33 +120,39 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
     }
 
     /**
-     * @notice Distribute fees to the CdxUsdTreasury
+     * @notice Transfers accumulated flash mint fees to treasury.
+     * @dev Sends entire CdxUSD balance to treasury address.
      */
     function distributeFeesToTreasury() external {
         uint256 balance_ = cdxUSD.balanceOf(address(this));
-        cdxUSD.transfer(cdxUsdTreasury, balance_);
-        emit FeesDistributedToTreasury(cdxUsdTreasury, address(cdxUSD), balance_);
+        cdxUSD.transfer(treasury, balance_);
+        emit FeesDistributedToTreasury(treasury, address(cdxUSD), balance_);
     }
 
     /**
-     * @notice Updates the percentage fee. It is the percentage of the flash-minted amount that needs to be repaid.
-     * @dev The fee is expressed in bps. A value of 100, results in 1.00%
-     * @param _newFee The new percentage fee (in bps)
+     * @notice Changes the flash mint fee.
+     * @dev Only owner can call. Fee must not exceed MAX_FEE.
+     * @param _newFee New fee in basis points.
      */
     function updateFee(uint256 _newFee) external onlyOwner {
         _updateFee(_newFee);
     }
 
     /**
-     * @notice Updates the address of the cdxUSD Treasury
-     * @dev WARNING: The CdxUsdTreasury is where revenue fees are sent to. Update carefully
-     * @param _newCdxUsdTreasury The address of the CdxUsdTreasury
+     * @notice Changes the treasury address.
+     * @dev Only owner can call. New treasury cannot be zero address.
+     * @param _newTreasury New treasury address.
      */
-    function updateCdxUsdTreasury(address _newCdxUsdTreasury) external onlyOwner {
-        _updateCdxUsdTreasury(_newCdxUsdTreasury);
+    function setTreasury(address _newTreasury) external onlyOwner {
+        _setTreasury(_newTreasury);
     }
 
-    /// @inheritdoc IERC3156FlashLender
+    /**
+     * @notice Gets maximum possible flash loan amount.
+     * @dev Returns remaining capacity for this facilitator.
+     * @param _token Address of token to check.
+     * @return Maximum available flash loan amount.
+     */
     function maxFlashLoan(address _token) external view returns (uint256) {
         if (_token != address(cdxUSD)) {
             return 0;
@@ -124,32 +162,47 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
         }
     }
 
-    /// @inheritdoc IERC3156FlashLender
+    /**
+     * @notice Calculates fee for a flash loan amount.
+     * @dev Returns zero for unsupported tokens.
+     * @param _token Address of token for fee calculation.
+     * @param _amount Number of tokens for fee calculation.
+     * @return Fee amount in tokens.
+     */
     function flashFee(address _token, uint256 _amount) external view returns (uint256) {
         if (_token != address(cdxUSD)) revert CdxUSDFlashMinter__UNSUPPORTED_ASSET();
         return _flashFee(_amount);
     }
 
     /**
-     * @notice Returns the percentage of each flash mint taken as a fee
-     * @return The percentage fee of the flash-minted amount that needs to be repaid, on top of the principal (in bps).
+     * @notice Gets current flash mint fee.
+     * @return Current fee in basis points.
      */
     function getFee() external view returns (uint256) {
         return fee;
     }
-    /**
-     * @notice Returns the address of the cdxUSD Treasury
-     * @return The address of the GhoTreasury contract
-     */
 
-    function getCdxUsdTreasury() external view returns (address) {
-        return cdxUsdTreasury;
+    /**
+     * @notice Gets current treasury address.
+     * @return Address of treasury.
+     */
+    function getTreasury() external view returns (address) {
+        return treasury;
     }
 
+    /**
+     * @dev Calculates fee amount for given principal.
+     * @param _amount Principal amount for fee calculation.
+     * @return Fee amount in tokens.
+     */
     function _flashFee(uint256 _amount) internal view returns (uint256) {
         return _amount.percentMul(fee);
     }
 
+    /**
+     * @dev Updates flash mint fee after validation.
+     * @param _newFee New fee in basis points.
+     */
     function _updateFee(uint256 _newFee) internal {
         if (_newFee > MAX_FEE) revert CdxUSDFlashMinter__FEE_OUT_OF_RANGE();
         uint256 oldFee_ = fee;
@@ -157,9 +210,14 @@ contract CdxUSDFlashMinter is ICdxUSDFacilitators, IERC3156FlashLender, Ownable 
         emit FeeUpdated(oldFee_, _newFee);
     }
 
-    function _updateCdxUsdTreasury(address _newCdxUsdTreasury) internal {
-        address oldCdxUsdTreasury_ = cdxUsdTreasury;
-        cdxUsdTreasury = _newCdxUsdTreasury;
-        emit CdxUsdTreasuryUpdated(oldCdxUsdTreasury_, _newCdxUsdTreasury);
+    /**
+     * @dev Updates treasury address after validation.
+     * @param _treasury New treasury address.
+     */
+    function _setTreasury(address _treasury) internal {
+        require(_treasury != address(0), Errors.AT_INVALID_ADDRESS);
+        treasury = _treasury;
+
+        emit TreasurySet(_treasury);
     }
 }

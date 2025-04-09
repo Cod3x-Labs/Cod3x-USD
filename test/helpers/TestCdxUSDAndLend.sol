@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
+import "forge-std/console2.sol";
+
 // Cod3x Lend
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
 import {Rewarder} from "lib/Cod3x-Lend/contracts/protocol/rewarder/lendingpool/Rewarder.sol";
 import {Oracle} from "lib/Cod3x-Lend/contracts/protocol/core/Oracle.sol";
-import {ProtocolDataProvider} from "lib/Cod3x-Lend/contracts/misc/ProtocolDataProvider.sol";
 import {Treasury} from "lib/Cod3x-Lend/contracts/misc/Treasury.sol";
-import {UiPoolDataProviderV2} from "lib/Cod3x-Lend/contracts/misc/UiPoolDataProviderV2.sol";
 import {WETHGateway} from "lib/Cod3x-Lend/contracts/misc/WETHGateway.sol";
 import {ReserveLogic} from
     "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ReserveLogic.sol";
@@ -17,13 +17,13 @@ import {ValidationLogic} from
     "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/logic/ValidationLogic.sol";
 import {LendingPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProvider.sol";
-import {LendingPoolAddressesProviderRegistry} from
-    "lib/Cod3x-Lend/contracts/protocol/configuration/LendingPoolAddressesProviderRegistry.sol";
 import {DefaultReserveInterestRateStrategy} from
     "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/lendingpool/DefaultReserveInterestRateStrategy.sol";
+import {PiReserveInterestRateStrategy} from
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/lendingpool/PiReserveInterestRateStrategy.sol";
+import {MiniPoolPiReserveInterestRateStrategy} from
+    "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/minipool/MiniPoolPiReserveInterestRateStrategy.sol";
 import {LendingPool} from "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPool.sol";
-import {LendingPoolCollateralManager} from
-    "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolCollateralManager.sol";
 import {LendingPoolConfigurator} from
     "lib/Cod3x-Lend/contracts/protocol/core/lendingpool/LendingPoolConfigurator.sol";
 import {MiniPool} from "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPool.sol";
@@ -31,7 +31,7 @@ import {MiniPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/protocol/configuration/MiniPoolAddressProvider.sol";
 import {MiniPoolConfigurator} from
     "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolConfigurator.sol";
-import {flowLimiter} from "lib/Cod3x-Lend/contracts/protocol/core/minipool/FlowLimiter.sol";
+import {FlowLimiter} from "lib/Cod3x-Lend/contracts/protocol/core/minipool/FlowLimiter.sol";
 import {ATokensAndRatesHelper} from "lib/Cod3x-Lend/contracts/deployments/ATokensAndRatesHelper.sol";
 import {AToken} from "lib/Cod3x-Lend/contracts/protocol/tokenization/ERC20/AToken.sol";
 import {ATokenERC6909} from
@@ -49,8 +49,6 @@ import {WadRayMath} from "lib/Cod3x-Lend/contracts/protocol/libraries/math/WadRa
 import {MiniPoolDefaultReserveInterestRateStrategy} from
     "lib/Cod3x-Lend/contracts/protocol/core/interestRateStrategies/minipool/MiniPoolDefaultReserveInterestRate.sol";
 import {PriceOracle} from "lib/Cod3x-Lend/contracts/mocks/oracle/PriceOracle.sol";
-import {MiniPoolCollateralManager} from
-    "lib/Cod3x-Lend/contracts/protocol/core/minipool/MiniPoolCollateralManager.sol";
 import {ILendingPoolConfigurator} from
     "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolConfigurator.sol";
 import "lib/Cod3x-Lend/contracts/interfaces/ILendingPoolAddressesProvider.sol";
@@ -58,8 +56,11 @@ import "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolConfigurator.sol";
 import {IMiniPool} from "lib/Cod3x-Lend/contracts/interfaces/IMiniPool.sol";
 import {IMiniPoolAddressesProvider} from
     "lib/Cod3x-Lend/contracts/interfaces/IMiniPoolAddressesProvider.sol";
-import "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
-// import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+import {ILendingPool} from "lib/Cod3x-Lend/contracts/interfaces/ILendingPool.sol";
+import {DataTypes} from "lib/Cod3x-Lend/contracts/protocol/libraries/types/DataTypes.sol";
+import {Cod3xLendDataProvider} from "lib/Cod3x-Lend/contracts/misc/Cod3xLendDataProvider.sol";
+import {MockVaultUnit} from "lib/Cod3x-Lend/contracts/mocks/tokens/MockVaultUnit.sol";
+import {ProtocolDataProvider} from "test/helpers/ProtocolDataProvider.sol";
 
 // Mock imports
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
@@ -91,34 +92,43 @@ import {OFTComposeMsgCodec} from
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 /// Main import
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "contracts/tokens/CdxUSD.sol";
-import "contracts/interfaces/ICdxUSD.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
+import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import "test/helpers/Events.sol";
+import {Events} from "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "test/helpers/Constants.sol";
-import "test/helpers/Sort.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/interfaces/IVault.sol";
+import {Constants} from "test/helpers/Constants.sol";
+import {Sort} from "test/helpers/Sort.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 
-import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
+import {RollingRewarder} from "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
 
-import "forge-std/console.sol";
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {TRouter} from "./TRouter.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     using WadRayMath for uint256;
@@ -153,13 +163,15 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     string marketId = "Cod3x Lend Genesis Market";
     uint256 cntr;
 
+    address constant ETH_USD_SOURCE = 0xb7B9A39CC63f856b90B364911CC324dC46aC1770;
+    address constant USDC_USD_SOURCE = 0x16a9FA2FDa030272Ce99B29CF780dFA30361E0f3;
+
     address public userA = address(0x1);
     address public userB = address(0x2);
     address public userC = address(0x3);
     address public owner = address(this);
     address public guardian = address(0x4);
     address public treasury = address(0x5);
-    address public cdxUsdTreasury = address(0x6);
 
     CdxUSD public cdxUsd;
     ERC20 public counterAsset;
@@ -173,18 +185,18 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     // StableAndVariableTokensHelper public stableAndVariableTokensHelper;
     Oracle public oracle;
 
-    UiPoolDataProviderV2 public uiPoolDataProviderV2;
     WETHGateway public wETHGateway;
     AToken public aToken;
     VariableDebtToken public variableDebtToken;
     ATokenERC6909 public aTokenErc6909;
 
-    LendingPoolCollateralManager public lendingPoolCollateralManager;
     AToken[] public aTokens;
     VariableDebtToken[] public variableDebtTokens;
     ATokenERC6909[] public aTokensErc6909;
 
     MockReaperVault2[] public mockedVaults;
+
+    TRouter public tRouter;
 
     uint128 public constant DEFAULT_CAPACITY = 100_000_000e18;
     uint128 public constant INITIAL_CDXUSD_AMT = 10_000_000e18;
@@ -213,6 +225,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     uint256 constant STABLE_VARIABLE_RATE_SLOPE_1 = 0.04e27;
     uint256 constant VOLATILE_VARIABLE_RATE_SLOPE_2 = 3e27;
     uint256 constant STABLE_VARIABLE_RATE_SLOPE_2 = 0.75e27;
+    CommonContracts public commonContracts;
 
     // Structures
     struct ReserveDataParams {
@@ -225,8 +238,14 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         uint40 lastUpdateTimestamp;
     }
 
+    struct TokenTypes {
+        ERC20 token;
+        AToken aToken;
+        VariableDebtToken debtToken;
+    }
+
     struct ConfigAddresses {
-        address protocolDataProvider;
+        address cod3xLendDataProvider;
         address stableStrategy;
         address volatileStrategy;
         address treasury;
@@ -234,8 +253,17 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         address aTokensAndRatesHelper;
     }
 
+    struct PidConfig {
+        address asset;
+        bool assetReserveType;
+        int256 minControllerError;
+        int256 maxITimeAmp;
+        uint256 optimalUtilizationRate;
+        uint256 kp;
+        uint256 ki;
+    }
+
     struct DeployedContracts {
-        LendingPoolAddressesProviderRegistry lendingPoolAddressesProviderRegistry;
         Rewarder rewarder;
         LendingPoolAddressesProvider lendingPoolAddressesProvider;
         LendingPool lendingPool;
@@ -243,6 +271,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         LendingPoolConfigurator lendingPoolConfigurator;
         DefaultReserveInterestRateStrategy stableStrategy;
         DefaultReserveInterestRateStrategy volatileStrategy;
+        PiReserveInterestRateStrategy piStrategy;
+        Cod3xLendDataProvider cod3xLendDataProvider;
         ProtocolDataProvider protocolDataProvider;
         ATokensAndRatesHelper aTokensAndRatesHelper;
     }
@@ -251,8 +281,11 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         MiniPool miniPoolImpl;
         MiniPoolAddressesProvider miniPoolAddressesProvider;
         MiniPoolConfigurator miniPoolConfigurator;
+        MiniPoolDefaultReserveInterestRateStrategy stableStrategy;
+        MiniPoolDefaultReserveInterestRateStrategy volatileStrategy;
+        MiniPoolPiReserveInterestRateStrategy piStrategy;
         ATokenERC6909 aToken6909Impl;
-        flowLimiter flowLimiter;
+        FlowLimiter flowLimiter;
     }
 
     struct TokenParams {
@@ -261,17 +294,45 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         uint256 price;
     }
 
+    struct TokenParamsExtended {
+        ERC20 token;
+        AToken aToken;
+        AToken aTokenWrapper;
+        MockVaultUnit vault;
+        uint256 price;
+    }
+
+    struct CommonContracts {
+        address[] aggregators;
+        address[] aggregatorsPyth;
+        Oracle oracle;
+        Oracle oraclePyth;
+        WETHGateway wETHGateway;
+        AToken aToken;
+        VariableDebtToken variableDebtToken;
+        ATokenERC6909 aTokenErc6909;
+        AToken[] aTokens;
+        AToken[] aTokensWrapper;
+        VariableDebtToken[] variableDebtTokens;
+        ATokenERC6909[] aTokensErc6909;
+        MockReaperVault2[] mockedVaults;
+        MockVaultUnit[] mockVaultUnits;
+        PidConfig defaultPidConfig;
+    }
+
     function setUp() public virtual override {
         super.setUp();
 
         string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20219106);
+        forkIdEth = vm.createFork(MAINNET_RPC_URL);
 
         uint128 INITIAL_ETH_MINT = 1000 ether;
 
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);
         vm.deal(userC, INITIAL_ETH_MINT);
+
+        tRouter = new TRouter();
 
         /// ======= cdxUSD deploy =======
         {
@@ -282,7 +343,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                     abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
                 )
             );
-            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userB, "user b", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userC, "user c", DEFAULT_CAPACITY * 1000);
         }
 
         /// ======= Counter Asset deployments =======
@@ -306,7 +369,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         {
             deployedContracts = fixture_deployProtocol();
             configAddresses = ConfigAddresses(
-                address(deployedContracts.protocolDataProvider),
+                address(deployedContracts.cod3xLendDataProvider),
                 address(deployedContracts.stableStrategy),
                 address(deployedContracts.volatileStrategy),
                 address(deployedContracts.treasury),
@@ -315,7 +378,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             );
             fixture_configureProtocol(
                 address(deployedContracts.lendingPool),
-                address(aToken),
+                address(commonContracts.aToken),
                 configAddresses,
                 deployedContracts.lendingPoolConfigurator,
                 deployedContracts.lendingPoolAddressesProvider
@@ -324,6 +387,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             erc20Tokens = fixture_getErc20Tokens(tokens);
             fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
         }
+
+        deployedContracts.protocolDataProvider =
+            new ProtocolDataProvider(deployedContracts.lendingPoolAddressesProvider);
 
         /// ======= Faucet and Approve =======
         {
@@ -338,14 +404,24 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             // MAX approve "vault" by all users
             for (uint160 i = 1; i <= 3; i++) {
                 vm.startPrank(address(i)); // address(0x1) == address(1)
-                cdxUsd.approve(vault, type(uint256).max);
-                counterAsset.approve(vault, type(uint256).max);
+                cdxUsd.approve(address(vaultV3), type(uint256).max);
+                counterAsset.approve(address(vaultV3), type(uint256).max);
+                cdxUsd.approve(address(tRouter), type(uint256).max);
+                counterAsset.approve(address(tRouter), type(uint256).max);
                 vm.stopPrank();
             }
+
+            vm.startPrank(owner); // address(0x1) == address(1)
+            cdxUsd.approve(address(vaultV3), type(uint256).max);
+            counterAsset.approve(address(vaultV3), type(uint256).max);
+            cdxUsd.approve(address(tRouter), type(uint256).max);
+            counterAsset.approve(address(tRouter), type(uint256).max);
+            vm.stopPrank();
         }
     }
 
     // ======= Cod3x USD =======
+
     function fixture_configureCdxUsd(
         address _lendingPool,
         address _aToken,
@@ -360,10 +436,13 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public {
         address[] memory asset = new address[](1);
         address[] memory aggregator = new address[](1);
+        uint256[] memory timeout = new uint256[](1);
+
         asset[0] = _cdxUsd;
         aggregator[0] = _cdxUsdOracle;
+        timeout[0] = 1000 days;
 
-        oracle.setAssetSources(asset, aggregator);
+        commonContracts.oracle.setAssetSources(asset, aggregator, timeout);
 
         fixture_configureReservesCdxUsd(
             configAddresses,
@@ -376,17 +455,17 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         );
 
         DataTypes.ReserveData memory reserveDataTemp =
-            deployedContracts.lendingPool.getReserveData(_cdxUsd, true);
+            deployedContracts.lendingPool.getReserveData(_cdxUsd, false);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setVariableDebtToken(
             reserveDataTemp.variableDebtTokenAddress
         );
-        CdxUsdAToken(reserveDataTemp.aTokenAddress).updateCdxUsdTreasury(cdxUsdTreasury);
+        deployedContracts.lendingPoolConfigurator.setTreasury(address(cdxUsd), false, treasury);
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setReliquaryInfo(
             _reliquaryCdxusdRewarder, 8000 /* 80% */
         );
         CdxUsdAToken(reserveDataTemp.aTokenAddress).setKeeper(address(this));
         DataTypes.ReserveData memory reserve =
-            ILendingPool(_lendingPool).getReserveData(_cdxUsd, true);
+            ILendingPool(_lendingPool).getReserveData(_cdxUsd, false);
 
         CdxUsdVariableDebtToken(reserveDataTemp.variableDebtTokenAddress).setAToken(
             reserveDataTemp.aTokenAddress
@@ -415,7 +494,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             underlyingAssetDecimals: ERC20(_cdxUsd).decimals(),
             interestRateStrategyAddress: _interestStrategy,
             underlyingAsset: _cdxUsd,
-            reserveType: true,
+            reserveType: false,
             treasury: configAddresses.treasury,
             incentivesController: configAddresses.rewarder,
             underlyingAssetName: tmpSymbol,
@@ -428,10 +507,11 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
         vm.prank(owner);
         LendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
+        // revert("eeee");
 
         inputConfigParams[0] = ATokensAndRatesHelper.ConfigureReserveInput({
             asset: _cdxUsd,
-            reserveType: true,
+            reserveType: false,
             baseLTV: 8000,
             liquidationThreshold: 8500,
             liquidationBonus: 10500,
@@ -447,6 +527,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     }
 
     // ======= Cod3x Lend =======
+
     function uintToString(uint256 value) public pure returns (string memory) {
         // Special case for 0
         if (value == 0) {
@@ -491,22 +572,13 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         //     anotherAddress := create(0, add(bytecode, 0x20), mload(bytecode))
         // }
         deployedContracts.rewarder = new Rewarder();
-        deployedContracts.lendingPoolAddressesProviderRegistry =
-            new LendingPoolAddressesProviderRegistry();
-        deployedContracts.lendingPoolAddressesProvider = new LendingPoolAddressesProvider(marketId);
-        deployedContracts.lendingPoolAddressesProviderRegistry.registerAddressesProvider(
-            address(deployedContracts.lendingPoolAddressesProvider), providerId
-        );
+
+        deployedContracts.lendingPoolAddressesProvider = new LendingPoolAddressesProvider();
+
         deployedContracts.lendingPoolAddressesProvider.setPoolAdmin(owner);
         deployedContracts.lendingPoolAddressesProvider.setEmergencyAdmin(owner);
 
-        // reserveLogic = address(new ReserveLogic());
-        // genericLogic = address(new GenericLogic());
-        // validationLogic = address(new ValidationLogic());
         lendingPool = new LendingPool();
-        lendingPool.initialize(
-            LendingPoolAddressesProvider(address(deployedContracts.lendingPoolAddressesProvider))
-        );
         deployedContracts.lendingPoolAddressesProvider.setLendingPoolImpl(address(lendingPool));
         lendingPoolProxyAddress =
             address(deployedContracts.lendingPoolAddressesProvider.getLendingPool());
@@ -531,17 +603,24 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             lendingPoolConfiguratorProxyAddress
         );
 
-        aToken = new AToken();
-        aTokenErc6909 = new ATokenERC6909();
-        variableDebtToken = new VariableDebtToken();
+        commonContracts.aToken = new AToken();
+        commonContracts.aTokenErc6909 = new ATokenERC6909();
+        commonContracts.variableDebtToken = new VariableDebtToken();
         // stableDebtToken = new StableDebtToken();
-        fixture_deployMocks(address(deployedContracts.treasury));
-        deployedContracts.lendingPoolAddressesProvider.setPriceOracle(address(oracle));
-        vm.label(address(oracle), "Oracle");
-        deployedContracts.protocolDataProvider =
-            new ProtocolDataProvider(deployedContracts.lendingPoolAddressesProvider);
-        //@todo uiPoolDataProviderV2 = new UiPoolDataProviderV2(IChainlinkAggregator(ethPriceFeed), IChainlinkAggregator(ethPriceFeed));
-        wETHGateway = new WETHGateway(weth);
+        fixture_deployMocks(
+            address(deployedContracts.treasury),
+            address(deployedContracts.lendingPoolAddressesProvider)
+        );
+        deployedContracts.lendingPoolAddressesProvider.setPriceOracle(
+            address(commonContracts.oracle)
+        );
+        vm.label(address(commonContracts.oracle), "Oracle");
+        deployedContracts.cod3xLendDataProvider =
+            new Cod3xLendDataProvider(ETH_USD_SOURCE, USDC_USD_SOURCE);
+        deployedContracts.cod3xLendDataProvider.setLendingPoolAddressProvider(
+            address(deployedContracts.lendingPoolAddressesProvider)
+        );
+        commonContracts.wETHGateway = new WETHGateway(weth);
         deployedContracts.stableStrategy = new DefaultReserveInterestRateStrategy(
             deployedContracts.lendingPoolAddressesProvider,
             sStrat[0],
@@ -557,32 +636,59 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             volStrat[3]
         );
 
+        commonContracts.defaultPidConfig = PidConfig({
+            asset: dai,
+            assetReserveType: true,
+            minControllerError: -400e24,
+            maxITimeAmp: 20 days,
+            optimalUtilizationRate: 45e25,
+            kp: 1e27,
+            ki: 13e19
+        });
+        deployedContracts.piStrategy = new PiReserveInterestRateStrategy(
+            address(deployedContracts.lendingPoolAddressesProvider),
+            commonContracts.defaultPidConfig.asset,
+            commonContracts.defaultPidConfig.assetReserveType,
+            commonContracts.defaultPidConfig.minControllerError,
+            commonContracts.defaultPidConfig.maxITimeAmp,
+            commonContracts.defaultPidConfig.optimalUtilizationRate,
+            commonContracts.defaultPidConfig.kp,
+            commonContracts.defaultPidConfig.ki
+        );
+
         return (deployedContracts);
     }
 
-    function fixture_deployMocks(address _treasury) public {
+    function fixture_deployMocks(address _treasury, address _lendingPoolAddressesProvider) public {
         /* Prices to be changed here */
         ERC20[] memory erc20tokens = fixture_getErc20Tokens(tokens);
-        int256[] memory prices = new int256[](tokens.length);
+        int256[] memory prices = new int256[](3);
+        uint256[] memory timeouts = new uint256[](3);
         /* All chainlink price feeds have 8 decimals */
         // prices[0] = int256(1 * 10 ** PRICE_FEED_DECIMALS); // USDC
         prices[0] = int256(67_000 * 10 ** PRICE_FEED_DECIMALS); // WBTC
         prices[1] = int256(3700 * 10 ** PRICE_FEED_DECIMALS); // ETH
         prices[2] = int256(1 * 10 ** PRICE_FEED_DECIMALS); // DAI
-        mockedVaults = fixture_deployErc4626Mocks(tokens, _treasury);
         // usdcPriceFeed = new MockAggregator(100000000, int256(uint256(mintableUsdc.decimals())));
         // wbtcPriceFeed = new MockAggregator(1600000000000, int256(uint256(mintableWbtc.decimals())));
         // ethPriceFeed = new MockAggregator(120000000000, int256(uint256(mintableWeth.decimals())));
-        (, aggregators) = fixture_getTokenPriceFeeds(erc20tokens, prices);
+        (, commonContracts.aggregators, timeouts) = fixture_getTokenPriceFeeds(erc20tokens, prices);
 
-        oracle = new Oracle(tokens, aggregators, FALLBACK_ORACLE, BASE_CURRENCY, BASE_CURRENCY_UNIT);
+        commonContracts.oracle = new Oracle(
+            tokens,
+            commonContracts.aggregators,
+            timeouts,
+            FALLBACK_ORACLE,
+            BASE_CURRENCY,
+            BASE_CURRENCY_UNIT,
+            _lendingPoolAddressesProvider
+        );
 
-        wETHGateway = new WETHGateway(weth);
-        lendingPoolCollateralManager = new LendingPoolCollateralManager();
+        commonContracts.wETHGateway = new WETHGateway(weth);
     }
 
     function fixture_configureProtocol(
-        address ledingPool,
+        address lendingPool,
         address _aToken,
         ConfigAddresses memory configAddresses,
         LendingPoolConfigurator lendingPoolConfiguratorProxy,
@@ -591,19 +697,29 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         fixture_configureReserves(
             configAddresses, lendingPoolConfiguratorProxy, lendingPoolAddressesProvider, _aToken
         );
-        lendingPoolAddressesProvider.setLendingPoolCollateralManager(
-            address(lendingPoolCollateralManager)
-        );
-        wETHGateway.authorizeLendingPool(ledingPool);
+
+        // commonContracts.wETHGateway.authorizeLendingPool(lendingPool);
 
         vm.prank(owner);
         lendingPoolConfiguratorProxy.setPoolPause(false);
 
-        aTokens =
-            fixture_getATokens(tokens, ProtocolDataProvider(configAddresses.protocolDataProvider));
-        variableDebtTokens = fixture_getVarDebtTokens(
-            tokens, ProtocolDataProvider(configAddresses.protocolDataProvider)
+        commonContracts.aTokens =
+            fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
+        commonContracts.aTokensWrapper = fixture_getATokensWrapper(
+            tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider)
         );
+        commonContracts.variableDebtTokens = fixture_getVarDebtTokens(
+            tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider)
+        );
+        for (uint256 idx; idx < tokens.length; idx++) {
+            vm.label(
+                address(commonContracts.aTokens[idx]), string.concat("AToken ", uintToString(idx))
+            );
+            vm.label(
+                address(commonContracts.variableDebtTokens[idx]),
+                string.concat("VariableDebtToken ", uintToString(idx))
+            );
+        }
     }
 
     function fixture_configureReserves(
@@ -622,9 +738,10 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             address interestStrategy = isStableStrategy[idx] != false
                 ? configAddresses.stableStrategy
                 : configAddresses.volatileStrategy;
+            // console2.log("[common] main interestStartegy: ", interestStrategy);
             initInputParams[idx] = ILendingPoolConfigurator.InitReserveInput({
                 aTokenImpl: aTokenAddress,
-                variableDebtTokenImpl: address(variableDebtToken),
+                variableDebtTokenImpl: address(commonContracts.variableDebtToken),
                 underlyingAssetDecimals: ERC20(tokens[idx]).decimals(),
                 interestRateStrategyAddress: interestStrategy,
                 underlyingAsset: tokens[idx],
@@ -641,7 +758,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         }
 
         vm.prank(owner);
-        LendingPoolConfigurator(address(lendingPoolConfigurator)).batchInitReserve(initInputParams);
+        lendingPoolConfigurator.batchInitReserve(initInputParams);
 
         for (uint8 idx = 0; idx < tokens.length; idx++) {
             inputConfigParams[idx] = ATokensAndRatesHelper.ConfigureReserveInput({
@@ -654,6 +771,7 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 borrowingEnabled: true
             });
         }
+
         lendingPoolAddressesProvider.setPoolAdmin(configAddresses.aTokensAndRatesHelper);
         ATokensAndRatesHelper(configAddresses.aTokensAndRatesHelper).configureReserves(
             inputConfigParams
@@ -661,35 +779,47 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         lendingPoolAddressesProvider.setPoolAdmin(owner);
     }
 
-    function fixture_getATokens(address[] memory _tokens, ProtocolDataProvider protocolDataProvider)
-        public
-        view
-        returns (AToken[] memory _aTokens)
-    {
+    function fixture_getATokens(
+        address[] memory _tokens,
+        Cod3xLendDataProvider cod3xLendDataProvider
+    ) public view returns (AToken[] memory _aTokens) {
         _aTokens = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            // console.log("Index: ", idx);
-            (address _aTokenAddress,) =
-                protocolDataProvider.getReserveTokensAddresses(_tokens[idx], true);
-            // console.log("Atoken address", _aTokenAddress);
-            console.log("AToken%s: %s", idx, _aTokenAddress);
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
+            // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokens[idx] = AToken(_aTokenAddress);
+        }
+    }
+
+    function fixture_getATokensWrapper(
+        address[] memory _tokens,
+        Cod3xLendDataProvider cod3xLendDataProvider
+    ) public view returns (AToken[] memory _aTokensW) {
+        _aTokensW = new AToken[](_tokens.length);
+        for (uint32 idx = 0; idx < _tokens.length; idx++) {
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
+            // console2.log("AToken%s: %s", idx, _aTokenAddress);
+            _aTokensW[idx] = AToken(address(AToken(_aTokenAddress).WRAPPER_ADDRESS()));
         }
     }
 
     function fixture_getVarDebtTokens(
         address[] memory _tokens,
-        ProtocolDataProvider protocolDataProvider
+        Cod3xLendDataProvider cod3xLendDataProvider
     ) public returns (VariableDebtToken[] memory _varDebtTokens) {
         _varDebtTokens = new VariableDebtToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            // console.log("Index: ", idx);
-            (, address _variableDebtToken) =
-                protocolDataProvider.getReserveTokensAddresses(_tokens[idx], true);
-            // console.log("Atoken address", _variableDebtToken);
+            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true
+            );
+            // console2.log("Atoken address", _variableDebtToken);
             string memory debtToken = string.concat("debtToken", uintToString(idx));
             vm.label(_variableDebtToken, debtToken);
-            console.log("Debt token%s: %s", idx, _variableDebtToken);
+            console2.log("Debt token %s: %s", idx, _variableDebtToken);
             _varDebtTokens[idx] = VariableDebtToken(_variableDebtToken);
         }
     }
@@ -707,29 +837,23 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
 
     function fixture_getTokenPriceFeeds(ERC20[] memory _tokens, int256[] memory _prices)
         public
-        returns (MockAggregator[] memory _priceFeedMocks, address[] memory _aggregators)
+        returns (
+            MockAggregator[] memory _priceFeedMocks,
+            address[] memory _aggregators,
+            uint256[] memory _timeouts
+        )
     {
         require(_tokens.length == _prices.length, "Length of params shall be equal");
 
         _priceFeedMocks = new MockAggregator[](_tokens.length);
         _aggregators = new address[](_tokens.length);
+        _timeouts = new uint256[](_tokens.length);
         for (uint32 idx; idx < _tokens.length; idx++) {
             _priceFeedMocks[idx] =
                 new MockAggregator(_prices[idx], int256(uint256(_tokens[idx].decimals())));
             _aggregators[idx] = address(_priceFeedMocks[idx]);
+            _timeouts[idx] = 0;
         }
-    }
-
-    function fixture_deployErc4626Mocks(address[] memory _tokens, address _treasury)
-        public
-        returns (MockReaperVault2[] memory)
-    {
-        MockReaperVault2[] memory _mockedVaults = new MockReaperVault2[](_tokens.length);
-        for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            _mockedVaults[idx] =
-                new MockReaperVault2(_tokens[idx], "Mock ERC4626", "mock", TVL_CAP, _treasury);
-        }
-        return _mockedVaults;
     }
 
     function fixture_transferTokensToTestContract(
@@ -738,13 +862,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         address _testContractAddress
     ) public {
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            uint256 price = oracle.getAssetPrice(address(_tokens[idx]));
-            console.log("price:", price);
-            console.log("_toGiveInUsd:", _toGiveInUsd);
+            console2.log("IDX: ", idx);
+            uint256 price = commonContracts.oracle.getAssetPrice(address(_tokens[idx]));
+            console2.log("_toGiveInUsd:", _toGiveInUsd);
             uint256 rawGive = (_toGiveInUsd / price) * 10 ** PRICE_FEED_DECIMALS;
-            console.log("rawGive:", rawGive);
-            console.log("rawGive:", _tokens[idx].symbol());
-            console.log(
+            console2.log("rawGive:", rawGive);
+            console2.log(
                 "Distributed %s of %s",
                 rawGive / (10 ** (18 - _tokens[idx].decimals())),
                 _tokens[idx].symbol()
@@ -754,51 +877,12 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                 _testContractAddress,
                 rawGive / (10 ** (18 - _tokens[idx].decimals()))
             );
-            console.log(
+            console2.log(
                 "Balance: %s %s",
                 _tokens[idx].balanceOf(_testContractAddress),
                 _tokens[idx].symbol()
             );
         }
-    }
-
-    function fixture_deployMiniPoolSetup(
-        address _lendingPoolAddressesProvider,
-        address _lendingPool
-    ) public returns (DeployedMiniPoolContracts memory) {
-        DeployedMiniPoolContracts memory deployedMiniPoolContracts;
-        deployedMiniPoolContracts.miniPoolImpl = new MiniPool();
-        deployedMiniPoolContracts.miniPoolAddressesProvider = new MiniPoolAddressesProvider(
-            LendingPoolAddressesProvider(_lendingPoolAddressesProvider)
-        );
-        deployedMiniPoolContracts.aToken6909Impl = new ATokenERC6909();
-        deployedMiniPoolContracts.flowLimiter = new flowLimiter(
-            LendingPoolAddressesProvider(_lendingPoolAddressesProvider),
-            MiniPoolAddressesProvider(address(deployedMiniPoolContracts.miniPoolAddressesProvider)),
-            LendingPool(_lendingPool)
-        );
-        address miniPoolConfigIMPL = address(new MiniPoolConfigurator());
-        deployedMiniPoolContracts.miniPoolAddressesProvider.setMiniPoolConfigurator(
-            miniPoolConfigIMPL
-        );
-        deployedMiniPoolContracts.miniPoolConfigurator = MiniPoolConfigurator(
-            deployedMiniPoolContracts.miniPoolAddressesProvider.getMiniPoolConfigurator()
-        );
-
-        deployedMiniPoolContracts.miniPoolAddressesProvider.setMiniPoolImpl(
-            address(deployedMiniPoolContracts.miniPoolImpl)
-        );
-        deployedMiniPoolContracts.miniPoolAddressesProvider.setAToken6909Impl(
-            address(deployedMiniPoolContracts.aToken6909Impl)
-        );
-
-        ILendingPoolAddressesProvider(_lendingPoolAddressesProvider).setMiniPoolAddressesProvider(
-            address(deployedMiniPoolContracts.miniPoolAddressesProvider)
-        );
-        ILendingPoolAddressesProvider(_lendingPoolAddressesProvider).setFlowLimiter(
-            address(deployedMiniPoolContracts.flowLimiter)
-        );
-        return deployedMiniPoolContracts;
     }
 
     function fixture_convertWithDecimals(uint256 amountRaw, uint256 decimalsA, uint256 decimalsB)
@@ -821,107 +905,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             : amountRay / 10 ** (RAY_DECIMALS - PRICE_FEED_DECIMALS - (decimalsB - decimalsA));
     }
 
-    function fixture_configureMiniPoolReserves(
-        address[] memory tokensToConfigure,
-        ConfigAddresses memory configAddresses,
-        DeployedMiniPoolContracts memory miniPoolContracts
-    ) public returns (address) {
-        IMiniPoolConfigurator.InitReserveInput[] memory initInputParams =
-            new IMiniPoolConfigurator.InitReserveInput[](tokensToConfigure.length);
-        // address aTokensErc6909Addr;
-        uint256[] memory ssStrat = new uint256[](4);
-        ssStrat[0] = uint256(0.75e27);
-        ssStrat[1] = uint256(0e27);
-        ssStrat[2] = uint256(0.01e27);
-        ssStrat[3] = uint256(0.1e27);
-
-        MiniPoolDefaultReserveInterestRateStrategy IRS = new MiniPoolDefaultReserveInterestRateStrategy(
-            MiniPoolAddressesProvider(address(miniPoolContracts.miniPoolAddressesProvider)),
-            ssStrat[0],
-            ssStrat[1],
-            ssStrat[2],
-            ssStrat[3]
-        );
-
-        miniPoolContracts.miniPoolAddressesProvider.deployMiniPool();
-        console.log("Getting Mini pool: ");
-        address mp = miniPoolContracts.miniPoolAddressesProvider.getMiniPool(cntr);
-        cntr++;
-        // aTokensErc6909Addr = miniPoolContracts.miniPoolAddressesProvider.getMiniPoolToAERC6909(mp);
-        console.log("Length:", tokensToConfigure.length);
-        for (uint8 idx = 0; idx < tokensToConfigure.length; idx++) {
-            string memory tmpSymbol = ERC20(tokensToConfigure[idx]).symbol();
-            string memory tmpName = ERC20(tokensToConfigure[idx]).name();
-
-            address interestStrategy = isStableStrategy[idx % tokens.length] != false
-                ? configAddresses.stableStrategy
-                : configAddresses.volatileStrategy;
-
-            initInputParams[idx] = IMiniPoolConfigurator.InitReserveInput({
-                underlyingAssetDecimals: ERC20(tokensToConfigure[idx]).decimals(),
-                interestRateStrategyAddress: interestStrategy,
-                underlyingAsset: tokensToConfigure[idx],
-                underlyingAssetName: tmpName,
-                underlyingAssetSymbol: tmpSymbol
-            });
-        }
-        vm.startPrank(address(miniPoolContracts.miniPoolAddressesProvider.getPoolAdmin()));
-        MiniPoolConfigurator(address(miniPoolContracts.miniPoolConfigurator)).batchInitReserve(
-            initInputParams, IMiniPool(mp)
-        );
-        assertEq(
-            miniPoolContracts.miniPoolAddressesProvider.getMiniPoolConfigurator(),
-            address(miniPoolContracts.miniPoolConfigurator)
-        );
-
-        for (uint8 idx = 0; idx < tokensToConfigure.length; idx++) {
-            miniPoolContracts.miniPoolConfigurator.configureReserveAsCollateral(
-                tokensToConfigure[idx], 9500, 9700, 10100, MiniPool(mp)
-            );
-
-            miniPoolContracts.miniPoolConfigurator.activateReserve(
-                tokensToConfigure[idx], MiniPool(mp)
-            );
-
-            miniPoolContracts.miniPoolConfigurator.enableBorrowingOnReserve(
-                tokensToConfigure[idx], MiniPool(mp)
-            );
-
-            miniPoolContracts.miniPoolConfigurator.setReserveInterestRateStrategyAddress(
-                address(tokensToConfigure[idx]), address(IRS), MiniPool(mp)
-            );
-        }
-        vm.stopPrank();
-        return (mp);
-    }
-
     function getUsdValOfToken(uint256 amount, address token) public view returns (uint256) {
-        return amount * oracle.getAssetPrice(token);
-    }
-
-    function fixture_getReserveData(address token, ProtocolDataProvider protocolDataProvider)
-        public
-        view
-        returns (ReserveDataParams memory)
-    {
-        (
-            uint256 availableLiquidity,
-            uint256 totalVariableDebt,
-            uint256 liquidityRate,
-            uint256 variableBorrowRate,
-            uint256 liquidityIndex,
-            uint256 variableBorrowIndex,
-            uint40 lastUpdateTimestamp
-        ) = protocolDataProvider.getReserveData(token, true);
-        return ReserveDataParams(
-            availableLiquidity,
-            totalVariableDebt,
-            liquidityRate,
-            variableBorrowRate,
-            liquidityIndex,
-            variableBorrowIndex,
-            lastUpdateTimestamp
-        );
+        return amount * commonContracts.oracle.getAssetPrice(token);
     }
 
     function fixture_changePriceOfToken(
@@ -933,14 +918,18 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         newUsdcPrice = (isPriceIncrease)
             ? (collateralParams.price + collateralParams.price * percentageOfChange / 10_000)
             : (collateralParams.price - collateralParams.price * percentageOfChange / 10_000);
-        address collateralSource = oracle.getSourceOfAsset(address(collateralParams.token));
+        address collateralSource =
+            commonContracts.oracle.getSourceOfAsset(address(collateralParams.token));
         MockAggregator agg = MockAggregator(collateralSource);
-        console.log("1. Latest price: ", uint256(agg.latestAnswer()));
+        console2.log("1. Latest price: ", uint256(agg.latestAnswer()));
 
         agg.setLastAnswer(int256(newUsdcPrice));
 
-        console.log("2. Latest price: ", uint256(agg.latestAnswer()));
-        console.log("2. Oracle price: ", oracle.getAssetPrice(address(collateralParams.token)));
+        console2.log("2. Latest price: ", uint256(agg.latestAnswer()));
+        console2.log(
+            "2. Oracle price: ",
+            commonContracts.oracle.getAssetPrice(address(collateralParams.token))
+        );
     }
 
     function fixture_calcCompoundedInterest(
@@ -983,145 +972,71 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         return expectedVariableDebtTokenBalance;
     }
 
+    function fixture_getReserveData(address token, ProtocolDataProvider protocolDataProvider)
+        public
+        view
+        returns (ReserveDataParams memory)
+    {
+        (
+            uint256 availableLiquidity,
+            uint256 totalVariableDebt,
+            uint256 liquidityRate,
+            uint256 variableBorrowRate,
+            uint256 liquidityIndex,
+            uint256 variableBorrowIndex,
+            uint40 lastUpdateTimestamp
+        ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
+        return ReserveDataParams(
+            availableLiquidity,
+            totalVariableDebt,
+            liquidityRate,
+            variableBorrowRate,
+            liquidityIndex,
+            variableBorrowIndex,
+            lastUpdateTimestamp
+        );
+    }
+
     // ======= Balancer =======
+
     function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
         public
-        returns (bytes32, address)
+        returns (address)
     {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
         tokens = sort(assets);
 
-        IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            rateProviders[i] = IRateProvider(address(0));
+        TokenConfig[] memory tokenConfigs = new TokenConfig[](assets.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokenConfigs[i] = TokenConfig({
+                token: tokens[i],
+                tokenType: TokenType.STANDARD,
+                rateProvider: IRateProvider(address(0)),
+                paysYieldFees: false
+            });
         }
+        PoolRoleAccounts memory roleAccounts;
+        roleAccounts.pauseManager = address(0);
+        roleAccounts.swapFeeManager = address(0);
+        roleAccounts.poolCreator = address(0);
 
-        uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            tokenRateCacheDurations[i] = uint256(0);
-        }
-
-        ComposableStablePool stablePool = IComposableStablePoolFactory(
-            address(composableStablePoolFactory)
-        ).create(
-            "Cod3x-USD-Pool",
-            "CUP",
-            tokens,
-            2500, // test only
-            rateProviders,
-            tokenRateCacheDurations,
-            false,
-            1e12,
-            owner,
-            bytes32("")
+        address stablePool = address(
+            StablePoolFactory(address(composableStablePoolFactoryV3)).create(
+                "Cod3x-USD-Pool",
+                "CUP",
+                tokenConfigs,
+                200, // test only
+                roleAccounts,
+                5e15, // 0.5% (in WAD)
+                address(0),
+                false,
+                false,
+                bytes32(keccak256(abi.encode(tokenConfigs, bytes("Cod3x-USD-Pool"), bytes("CUP"))))
+            )
         );
 
-        return (stablePool.getPoolId(), address(stablePool));
-    }
-
-    function joinPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256[] memory amounts,
-        address user,
-        JoinKind kind
-    ) public {
-        require(
-            kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
-            "Operation not supported"
-        );
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-
-        (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory maxAmounts = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            maxAmounts[i] = type(uint256).max;
-        }
-
-        IVault.JoinPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.maxAmountsIn = maxAmounts;
-        request.fromInternalBalance = false;
-        if (kind == JoinKind.INIT) {
-            request.userData = abi.encode(kind, amountsToAdd);
-        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
-            request.userData = abi.encode(kind, amountsToAdd, 0);
-        }
-
-        vm.prank(user);
-        IVault(vault).joinPool(poolId, user, user, request);
-    }
-
-    function exitPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256 amount,
-        address user,
-        ExitKind kind
-    ) public {
-        require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-
-        tokens = sort(setupPoolTokens);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            minAmountsOut[i] = 0;
-        }
-
-        IVault.ExitPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.minAmountsOut = minAmountsOut;
-        request.toInternalBalance = false;
-        request.userData = abi.encode(kind, amount);
-
-        vm.prank(user);
-        IVault(vault).exitPool(poolId, user, payable(user), request);
-    }
-
-    function swap(
-        bytes32 poolId,
-        address user,
-        address assetIn,
-        address assetOut,
-        uint256 amount,
-        uint256 limit,
-        uint256 deadline,
-        SwapKind kind
-    ) public {
-        require(kind == SwapKind.GIVEN_IN, "Operation not supported");
-
-        IVault.SingleSwap memory singleSwap;
-        singleSwap.poolId = poolId;
-        singleSwap.kind = kind;
-        singleSwap.assetIn = IAsset(assetIn);
-        singleSwap.assetOut = IAsset(assetOut);
-        singleSwap.amount = amount;
-        singleSwap.userData = bytes("");
-
-        IVault.FundManagement memory fundManagement;
-        fundManagement.sender = user;
-        fundManagement.fromInternalBalance = false;
-        fundManagement.recipient = payable(user);
-        fundManagement.toInternalBalance = false;
-
-        vm.prank(user);
-        IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
+        return (address(stablePool));
     }
 }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "../Constants.sol";
 import "contracts/tokens/CdxUSD.sol";
 
@@ -46,7 +46,7 @@ contract CdxUsdBridge is Script, Constants {
 
         MessagingFee memory fee = sourceOFT.quoteSend(sendParam, false);
 
-        console.log("Fee amount: ", fee.nativeFee);
+        console2.log("Fee amount: ", fee.nativeFee);
 
         sourceOFT.send{value: fee.nativeFee}(sendParam, fee, msg.sender);
 

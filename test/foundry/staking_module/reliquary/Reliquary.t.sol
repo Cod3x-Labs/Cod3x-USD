@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";
@@ -246,9 +246,9 @@ contract ReliquaryTest is ERC721Holder, Test {
         amount2 = bound(amount2, 1, testToken.balanceOf(address(this)) - amount1);
         time = bound(time, 1, 356 days * 1); // 100 years
 
-        console.log(amount1);
-        console.log(amount2);
-        console.log(time);
+        console2.log(amount1);
+        console2.log(amount2);
+        console2.log(time);
 
         uint256 relicId = reliquary.createRelicAndDeposit(address(this), 0, amount1);
         skip(time);

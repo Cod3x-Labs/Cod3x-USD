@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/interfaces/IRewarder.sol";
@@ -138,12 +138,6 @@ contract Reliquary is
         // ----------------- Intensive curve compatibility checks.
         {
             if (_poolToken == rewardToken) revert Reliquary__REWARD_TOKEN_AS_POOL_TOKEN();
-
-            // TODO evaluate risk
-            // // Tokens with more than the maximum allowed supply can't serve as pool tokens.
-            // if (IERC20(_poolToken).totalSupply() > MAX_SUPPLY_ALLOWED) {
-            //     revert Reliquary__TOKEN_NOT_COMPATIBLE();
-            // }
 
             // Multiplier at f(0) must not be 0.
             if (_curve.getFunction(0) == 0) {

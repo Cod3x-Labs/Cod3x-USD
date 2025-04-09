@@ -40,10 +40,15 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
         for (uint256 i = 0; i < nbUsers; i++) {
             ERC20Mock(address(counterAsset)).mint(users[i], initialAmt);
             vm.startPrank(users[i]);
-            ERC20Mock(address(counterAsset)).approve(vault, type(uint256).max);
-            ERC20Mock(address(cdxUsd)).approve(vault, type(uint256).max);
+            ERC20Mock(address(counterAsset)).approve(address(tRouter), type(uint256).max);
+            ERC20Mock(address(cdxUsd)).approve(address(tRouter), type(uint256).max);
+            ERC20(address(poolAdd)).approve(address(tRouter), type(uint256).max);
             vm.stopPrank();
         }
+
+        ERC20Mock(address(counterAsset)).approve(address(tRouter), type(uint256).max);
+        ERC20Mock(address(cdxUsd)).approve(address(tRouter), type(uint256).max);
+        ERC20(address(poolAdd)).approve(address(tRouter), type(uint256).max);
 
         WBTC = erc20Tokens[0]; // wbtcPrice =  670000,0000000$
         ETH = erc20Tokens[1]; // ethPrice =  3700,00000000$
@@ -124,6 +129,8 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
         counterAssetPriceFeed.updateAnswer(price_);
+
+        console2.log("balanceOf user1 ::::: ", counterAsset.balanceOf(users[1]));
 
         swapBalancer(users[1], counterAsset, 2_000_000e18);
         plateau(20);
@@ -209,17 +216,18 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
 
         repay(users[1], cdxusd, 100_000e18);
 
-        uint256 balanceCdxUsdATokenBefore = cdxusd.balanceOf(address(aTokens[3]));
-        uint256 bpsReliquaryAlloc = CdxUsdAToken(address(aTokens[3]))._reliquaryAllocation();
+        uint256 balanceCdxUsdATokenBefore = cdxusd.balanceOf(address(commonContracts.aTokens[3]));
+        uint256 bpsReliquaryAlloc =
+            CdxUsdAToken(address(commonContracts.aTokens[3]))._reliquaryAllocation();
 
         assertGt(balanceCdxUsdATokenBefore, 0);
-        assertEq(cdxusd.balanceOf(cdxUsdTreasury), 0);
+        assertEq(cdxusd.balanceOf(treasury), 0);
 
-        CdxUsdAToken(address(aTokens[3])).distributeFeesToTreasury();
+        CdxUsdAToken(address(commonContracts.aTokens[3])).distributeFeesToTreasury();
 
-        assertEq(cdxusd.balanceOf(address(aTokens[3])), 0);
+        assertEq(cdxusd.balanceOf(address(commonContracts.aTokens[3])), 0);
         assertEq(
-            cdxusd.balanceOf(cdxUsdTreasury),
+            cdxusd.balanceOf(treasury),
             balanceCdxUsdATokenBefore - bpsReliquaryAlloc * balanceCdxUsdATokenBefore / 10000
         );
     }
@@ -231,7 +239,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function deposit(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.deposit(address(asset), true, amount, user);
+        deployedContracts.lendingPool.deposit(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -239,7 +249,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
 
     function borrow(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -247,14 +259,18 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
 
     function borrowWithoutSkip(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.borrow(address(asset), true, amount, user);
+        deployedContracts.lendingPool.borrow(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
     }
 
     function withdraw(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
-        deployedContracts.lendingPool.withdraw(address(asset), true, amount, user);
+        deployedContracts.lendingPool.withdraw(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -263,7 +279,9 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function repay(address user, ERC20 asset, uint256 amount) internal {
         vm.startPrank(user);
         asset.approve(address(deployedContracts.lendingPool), amount);
-        deployedContracts.lendingPool.repay(address(asset), true, amount, user);
+        deployedContracts.lendingPool.repay(
+            address(asset), address(asset) == address(cdxUsd) ? false : true, amount, user
+        );
         vm.stopPrank();
         logg();
         skip(DEFAULT_TIME_BEFORE_OP);
@@ -272,29 +290,40 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     function plateau(uint256 period) public {
         for (uint256 i = 0; i < period; i++) {
             vm.startPrank(users[0]);
-            deployedContracts.lendingPool.borrow(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.borrow(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             skip(DEFAULT_TIME_BEFORE_OP);
 
             vm.startPrank(users[0]);
             erc20Tokens[3].approve(address(deployedContracts.lendingPool), 1);
-            deployedContracts.lendingPool.repay(address(erc20Tokens[3]), true, 1, users[0]);
+            deployedContracts.lendingPool.repay(
+                address(erc20Tokens[3]),
+                address(erc20Tokens[3]) == address(cdxUsd) ? false : true,
+                1,
+                users[0]
+            );
             vm.stopPrank();
             skip(DEFAULT_TIME_BEFORE_OP);
         }
     }
 
     function swapBalancer(address user, ERC20 assetIn, uint256 amt) public {
-        swap(
-            poolId,
-            user,
-            address(assetIn),
-            address(assetIn) == address(cdxUsd) ? address(counterAsset) : address(cdxUsd),
+        vm.startPrank(user);
+        tRouter.swapSingleTokenExactIn(
+            poolAdd,
+            IERC20(address(assetIn)),
+            address(assetIn) == address(cdxUsd)
+                ? IERC20(address(counterAsset))
+                : IERC20(address(cdxUsd)),
             amt,
-            0,
-            block.timestamp,
-            SwapKind.GIVEN_IN
+            0
         );
+        vm.stopPrank();
     }
 
     function setManualInterestRate(uint256 manualInterestRate) public {
@@ -306,16 +335,16 @@ contract IntegratorReserveInterestRateStrategy is TestCdxUSDAndLendAndStaking {
     }
 
     function logg() public view {
-        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
-        (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
-        (, uint256 currentVariableBorrowRate,) =
-            cdxUsdInterestRateStrategy.getCurrentInterestRates();
-        uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
+        // (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
+        // (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
+        // (, uint256 currentVariableBorrowRate,) =
+        //     cdxUsdInterestRateStrategy.getCurrentInterestRates();
+        // uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
 
-        // console.log("stablePoolBalance : ", stablePoolBalance);
-        // console.log("currentVariableBorrowRate : ", currentVariableBorrowRate);
-        // console.log("cash cdxUSD : ", cashCdxusd);
-        // console.log("cash counter: ", cashCa);
-        // console.log("---");
+        // console2.log("stablePoolBalance : ", stablePoolBalance);
+        // console2.log("currentVariableBorrowRate : ", currentVariableBorrowRate);
+        // console2.log("cash cdxUSD : ", cashCdxusd);
+        // console2.log("cash counter: ", cashCa);
+        // console2.log("---");
     }
 }

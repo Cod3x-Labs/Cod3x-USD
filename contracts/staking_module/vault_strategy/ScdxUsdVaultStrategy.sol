@@ -1,58 +1,88 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
+/// Cod3x Vault imports
 import "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import "lib/Cod3x-Vault/lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+
+/// Reliquary imports
 import "contracts/interfaces/IReliquary.sol";
+
+/// OpenZeppelin imports
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {
-    IVault as IBalancerVault, JoinKind, ExitKind, SwapKind
-} from "contracts/interfaces/IVault.sol"; // balancer Vault
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "contracts/interfaces/IBaseBalancerPool.sol";
-import "./libraries/BalancerHelper.sol";
+
+/// Balancer imports
+import {IVault as IBalancerVault} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+
+/// Internal imports
+import {BalancerV3Router} from "./libraries/BalancerV3Router.sol";
 
 /**
- * @title ScdxUsdVaultStrategy Contract
- * @author Cod3x - Beirao
- * @notice This contract is Cod3x Vault strategy that define the Staked cdxUSD logic.
- * @dev Keepers needs to call `setMinBPTAmountOut()` + `harvest()` every days.
+ * @title ScdxUsdVaultStrategy Contract.
+ * @author Cod3x - Beirao.
+ * @notice This contract is a Cod3x Vault strategy that defines the Staked cdxUSD logic.
+ * @dev Keepers need to call `setMinBPTAmountOut()` + `harvest()` every day.
  */
 contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
+    /// @dev ID of the relic used by this strategy.
     uint256 private constant RELIC_ID = 1;
+    /// @dev Number of tokens in the Balancer pool.
+    uint256 private constant NB_BALANCER_POOL_ASSET = 2;
 
+    /// @dev Reference to the cdxUSD token contract.
     IERC20 public cdxUSD;
+    /// @dev Reference to the Reliquary staking contract.
     IReliquary public reliquary;
+    /// @dev Reference to the Balancer vault contract.
     IBalancerVault public balancerVault;
+    /// @dev Reference to the BalancerV3Router contract.
+    BalancerV3Router public balancerV3Router;
 
-    IAsset[] public poolTokens;
-    bytes32 public poolId;
+    /// @dev Address of the Balancer pool.
+    address public balancerPool;
+    /// @dev Index of cdxUSD in the pool tokens array.
     uint256 public cdxUsdIndex;
+    /// @dev Minimum BPT tokens to receive when joining pool, used for slippage protection.
     uint256 public minBPTAmountOut;
 
-    /// Errors
+    /// @dev Thrown when input parameters are invalid.
     error ScdxUsdVaultStrategy__INVALID_INPUT();
+    /// @dev Thrown when funds are still staked in Reliquary.
     error ScdxUsdVaultStrategy__FUND_STILL_IN_RELIQUARY();
+    /// @dev Thrown when token addresses are in wrong order.
     error ScdxUsdVaultStrategy__ADDRESS_WRONG_ORDER();
+    /// @dev Thrown when strategy does not own relic ID 1.
     error ScdxUsdVaultStrategy__SHOULD_OWN_RELIC_1();
+    /// @dev Thrown when cdxUSD is not in Balancer pool.
     error ScdxUsdVaultStrategy__CDXUSD_NOT_INCLUDED_IN_BALANCER_POOL();
+    /// @dev Thrown when minBPTAmountOut is not set.
     error ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
+    /// @dev Thrown when pool has more than one counter asset.
     error ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
 
     /**
-     * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
-     * @notice see documentation for each variable above its respective declaration.
+     * @dev Initializes the strategy with core parameters and permissions.
+     * @param _code3xVault Address of the Cod3x vault contract.
+     * @param _balancerVault Address of the Balancer vault contract.
+     * @param _balancerV3Router Address of the BalancerV3Router contract.
+     * @param _strategists Array of strategist addresses.
+     * @param _multisigRoles Array of multisig role addresses.
+     * @param _keepers Array of keeper addresses.
+     * @param _cdxUSD Address of the cdxUSD token.
+     * @param _reliquary Address of the Reliquary staking contract.
+     * @param _balancerPool Address of the Balancer pool.
      */
     function initialize(
         address _code3xVault,
         address _balancerVault,
+        address _balancerV3Router,
         address[] memory _strategists,
         address[] memory _multisigRoles,
         address[] memory _keepers,
         address _cdxUSD,
         address _reliquary,
-        address _balancerPool,
-        bytes32 _poolId
+        address _balancerPool
     ) public initializer {
         if (
             _code3xVault == address(0) || _reliquary == address(0) || _strategists.length == 0
@@ -81,24 +111,19 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
         IERC20(poolToken_).approve(_reliquary, type(uint256).max);
 
         reliquary = IReliquary(_reliquary);
-        poolId = _poolId;
         minBPTAmountOut = 1;
         cdxUsdIndex = type(uint256).max;
+        balancerPool = _balancerPool;
+        balancerV3Router = BalancerV3Router(_balancerV3Router);
 
-        (IERC20[] memory poolTokens_,,) = IBalancerVault(_balancerVault).getPoolTokens(_poolId);
-
-        for (uint256 i = 0; i < poolTokens_.length; i++) {
-            poolTokens.push(IAsset(address(poolTokens_[i])));
+        IERC20[] memory poolTokens_ = IBalancerVault(_balancerVault).getPoolTokens(_balancerPool);
+        if (poolTokens_.length != NB_BALANCER_POOL_ASSET) {
+            revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
         }
 
-        IERC20(_cdxUSD).approve(_balancerVault, type(uint256).max);
+        IERC20(_cdxUSD).approve(_balancerV3Router, type(uint256).max);
 
-        (address _poolAdd,) = IBalancerVault(_balancerVault).getPool(poolId);
-        poolTokens_ = BalancerHelper._dropBptItem(poolTokens_, _poolAdd); // TODO octocheck this
-
-        if (poolTokens_.length != 2) revert ScdxUsdVaultStrategy__MORE_THAN_1_COUNTER_ASSET();
-
-        for (uint256 i = 0; i < poolTokens_.length; i++) {
+        for (uint256 i = 0; i < NB_BALANCER_POOL_ASSET; i++) {
             if (cdxUSD == poolTokens_[i]) {
                 cdxUsdIndex = i;
             }
@@ -112,8 +137,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// ----------- Admin functions -----------
 
     /**
-     * Set a new reliquary address.
-     * @param _reliquary new reliquary address.
+     * @dev Updates the Reliquary contract address.
+     * @param _reliquary New Reliquary contract address.
      */
     function setReliquary(address _reliquary) public {
         _atLeastRole(ADMIN);
@@ -137,16 +162,18 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     /// -------------- Overrides --------------
 
     /**
-     * @dev Function to calculate the total {want} in external contracts only.
+     * @dev Returns total amount of want tokens staked in Reliquary.
+     * @return Amount of want tokens in Reliquary.
      */
     function balanceOfPool() public view override returns (uint256) {
         return reliquary.getAmountInRelic(RELIC_ID);
     }
 
     /**
-     * @dev First try to liquidate with `withdraw()`, if it fails try to liquidate with `emergencyWithdraw()`.
-     * If `withdraw()` should not be called, admin can still pause the reliquary contract, this will
-     * make `withdraw()` reverts and automatically call `emergencyWithdraw()`.
+     * @dev Liquidates all positions by withdrawing from Reliquary.
+     * @dev First tries normal withdraw, falls back to emergency withdraw if needed.
+     * @dev Admin can pause Reliquary to force emergency withdraw.
+     * @return Amount of want tokens withdrawn.
      */
     function _liquidateAllPositions() internal override returns (uint256) {
         try reliquary.withdraw(balanceOfPool(), RELIC_ID, address(this)) {}
@@ -158,9 +185,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @dev Function that puts the funds to work.
-     * It gets called whenever the vault has allocated more free want to this strategy that can be
-     * deposited in external contracts to generate yield.
+     * @dev Deposits want tokens into Reliquary for staking.
+     * @param _toReinvest Amount of want tokens to deposit.
      */
     function _deposit(uint256 _toReinvest) internal override {
         if (_toReinvest != 0) {
@@ -169,7 +195,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @dev Withdraws funds from external contracts and brings them back to the strategy.
+     * @dev Withdraws want tokens from Reliquary.
+     * @param _amount Amount of want tokens to withdraw.
      */
     function _withdraw(uint256 _amount) internal override {
         if (balanceOfPool() != 0 && _amount != 0) {
@@ -178,10 +205,8 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
     }
 
     /**
-     * @notice Before calling `harvest()` KEEPERs must call `setMinBPTAmountOut()`.
-     * @dev Steps:
-     *          - harvest cdxUSD from reliquary.
-     *          - join balancer pool and get LP tokens.
+     * @dev Core harvest logic - claims rewards and joins Balancer pool.
+     * @dev Keepers must call setMinBPTAmountOut() before harvest.
      */
     function _harvestCore() internal override {
         if (minBPTAmountOut <= 1) revert ScdxUsdVaultStrategy__NO_SLIPPAGE_PROTECTION();
@@ -190,26 +215,28 @@ contract ScdxUsdVaultStrategy is ReaperBaseStrategyv4, IERC721Receiver {
 
         uint256 balanceCdxUSD = cdxUSD.balanceOf(address(this));
         if (balanceCdxUSD != 0) {
-            uint256[] memory amountsToAdd_ = new uint256[](poolTokens.length - 1);
+            uint256[] memory amountsToAdd_ = new uint256[](NB_BALANCER_POOL_ASSET);
             amountsToAdd_[cdxUsdIndex] = balanceCdxUSD;
 
-            BalancerHelper._joinPool(
-                balancerVault, amountsToAdd_, poolId, poolTokens, minBPTAmountOut
-            );
+            balancerV3Router.addLiquidityUnbalanced(balancerPool, amountsToAdd_, minBPTAmountOut);
         }
 
         minBPTAmountOut = 1;
     }
 
     /**
-     * @notice define minBPTAmountOut. Must be called before harvesting.
-     * @param _minBPTAmountOut Mininum PoolToken out for the next harvest.
+     * @dev Sets minimum BPT tokens to receive when joining pool.
+     * @param _minBPTAmountOut Minimum BPT tokens to receive.
      */
     function setMinBPTAmountOut(uint256 _minBPTAmountOut) external {
         _atLeastRole(KEEPER);
         minBPTAmountOut = _minBPTAmountOut;
     }
 
+    /**
+     * @dev Required for ERC721 token receiver interface.
+     * @return bytes4 Function selector.
+     */
     function onERC721Received(address, address, uint256, bytes calldata)
         external
         pure
