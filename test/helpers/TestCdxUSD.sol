@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
+import "forge-std/console2.sol";
+
 /// LayerZero
 // Mock imports
 import {OFTMock} from "../helpers/mocks/OFTMock.sol";
@@ -41,19 +43,29 @@ import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "test/helpers/Constants.sol";
 import "test/helpers/Sort.sol";
+
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
 import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/interfaces/IVault.sol";
-import "forge-std/console2.sol";
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+// import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {TRouter} from "test/helpers/TRouter.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
 contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
     uint32 aEid = 1;
@@ -84,7 +96,7 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         super.setUp();
 
         string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20219106);
+        forkIdEth = vm.createFork(MAINNET_RPC_URL);
 
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);
@@ -124,151 +136,51 @@ contract TestCdxUSD is TestHelperOz5, Sort, Events, Constants {
         // MAX approve "vault" by all users
         for (uint160 i = 1; i <= 3; i++) {
             vm.startPrank(address(i)); // address(0x1) == address(1)
-            cdxUSD.approve(vault, type(uint256).max);
-            usdc.approve(vault, type(uint256).max);
-            usdt.approve(vault, type(uint256).max);
+            cdxUSD.approve(vaultV3, type(uint256).max);
+            usdc.approve(vaultV3, type(uint256).max);
+            usdt.approve(vaultV3, type(uint256).max);
             vm.stopPrank();
         }
     }
 
     function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
         public
-        returns (bytes32, address)
+        returns (address)
     {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
         tokens = sort(assets);
 
-        IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            rateProviders[i] = IRateProvider(address(0));
+        TokenConfig[] memory tokenConfigs = new TokenConfig[](assets.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokenConfigs[i] = TokenConfig({
+                token: tokens[i],
+                tokenType: TokenType.STANDARD,
+                rateProvider: IRateProvider(address(0)),
+                paysYieldFees: false
+            });
         }
+        PoolRoleAccounts memory roleAccounts;
+        roleAccounts.pauseManager = address(0);
+        roleAccounts.swapFeeManager = address(0);
+        roleAccounts.poolCreator = address(0);
 
-        uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            tokenRateCacheDurations[i] = uint256(0);
-        }
-
-        ComposableStablePool stablePool = IComposableStablePoolFactory(
-            address(composableStablePoolFactory)
-        ).create(
-            "Cod3x-USD-Pool",
-            "CUP",
-            tokens,
-            2500, // test only
-            rateProviders,
-            tokenRateCacheDurations,
-            false,
-            1e12,
-            owner,
-            bytes32("")
+        address stablePool = address(
+            StablePoolFactory(address(composableStablePoolFactoryV3)).create(
+                "Cod3x-USD-Pool",
+                "CUP",
+                tokenConfigs,
+                amplificationParameter, // test only
+                roleAccounts,
+                1e12, // 0.001% (in WAD)
+                address(0),
+                false,
+                false,
+                bytes32(keccak256(abi.encode(tokenConfigs, bytes("Cod3x-USD-Pool"), bytes("CUP"))))
+            )
         );
 
-        return (stablePool.getPoolId(), address(stablePool));
-    }
-
-    function joinPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256[] memory amounts,
-        address user,
-        JoinKind kind
-    ) public {
-        require(
-            kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
-            "Operation not supported"
-        );
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-
-        (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory maxAmounts = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            maxAmounts[i] = type(uint256).max;
-        }
-
-        IVault.JoinPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.maxAmountsIn = maxAmounts;
-        request.fromInternalBalance = false;
-        if (kind == JoinKind.INIT) {
-            request.userData = abi.encode(kind, amountsToAdd);
-        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
-            request.userData = abi.encode(kind, amountsToAdd, 0);
-        }
-
-        vm.prank(user);
-        IVault(vault).joinPool(poolId, user, user, request);
-    }
-
-    function exitPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256 amount,
-        address user,
-        ExitKind kind
-    ) public {
-        require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-
-        tokens = sort(setupPoolTokens);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            minAmountsOut[i] = 0;
-        }
-
-        IVault.ExitPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.minAmountsOut = minAmountsOut;
-        request.toInternalBalance = false;
-        request.userData = abi.encode(kind, amount);
-
-        vm.prank(user);
-        IVault(vault).exitPool(poolId, user, payable(user), request);
-    }
-
-    function swap(
-        bytes32 poolId,
-        address user,
-        address assetIn,
-        address assetOut,
-        uint256 amount,
-        uint256 limit,
-        uint256 deadline,
-        SwapKind kind
-    ) public {
-        require(kind == SwapKind.GIVEN_IN, "Operation not supported");
-
-        IVault.SingleSwap memory singleSwap;
-        singleSwap.poolId = poolId;
-        singleSwap.kind = kind;
-        singleSwap.assetIn = IAsset(assetIn);
-        singleSwap.assetOut = IAsset(assetOut);
-        singleSwap.amount = amount;
-        singleSwap.userData = bytes("");
-
-        IVault.FundManagement memory fundManagement;
-        fundManagement.sender = user;
-        fundManagement.fromInternalBalance = false;
-        fundManagement.recipient = payable(user);
-        fundManagement.toInternalBalance = false;
-
-        vm.prank(user);
-        IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
+        return (address(stablePool));
     }
 }

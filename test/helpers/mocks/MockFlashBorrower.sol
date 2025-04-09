@@ -48,8 +48,7 @@ contract MockFlashBorrower is IERC3156FlashBorrower {
 
         if (action == Action.NORMAL) {
             // Intentionally left blank.
-        }
-        else if (action == Action.OTHER) {
+        } else if (action == Action.OTHER) {
             // Tests capacity change mid-flashmint.
             require(
                 _lender.flashFee(token, type(uint128).max) == 0,

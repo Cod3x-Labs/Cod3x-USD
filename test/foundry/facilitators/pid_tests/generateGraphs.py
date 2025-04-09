@@ -7,7 +7,7 @@ log = False
 data = pd.read_csv("datas/output.csv")
 
 # Filter the data for the specified asset
-asset_data = data[data["asset"] == "0x13aa49bac059d709dd0a18d6bb63290076a702d7"].copy()
+asset_data = data[data["asset"] == "0x1af7f588a501ea2b5bb3feefa744892aa2cf00e6"].copy()
 
 # Convert the timestamp to datetime and the rates to float
 asset_data["timestamp"] = pd.to_datetime(asset_data["timestamp"], unit="s")
@@ -19,7 +19,7 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
 # Upper subplot: currentVariableBorrowRate
 ax1.plot(asset_data["timestamp"], asset_data["currentVariableBorrowRate"] / 1e25, label="currentVariableBorrowRate")
-ax1.set_title("Rates over time for cdxUSD (0x13aa49bac059d709dd0a18d6bb63290076a702d7)")
+ax1.set_title("Rates over time for cdxUSD (0x1af7f588a501ea2b5bb3feefa744892aa2cf00e6)")
 ax1.set_ylabel("Rates (in %)")
 if log : 
     ax1.set_yscale('log')  # Set y-axis to log scale

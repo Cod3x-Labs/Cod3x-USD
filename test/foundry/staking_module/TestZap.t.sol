@@ -2,18 +2,11 @@
 pragma solidity ^0.8.22;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IVault, JoinKind, ExitKind, SwapKind} from "contracts/interfaces/IVault.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console2.sol";
-
 import {TestCdxUSD} from "test/helpers/TestCdxUSD.sol";
 import {ERC20Mock} from "../../helpers/mocks/ERC20Mock.sol";
 
-// reliquary
+/// reliquary imports
 import "contracts/staking_module/reliquary/Reliquary.sol";
 import "contracts/interfaces/IReliquary.sol";
 import "contracts/staking_module/reliquary/nft_descriptors/NFTDescriptor.sol";
@@ -23,7 +16,7 @@ import "contracts/staking_module/reliquary/rewarders/ParentRollingRewarder.sol";
 import "contracts/interfaces/ICurves.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-// vault
+/// vault imports
 import {ReaperBaseStrategyv4} from "lib/Cod3x-Vault/src/ReaperBaseStrategyv4.sol";
 import {ReaperVaultV2} from "lib/Cod3x-Vault/src/ReaperVaultV2.sol";
 import {ScdxUsdVaultStrategy} from
@@ -31,10 +24,35 @@ import {ScdxUsdVaultStrategy} from
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
 
-// Zap
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
+import {TRouter} from "../../helpers/TRouter.sol";
+
+/// Zap
 import "contracts/staking_module/Zap.sol";
 
 contract TestZap is TestCdxUSD, ERC721Holder {
+    uint256 public constant MINIMAL_AMT = 1000000;
+
     bytes32 public poolId;
     address public poolAdd;
     IERC20[] public assets;
@@ -44,6 +62,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     ScdxUsdVaultStrategy public strategy;
     IERC20 public mockRewardToken;
     Zap public zap;
+    TRouter public tRouter;
+    BalancerV3Router public balancerV3Router;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
@@ -58,42 +78,50 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         super.setUp();
         vm.selectFork(forkIdEth);
 
+        tRouter = new TRouter();
+        vm.startPrank(userA);
+        cdxUSD.approve(address(tRouter), type(uint256).max);
+        usdc.approve(address(tRouter), type(uint256).max);
+        vm.stopPrank();
+
         /// ======= Balancer Pool Deploy =======
         {
-            assets = [IERC20(address(cdxUSD)), usdc]; // counter asset is usdc
+            assets.push(IERC20(address(usdc)));
+            assets.push(IERC20(address(cdxUSD)));
+
+            IERC20[] memory assetsSorted = sort(assets);
+            assets[0] = assetsSorted[0];
+            assets[1] = assetsSorted[1];
 
             // balancer stable pool creation
-            (poolId, poolAdd) = createStablePool(assets, 2500, userA);
+            poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexUsdcTemp;
-            uint256 indexBtpTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
                 if (setupPoolTokens[i] == cdxUSD) indexCdxUsdTemp = i;
                 if (setupPoolTokens[i] == usdc) indexUsdcTemp = i;
-                if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
             }
 
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
             amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
             amountsToAdd[indexUsdcTemp] = INITIAL_USDC_AMT;
-            amountsToAdd[indexBtpTemp] = 0;
 
-            joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
-
-            IERC20[] memory setupPoolTokensWithoutBTP =
-                BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
-
-            for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
-                if (setupPoolTokensWithoutBTP[i] == cdxUSD) indexCdxUsd = i;
-                if (setupPoolTokensWithoutBTP[i] == usdc) indexUsdc = i;
-            }
+            vm.prank(userA);
+            tRouter.initialize(poolAdd, assets, amountsToAdd);
 
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
+
+            for (uint256 i = 0; i < assets.length; i++) {
+                if (assets[i] == cdxUSD) indexCdxUsd = i;
+                if (assets[i] == IERC20(address(usdc))) {
+                    indexCdxUsd = i;
+                }
+            }
         }
 
         /// ========= Reliquary Deploy =========
@@ -132,6 +160,10 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
         /// ========== scdxUSD Vault Strategy Deploy ===========
         {
+            address[] memory interactors = new address[](1);
+            interactors[0] = address(this);
+            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
+
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
             ownerArr[1] = address(this);
@@ -162,18 +194,18 @@ contract TestZap is TestCdxUSD, ERC721Holder {
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vault),
+                address(vaultV3),
+                address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
                 ownerArr1,
                 address(cdxUSD),
                 address(reliquary),
-                address(poolAdd),
-                poolId
+                address(poolAdd)
             );
 
             // console2.log(address(cod3xVault));
-            // console2.log(address(vault));
+            // console2.log(address(vaultV3));
             // console2.log(address(cdxUSD));
             // console2.log(address(reliquary));
             // console2.log(address(poolAdd));
@@ -184,8 +216,9 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         /// ========== Zap Deploy ===========
         {
             zap = new Zap(
-                address(vault),
+                address(vaultV3),
                 address(cod3xVault),
+                address(balancerV3Router),
                 address(strategy),
                 address(reliquary),
                 address(cdxUSD),
@@ -193,6 +226,11 @@ contract TestZap is TestCdxUSD, ERC721Holder {
                 address(this),
                 address(this)
             );
+
+            address[] memory interactors2 = new address[](2);
+            interactors2[0] = address(zap);
+            interactors2[1] = address(strategy);
+            balancerV3Router.setInteractors(interactors2);
         }
 
         // MAX approve `cod3xVault` and `zap` by all users
@@ -208,13 +246,21 @@ contract TestZap is TestCdxUSD, ERC721Holder {
 
             IERC20(poolAdd).approve(address(reliquary), type(uint256).max);
 
+            cdxUSD.approve(address(tRouter), type(uint256).max);
+            usdc.approve(address(tRouter), type(uint256).max);
+
+            cdxUSD.approve(address(balancerV3Router), type(uint256).max);
+            usdc.approve(address(balancerV3Router), type(uint256).max);
+
+            IERC20(poolAdd).approve(address(balancerV3Router), type(uint256).max);
+
             vm.stopPrank();
         }
     }
 
     function testZapInStakedCdxUSD(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
 
         uint256 balanceBeforeCdxusd = IERC20(cdxUSD).balanceOf(userB);
         uint256 balanceBeforeUsdc = IERC20(usdc).balanceOf(userB);
@@ -236,7 +282,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 _seedTokenIndex
     ) public {
         uint256 amtCdxusd = bound(_seedAmtCdxusd, 1e18, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1e6, IERC20(usdc).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 1);
 
         IERC20 tokenToWithdraw;
@@ -263,8 +309,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     }
 
     function testZapInRelicCreate(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
 
         uint256 balanceBeforeCdxusd = IERC20(cdxUSD).balanceOf(userB);
         uint256 balanceBeforeUsdc = IERC20(usdc).balanceOf(userB);
@@ -283,8 +329,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     }
 
     function testZapInRelicOwned(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
 
         uint256 initialRelicAmt = 1000e18;
 
@@ -315,8 +361,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     }
 
     function testZapInRelicOwnedRevert1(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
 
         uint256 initialRelicAmt = 1000e18;
 
@@ -338,8 +384,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     }
 
     function testZapInRelicOwnedRevert2(uint256 _seedAmtCdxusd, uint256 _seedAmtUsdc) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB));
-        uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB));
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB));
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB));
 
         uint256 initialRelicAmt = 1000e18;
 
@@ -393,8 +439,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         uint256 _seedAmtUsdc,
         uint256 _seedTokenIndex
     ) public {
-        uint256 amtCdxusd = bound(_seedAmtCdxusd, 10, IERC20(cdxUSD).balanceOf(userB) / 10);
-        uint256 amtUsdc = bound(_seedAmtUsdc, 10, IERC20(usdc).balanceOf(userB) / 10);
+        uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB) / 10);
+        uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB) / 10);
         uint256 tokenIndex = bound(_seedTokenIndex, 0, 1);
 
         uint256 initialBlalance1 = cdxUSD.balanceOf(userB);
@@ -427,8 +473,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
     //     uint256 _seedAmtUsdc,
     //     uint256 _seedTokenIndex
     // ) public {
-    //     uint256 amtCdxusd = bound(_seedAmtCdxusd, 1, IERC20(cdxUSD).balanceOf(userB) / 10);
-    //     uint256 amtUsdc = bound(_seedAmtUsdc, 1, IERC20(usdc).balanceOf(userB) / 10);
+    //     uint256 amtCdxusd = bound(_seedAmtCdxusd, MINIMAL_AMT, IERC20(cdxUSD).balanceOf(userB) / 10);
+    //     uint256 amtUsdc = bound(_seedAmtUsdc, MINIMAL_AMT, IERC20(usdc).balanceOf(userB) / 10);
     //     uint256 tokenIndex = bound(_seedTokenIndex, 0, 2);
 
     //     IERC20 tokenToWithdraw;

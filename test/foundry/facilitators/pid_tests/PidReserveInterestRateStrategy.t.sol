@@ -29,10 +29,15 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         for (uint256 i = 0; i < nbUsers; i++) {
             ERC20Mock(address(counterAsset)).mint(users[i], initialAmt);
             vm.startPrank(users[i]);
-            ERC20Mock(address(counterAsset)).approve(vault, type(uint256).max);
-            ERC20Mock(address(cdxUsd)).approve(vault, type(uint256).max);
+            ERC20Mock(address(counterAsset)).approve(address(tRouter), type(uint256).max);
+            ERC20Mock(address(cdxUsd)).approve(address(tRouter), type(uint256).max);
+            ERC20(address(poolAdd)).approve(address(tRouter), type(uint256).max);
             vm.stopPrank();
         }
+
+        ERC20Mock(address(counterAsset)).approve(address(tRouter), type(uint256).max);
+        ERC20Mock(address(cdxUsd)).approve(address(tRouter), type(uint256).max);
+        ERC20(address(poolAdd)).approve(address(tRouter), type(uint256).max);
 
         /// file setup
         if (vm.exists(path)) vm.removeFile(path);
@@ -178,16 +183,17 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function swapBalancer(address user, ERC20 assetIn, uint256 amt) public {
-        swap(
-            poolId,
-            user,
-            address(assetIn),
-            address(assetIn) == address(cdxUsd) ? address(counterAsset) : address(cdxUsd),
+        vm.startPrank(user);
+        tRouter.swapSingleTokenExactIn(
+            poolAdd,
+            IERC20(address(assetIn)),
+            address(assetIn) == address(cdxUsd)
+                ? IERC20(address(counterAsset))
+                : IERC20(address(cdxUsd)),
             amt,
-            0,
-            block.timestamp,
-            SwapKind.GIVEN_IN
+            0
         );
+        vm.stopPrank();
     }
 
     function setManualInterestRate(uint256 manualInterestRate) public {
@@ -202,7 +208,11 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
         (, uint256 currentVariableBorrowRate,) =
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
-        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
+        (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
+            IVault(vaultV3).getPoolTokenInfo(poolAdd);
+
+        uint256 cashCdxusd = lastBalancesLiveScaled18_[indexCdxUsd];
+
         uint256 stablePoolBalance = cashCdxusd * 1e27 / INITIAL_CDXUSD_AMT;
 
         string memory data = string(
@@ -225,8 +235,11 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
     }
 
     function logCash() public view {
-        (uint256 cashCdxusd,,,) = IVault(vault).getPoolTokenInfo(poolId, cdxUsd);
-        (uint256 cashCa,,,) = IVault(vault).getPoolTokenInfo(poolId, IERC20(address(counterAsset)));
+        (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
+            IVault(vaultV3).getPoolTokenInfo(poolAdd);
+
+        uint256 cashCdxusd = lastBalancesLiveScaled18_[indexCdxUsd];
+        uint256 cashCa = lastBalancesLiveScaled18_[indexCounterAsset];
 
         // console2.log("cash cdxUSD : ", cashCdxusd);
         // console2.log("cash counter: ", cashCa);

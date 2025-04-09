@@ -16,17 +16,6 @@ import {Cod3xLendDataProvider} from "lib/Cod3x-Lend/contracts/misc/Cod3xLendData
 // import {ReserveBorrowConfiguration} from  "lib/Cod3x-Lend/contracts/protocol/libraries/configuration/ReserveConfiguration.sol";
 
 // Balancer
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/interfaces/IVault.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
 import "forge-std/console2.sol";
 
 import {TestCdxUSDAndLend} from "test/helpers/TestCdxUSDAndLend.sol";
@@ -49,7 +38,6 @@ import {ScdxUsdVaultStrategy} from
     "contracts/staking_module/vault_strategy/ScdxUsdVaultStrategy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "lib/Cod3x-Vault/test/vault/mock/FeeControllerMock.sol";
-import "contracts/staking_module/vault_strategy/libraries/BalancerHelper.sol";
 
 // CdxUSD
 import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
@@ -60,6 +48,29 @@ import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 import {MockV3Aggregator} from "test/helpers/mocks/MockV3Aggregator.sol";
+
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {TRouter} from "./TRouter.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
 contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
     using WadRayMath for uint256;
@@ -74,6 +85,7 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
     ReaperVaultV2 public cod3xVault;
     ScdxUsdVaultStrategy public strategy;
     IERC20 public mockRewardToken;
+    BalancerV3Router public balancerV3Router;
 
     // Linear function config (to config)
     uint256 public slope = 100; // Increase of multiplier every second
@@ -97,39 +109,39 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
 
         /// ======= Balancer Pool Deploy =======
         {
-            assets = [IERC20(address(cdxUsd)), IERC20(address(counterAsset))];
+            assets.push(IERC20(address(counterAsset)));
+            assets.push(IERC20(address(cdxUsd)));
+
+            IERC20[] memory assetsSorted = sort(assets);
+            assets[0] = assetsSorted[0];
+            assets[1] = assetsSorted[1];
 
             // balancer stable pool creation
-            (poolId, poolAdd) = createStablePool(assets, 2500, userA);
+            poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            (IERC20[] memory setupPoolTokens,,) = IVault(vault).getPoolTokens(poolId);
+            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexCounterAssetTemp;
-            uint256 indexBtpTemp;
             for (uint256 i = 0; i < setupPoolTokens.length; i++) {
                 if (setupPoolTokens[i] == cdxUsd) indexCdxUsdTemp = i;
                 if (setupPoolTokens[i] == IERC20(address(counterAsset))) indexCounterAssetTemp = i;
-                if (setupPoolTokens[i] == IERC20(poolAdd)) indexBtpTemp = i;
             }
 
             uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
             amountsToAdd[indexCdxUsdTemp] = INITIAL_CDXUSD_AMT;
             amountsToAdd[indexCounterAssetTemp] = INITIAL_COUNTER_ASSET_AMT;
-            amountsToAdd[indexBtpTemp] = 0;
 
-            joinPool(poolId, setupPoolTokens, amountsToAdd, userA, JoinKind.INIT);
+            vm.prank(userA);
+            tRouter.initialize(poolAdd, assets, amountsToAdd);
 
             vm.prank(userA);
             IERC20(poolAdd).transfer(address(this), 1);
 
-            IERC20[] memory setupPoolTokensWithoutBTP =
-                BalancerHelper._dropBptItem(setupPoolTokens, poolAdd);
-
-            for (uint256 i = 0; i < setupPoolTokensWithoutBTP.length; i++) {
-                if (setupPoolTokensWithoutBTP[i] == cdxUsd) indexCdxUsd = i;
-                if (setupPoolTokensWithoutBTP[i] == IERC20(address(counterAsset))) {
+            for (uint256 i = 0; i < assets.length; i++) {
+                if (assets[i] == cdxUsd) indexCdxUsd = i;
+                if (assets[i] == IERC20(address(counterAsset))) {
                     indexCounterAsset = i;
                 }
             }
@@ -163,9 +175,8 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(this) // can send to the strategy directly.
             );
 
-            rewarder = RollingRewarder(
-                ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd))
-            );
+            rewarder =
+                RollingRewarder(ParentRollingRewarder(parentRewarder).createChild(address(cdxUsd)));
             IERC20(cdxUsd).approve(address(reliquary), type(uint256).max);
             IERC20(cdxUsd).approve(address(rewarder), type(uint256).max);
         }
@@ -199,21 +210,26 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), "");
             strategy = ScdxUsdVaultStrategy(address(proxy));
 
+            address[] memory ownerArr2 = new address[](2);
+            ownerArr2[0] = address(strategy);
+            ownerArr2[1] = address(this);
+            balancerV3Router = new BalancerV3Router(address(cod3xVault), address(this), ownerArr2);
+
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vault),
+                address(vaultV3),
+                address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
                 ownerArr1,
                 address(cdxUsd),
                 address(reliquary),
-                address(poolAdd),
-                poolId
+                address(poolAdd)
             );
 
             // console2.log(address(cod3xVault));
-            // console2.log(address(vault));
+            // console2.log(address(vaultV3));
             // console2.log(address(cdxUSD));
             // console2.log(address(reliquary));
             // console2.log(address(poolAdd));
@@ -230,8 +246,8 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
                 address(deployedContracts.lendingPoolAddressesProvider),
                 address(cdxUsd),
                 false,
-                vault, // balancerVault,
-                poolId,
+                address(vaultV3), // balancerVault,
+                address(poolAdd),
                 1e25,
                 2e25, // starts at 2% interest rate
                 13e19
@@ -241,7 +257,6 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             cdxUsdInterestRateStrategy.setOracleValues(
                 address(counterAssetPriceFeed), 1e26, /* 10% */ 86400
             );
-
 
             fixture_configureCdxUsd(
                 address(deployedContracts.lendingPool),
@@ -271,8 +286,9 @@ contract TestCdxUSDAndLendAndStaking is TestCdxUSDAndLend, ERC721Holder {
             // );
 
             tokens.push(address(cdxUsd));
-            commonContracts.aTokens =
-                fixture_getATokens(tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider));
+            commonContracts.aTokens = fixture_getATokens(
+                tokens, Cod3xLendDataProvider(configAddresses.cod3xLendDataProvider)
+            );
 
             erc20Tokens.push(ERC20(address(cdxUsd)));
             // console2.log("Index: ", idx);

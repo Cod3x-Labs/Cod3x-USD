@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.22;
 
+import "forge-std/console2.sol";
+
 // Cod3x Lend
 import {ERC20} from "lib/Cod3x-Lend/contracts/dependencies/openzeppelin/contracts/ERC20.sol";
 import {Rewarder} from "lib/Cod3x-Lend/contracts/protocol/rewarder/lendingpool/Rewarder.sol";
@@ -90,34 +92,43 @@ import {OFTComposeMsgCodec} from
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 /// Main import
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "contracts/tokens/CdxUSD.sol";
-import "contracts/interfaces/ICdxUSD.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {CdxUSD} from "contracts/tokens/CdxUSD.sol";
+import {ICdxUSD} from "contracts/interfaces/ICdxUSD.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import "test/helpers/Events.sol";
+import {Events} from "test/helpers/Events.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "test/helpers/Constants.sol";
-import "test/helpers/Sort.sol";
-import {
-    IComposableStablePoolFactory,
-    IRateProvider,
-    ComposableStablePool
-} from "contracts/interfaces/IComposableStablePoolFactory.sol";
-import {IAsset} from "node_modules/@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {
-    IVault,
-    JoinKind,
-    ExitKind,
-    SwapKind
-} from "contracts/interfaces/IVault.sol";
+import {Constants} from "test/helpers/Constants.sol";
+import {Sort} from "test/helpers/Sort.sol";
 import {CdxUsdAToken} from "contracts/facilitators/cod3x_lend/token/CdxUsdAToken.sol";
 import {CdxUsdVariableDebtToken} from
     "contracts/facilitators/cod3x_lend/token/CdxUsdVariableDebtToken.sol";
 
-import "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
+import {RollingRewarder} from "contracts/staking_module/reliquary/rewarders/RollingRewarder.sol";
 
-import "forge-std/console2.sol";
+/// balancer V3 imports
+import {BalancerV3Router} from
+    "contracts/staking_module/vault_strategy/libraries/BalancerV3Router.sol";
+import {
+    TokenConfig,
+    TokenType,
+    PoolRoleAccounts,
+    LiquidityManagement,
+    AddLiquidityKind,
+    RemoveLiquidityKind,
+    AddLiquidityParams,
+    RemoveLiquidityParams
+} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/VaultTypes.sol";
+import {IVault} from "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVault.sol";
+import {Vault} from "lib/balancer-v3-monorepo/pkg/vault/contracts/Vault.sol";
+import {StablePoolFactory} from
+    "lib/balancer-v3-monorepo/pkg/pool-stable/contracts/StablePoolFactory.sol";
+import {IRateProvider} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/solidity-utils/helpers/IRateProvider.sol";
+import {TRouter} from "./TRouter.sol";
+import {IVaultExplorer} from
+    "lib/balancer-v3-monorepo/pkg/interfaces/contracts/vault/IVaultExplorer.sol";
 
 contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     using WadRayMath for uint256;
@@ -184,6 +195,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ATokenERC6909[] public aTokensErc6909;
 
     MockReaperVault2[] public mockedVaults;
+
+    TRouter public tRouter;
 
     uint128 public constant DEFAULT_CAPACITY = 100_000_000e18;
     uint128 public constant INITIAL_CDXUSD_AMT = 10_000_000e18;
@@ -311,13 +324,15 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         super.setUp();
 
         string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-        forkIdEth = vm.createFork(MAINNET_RPC_URL, 20219106);
+        forkIdEth = vm.createFork(MAINNET_RPC_URL);
 
         uint128 INITIAL_ETH_MINT = 1000 ether;
 
         vm.deal(userA, INITIAL_ETH_MINT);
         vm.deal(userB, INITIAL_ETH_MINT);
         vm.deal(userC, INITIAL_ETH_MINT);
+
+        tRouter = new TRouter();
 
         /// ======= cdxUSD deploy =======
         {
@@ -328,7 +343,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
                     abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
                 )
             );
-            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY);
+            cdxUsd.addFacilitator(userA, "user a", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userB, "user b", DEFAULT_CAPACITY * 1000);
+            cdxUsd.addFacilitator(userC, "user c", DEFAULT_CAPACITY * 1000);
         }
 
         /// ======= Counter Asset deployments =======
@@ -371,9 +388,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             fixture_transferTokensToTestContract(erc20Tokens, INITIAL_AMT, address(this));
         }
 
-        deployedContracts.protocolDataProvider = new ProtocolDataProvider(
-            deployedContracts.lendingPoolAddressesProvider
-        );
+        deployedContracts.protocolDataProvider =
+            new ProtocolDataProvider(deployedContracts.lendingPoolAddressesProvider);
 
         /// ======= Faucet and Approve =======
         {
@@ -388,10 +404,19 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
             // MAX approve "vault" by all users
             for (uint160 i = 1; i <= 3; i++) {
                 vm.startPrank(address(i)); // address(0x1) == address(1)
-                cdxUsd.approve(vault, type(uint256).max);
-                counterAsset.approve(vault, type(uint256).max);
+                cdxUsd.approve(address(vaultV3), type(uint256).max);
+                counterAsset.approve(address(vaultV3), type(uint256).max);
+                cdxUsd.approve(address(tRouter), type(uint256).max);
+                counterAsset.approve(address(tRouter), type(uint256).max);
                 vm.stopPrank();
             }
+
+            vm.startPrank(owner); // address(0x1) == address(1)
+            cdxUsd.approve(address(vaultV3), type(uint256).max);
+            counterAsset.approve(address(vaultV3), type(uint256).max);
+            cdxUsd.approve(address(tRouter), type(uint256).max);
+            counterAsset.approve(address(tRouter), type(uint256).max);
+            vm.stopPrank();
         }
     }
 
@@ -583,7 +608,8 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
         commonContracts.variableDebtToken = new VariableDebtToken();
         // stableDebtToken = new StableDebtToken();
         fixture_deployMocks(
-            address(deployedContracts.treasury), address(deployedContracts.lendingPoolAddressesProvider)
+            address(deployedContracts.treasury),
+            address(deployedContracts.lendingPoolAddressesProvider)
         );
         deployedContracts.lendingPoolAddressesProvider.setPriceOracle(
             address(commonContracts.oracle)
@@ -759,7 +785,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokens) {
         _aTokens = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokens[idx] = AToken(_aTokenAddress);
         }
@@ -771,7 +799,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public view returns (AToken[] memory _aTokensW) {
         _aTokensW = new AToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(_tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true));
+            (address _aTokenAddress,) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], (_tokens[idx] == address(cdxUsd) ? false : true)
+            );
             // console2.log("AToken%s: %s", idx, _aTokenAddress);
             _aTokensW[idx] = AToken(address(AToken(_aTokenAddress).WRAPPER_ADDRESS()));
         }
@@ -783,7 +813,9 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     ) public returns (VariableDebtToken[] memory _varDebtTokens) {
         _varDebtTokens = new VariableDebtToken[](_tokens.length);
         for (uint32 idx = 0; idx < _tokens.length; idx++) {
-            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(_tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true);
+            (, address _variableDebtToken) = cod3xLendDataProvider.getLpTokens(
+                _tokens[idx], _tokens[idx] == address(cdxUsd) ? false : true
+            );
             // console2.log("Atoken address", _variableDebtToken);
             string memory debtToken = string.concat("debtToken", uintToString(idx));
             vm.label(_variableDebtToken, debtToken);
@@ -941,170 +973,70 @@ contract TestCdxUSDAndLend is TestHelperOz5, Sort, Events, Constants {
     }
 
     function fixture_getReserveData(address token, ProtocolDataProvider protocolDataProvider)
-    public
-    view
-    returns (ReserveDataParams memory)
-{
-    (
-        uint256 availableLiquidity,
-        uint256 totalVariableDebt,
-        uint256 liquidityRate,
-        uint256 variableBorrowRate,
-        uint256 liquidityIndex,
-        uint256 variableBorrowIndex,
-        uint40 lastUpdateTimestamp
-    ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
-    return ReserveDataParams(
-        availableLiquidity,
-        totalVariableDebt,
-        liquidityRate,
-        variableBorrowRate,
-        liquidityIndex,
-        variableBorrowIndex,
-        lastUpdateTimestamp
-    );
-}
+        public
+        view
+        returns (ReserveDataParams memory)
+    {
+        (
+            uint256 availableLiquidity,
+            uint256 totalVariableDebt,
+            uint256 liquidityRate,
+            uint256 variableBorrowRate,
+            uint256 liquidityIndex,
+            uint256 variableBorrowIndex,
+            uint40 lastUpdateTimestamp
+        ) = protocolDataProvider.getReserveData(token, token == address(cdxUsd) ? false : true);
+        return ReserveDataParams(
+            availableLiquidity,
+            totalVariableDebt,
+            liquidityRate,
+            variableBorrowRate,
+            liquidityIndex,
+            variableBorrowIndex,
+            lastUpdateTimestamp
+        );
+    }
 
     // ======= Balancer =======
 
     function createStablePool(IERC20[] memory assets, uint256 amplificationParameter, address owner)
         public
-        returns (bytes32, address)
+        returns (address)
     {
         // sort tokens
         IERC20[] memory tokens = new IERC20[](assets.length);
 
         tokens = sort(assets);
 
-        IRateProvider[] memory rateProviders = new IRateProvider[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            rateProviders[i] = IRateProvider(address(0));
+        TokenConfig[] memory tokenConfigs = new TokenConfig[](assets.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokenConfigs[i] = TokenConfig({
+                token: tokens[i],
+                tokenType: TokenType.STANDARD,
+                rateProvider: IRateProvider(address(0)),
+                paysYieldFees: false
+            });
         }
+        PoolRoleAccounts memory roleAccounts;
+        roleAccounts.pauseManager = address(0);
+        roleAccounts.swapFeeManager = address(0);
+        roleAccounts.poolCreator = address(0);
 
-        uint256[] memory tokenRateCacheDurations = new uint256[](assets.length);
-        for (uint256 i = 0; i < assets.length; i++) {
-            tokenRateCacheDurations[i] = uint256(0);
-        }
-
-        ComposableStablePool stablePool = IComposableStablePoolFactory(
-            address(composableStablePoolFactory)
-        ).create(
-            "Cod3x-USD-Pool",
-            "CUP",
-            tokens,
-            2500, // test only
-            rateProviders,
-            tokenRateCacheDurations,
-            false,
-            1e12,
-            owner,
-            bytes32("")
+        address stablePool = address(
+            StablePoolFactory(address(composableStablePoolFactoryV3)).create(
+                "Cod3x-USD-Pool",
+                "CUP",
+                tokenConfigs,
+                200, // test only
+                roleAccounts,
+                5e15, // 0.5% (in WAD)
+                address(0),
+                false,
+                false,
+                bytes32(keccak256(abi.encode(tokenConfigs, bytes("Cod3x-USD-Pool"), bytes("CUP"))))
+            )
         );
 
-        return (stablePool.getPoolId(), address(stablePool));
-    }
-
-    function joinPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256[] memory amounts,
-        address user,
-        JoinKind kind
-    ) public {
-        require(
-            kind == JoinKind.INIT || kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
-            "Operation not supported"
-        );
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-        uint256[] memory amountsToAdd = new uint256[](setupPoolTokens.length);
-
-        (tokens, amountsToAdd) = sort(setupPoolTokens, amounts);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory maxAmounts = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            maxAmounts[i] = type(uint256).max;
-        }
-
-        IVault.JoinPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.maxAmountsIn = maxAmounts;
-        request.fromInternalBalance = false;
-        if (kind == JoinKind.INIT) {
-            request.userData = abi.encode(kind, amountsToAdd);
-        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
-            request.userData = abi.encode(kind, amountsToAdd, 0);
-        }
-
-        vm.prank(user);
-        IVault(vault).joinPool(poolId, user, user, request);
-    }
-
-    function exitPool(
-        bytes32 poolId,
-        IERC20[] memory setupPoolTokens,
-        uint256 amount,
-        address user,
-        ExitKind kind
-    ) public {
-        require(kind == ExitKind.EXACT_BPT_IN_FOR_ALL_TOKENS_OUT, "Operation not supported");
-
-        IERC20[] memory tokens = new IERC20[](setupPoolTokens.length);
-
-        tokens = sort(setupPoolTokens);
-
-        IAsset[] memory assetsIAsset = new IAsset[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            assetsIAsset[i] = IAsset(address(tokens[i]));
-        }
-
-        uint256[] memory minAmountsOut = new uint256[](setupPoolTokens.length);
-        for (uint256 i = 0; i < setupPoolTokens.length; i++) {
-            minAmountsOut[i] = 0;
-        }
-
-        IVault.ExitPoolRequest memory request;
-        request.assets = assetsIAsset;
-        request.minAmountsOut = minAmountsOut;
-        request.toInternalBalance = false;
-        request.userData = abi.encode(kind, amount);
-
-        vm.prank(user);
-        IVault(vault).exitPool(poolId, user, payable(user), request);
-    }
-
-    function swap(
-        bytes32 poolId,
-        address user,
-        address assetIn,
-        address assetOut,
-        uint256 amount,
-        uint256 limit,
-        uint256 deadline,
-        SwapKind kind
-    ) public {
-        require(kind == SwapKind.GIVEN_IN, "Operation not supported");
-
-        IVault.SingleSwap memory singleSwap;
-        singleSwap.poolId = poolId;
-        singleSwap.kind = kind;
-        singleSwap.assetIn = IAsset(assetIn);
-        singleSwap.assetOut = IAsset(assetOut);
-        singleSwap.amount = amount;
-        singleSwap.userData = bytes("");
-
-        IVault.FundManagement memory fundManagement;
-        fundManagement.sender = user;
-        fundManagement.fromInternalBalance = false;
-        fundManagement.recipient = payable(user);
-        fundManagement.toInternalBalance = false;
-
-        vm.prank(user);
-        IVault(vault).swap(singleSwap, fundManagement, limit, deadline);
+        return (address(stablePool));
     }
 }
