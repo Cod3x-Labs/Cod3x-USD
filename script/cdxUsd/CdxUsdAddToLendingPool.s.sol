@@ -67,7 +67,7 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
 
         /// ========= Balancer pool Deploy =========
         {
-            console2.log("====== Deploying Stable Pool ======");
+            console2.log("====== Stable Pool Deployment ======");
             TRouter tRouter = new TRouter();
             uint256 initialCdxAmt = 100_000e18;
             uint256 initialCounterAssetAmt = 100_000e6;
@@ -101,18 +101,16 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
 
         /// ========= Reliquary Deploy =========
         {
-            ReliquaryParams memory reliquaryParams =
-                ReliquaryParams({slope: 100, minMultiplier: 365 days * 100, plateau: 10 days});
+            uint256 SLOPE = 100;
+            uint256 MIN_MULTIPLIER = 365 days * 100;
+            uint256 PLATEAU = 10 days;
+            address REWARD_TOKEN = address(new ERC20Mock(18));
 
-            console2.log("====== Deploying Reliquary ======");
-            IERC20 mockRewardToken = IERC20(address(new ERC20Mock(18)));
+            console2.log("====== Reliquary Deployment ======");
             contractsToDeploy.reliquary =
-                new Reliquary(address(mockRewardToken), 0, "Reliquary scdxUsd", "scdxUsd Relic");
-            address linearPlateauCurve = address(
-                new LinearPlateauCurve(
-                    reliquaryParams.slope, reliquaryParams.minMultiplier, reliquaryParams.plateau
-                )
-            );
+                new Reliquary(REWARD_TOKEN, 0, "Reliquary scdxUsd", "scdxUsd Relic");
+            address linearPlateauCurve =
+                address(new LinearPlateauCurve(SLOPE, MIN_MULTIPLIER, PLATEAU));
 
             address nftDescriptor = address(new NFTDescriptor(address(contractsToDeploy.reliquary)));
             address parentRewarder = address(new ParentRollingRewarder());
@@ -147,8 +145,9 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
 
         /// ========== scdxUsd Vault Strategy Deploy ===========
         uint256 RELIC_ID = 1;
+        address FEE_CONTROLLER = address(new FeeControllerMock());
         {
-            console2.log("====== Deploying scdxUsd Vault Strategy ======");
+            console2.log("====== scdxUsd Vault Strategy Deployment ======");
             address[] memory interactors = new address[](1);
             interactors[0] = address(this);
             contractsToDeploy.balancerV3Router =
@@ -162,8 +161,7 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
             address[] memory ownerArr1 = new address[](1);
             ownerArr[0] = address(this);
             {
-                FeeControllerMock feeControllerMock = new FeeControllerMock();
-                feeControllerMock.updateManagementFeeBPS(0);
+                IFeeController(FEE_CONTROLLER).updateManagementFeeBPS(0);
 
                 contractsToDeploy.cod3xVault = new ReaperVaultV2(
                     contractsToDeploy.stablePool,
@@ -174,7 +172,7 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
                     extContracts.treasury,
                     ownerArr,
                     ownerArr,
-                    address(feeControllerMock)
+                    FEE_CONTROLLER
                 );
             }
 
@@ -256,6 +254,10 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
 
         /// ========= Init cod3xUsd on cod3x lend =========
         console2.log("====== Init cod3xUsd on cod3x lend ======");
+        ILendingPool lendingPool = ILendingPool(
+            ILendingPoolAddressesProvider(extContracts.lendingPoolAddressesProvider).getLendingPool(
+            )
+        );
         {
             uint256 RELIQUARY_ALLOCATION = 8000; /* 80% */
 
@@ -271,7 +273,7 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
                 interestStrat: address(cdxUsdInterestRateStrategy)
             });
             vm.stopPrank();
-
+            console2.log("=== cdxUsd configuration ===");
             fixture_configureCdxUsd(
                 extContractsForConfiguration,
                 poolReserversConfig,
@@ -302,8 +304,35 @@ contract CdxUsdAddToLendingPool is Script, Test, TestCdxUSDAndLend {
             // contractsToDeploy.cdxUsdVariableDebtToken.setAToken(
             //     address(contractsToDeploy.cdxUsdAToken)
             // );
+            console2.log("=== Adding Facilitator ===");
+            DataTypes.ReserveData memory reserveData =
+                lendingPool.getReserveData(cdxUsd, poolReserversConfig.reserveType);
+            vm.prank(CdxUSD(cdxUsd).owner());
+            CdxUSD(cdxUsd).addFacilitator(reserveData.aTokenAddress, "aToken", 100_000e18);
+        }
 
-            CdxUSD(cdxUsd).addFacilitator(admin, "admin", 100_000e18);
+        console2.log("====== Testing ======");
+        {
+            vm.startPrank(user1);
+            uint256 amountToDeposit = 2000e6;
+            uint256 amountToBorrow = 1000e18;
+
+            // Deposit
+            IERC20(BASE_USDC).approve(address(lendingPool), type(uint256).max);
+            lendingPool.deposit(BASE_USDC, poolReserversConfig.reserveType, amountToDeposit, user1);
+
+            // Borrow
+            lendingPool.borrow(cdxUsd, poolReserversConfig.reserveType, amountToBorrow, user1);
+
+            assertEq(
+                IERC20(cdxUsd).balanceOf(user1), amountToBorrow, "User1 should have borrowed cdxUsd"
+            );
+
+            // Repay
+            IERC20(cdxUsd).approve(address(lendingPool), type(uint256).max);
+            lendingPool.repay(cdxUsd, poolReserversConfig.reserveType, amountToBorrow, user1);
+
+            assertEq(IERC20(cdxUsd).balanceOf(user1), 0, "User1 should have repaid cdxUsd");
         }
     }
 }
