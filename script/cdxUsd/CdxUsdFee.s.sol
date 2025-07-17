@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import {Script, console2} from "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import "../Constants.sol";
+import "../DeploymentConstants.s.sol";
 import "contracts/tokens/CdxUSD.sol";
 
-contract CdxUsdFee is Script, Constants {
+contract CdxUsdFee is Script, DeploymentConstants {
     function setUp() public {}
 
     function run() public {

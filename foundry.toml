@@ -9,7 +9,7 @@ test = 'test/foundry'
 cache_path = 'cache'
 verbosity = 1
 show_progress = true
-
+ignored_warnings_from = ["test/"]
 # Enable traces for better error messages
 traces = true
 # Enable full error messages with custom errors

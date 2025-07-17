@@ -97,7 +97,8 @@ contract TestZap is TestCdxUSD, ERC721Holder {
             poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
+            IERC20[] memory setupPoolTokens =
+                IVaultExplorer(balancerContracts.balVault).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexUsdcTemp;
@@ -162,7 +163,9 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         {
             address[] memory interactors = new address[](1);
             interactors[0] = address(this);
-            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
+            balancerV3Router = new BalancerV3Router(
+                address(balancerContracts.balVault), address(this), interactors
+            );
 
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
@@ -181,7 +184,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
                 "scdxUSD",
                 type(uint256).max,
                 0,
-                treasury,
+                extContracts.treasury,
                 ownerArr,
                 ownerArr,
                 address(feeControllerMock)
@@ -194,7 +197,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vaultV3),
+                address(balancerContracts.balVault),
                 address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
@@ -205,7 +208,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
             );
 
             // console2.log(address(cod3xVault));
-            // console2.log(address(vaultV3));
+            // console2.log(address(balancerContracts.balVault));
             // console2.log(address(cdxUSD));
             // console2.log(address(reliquary));
             // console2.log(address(poolAdd));
@@ -216,7 +219,7 @@ contract TestZap is TestCdxUSD, ERC721Holder {
         /// ========== Zap Deploy ===========
         {
             zap = new Zap(
-                address(vaultV3),
+                address(balancerContracts.balVault),
                 address(cod3xVault),
                 address(balancerV3Router),
                 address(strategy),

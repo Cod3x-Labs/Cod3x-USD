@@ -51,7 +51,9 @@ contract TestBaseCdxUSD is TestCdxUSD {
         cdxUSD = CdxUSD(
             _deployOApp(
                 type(CdxUSD).creationCode,
-                abi.encode("aOFT", "aOFT", address(endpoints[aEid]), owner, treasury, guardian)
+                abi.encode(
+                    "aOFT", "aOFT", address(endpoints[aEid]), owner, extContracts.treasury, guardian
+                )
             )
         );
 

@@ -40,6 +40,8 @@ forge script script/cdxUsd/CdxUsdDeploy.s.sol --rpc-url $MAINNET_RPC_URL --priva
 
 Base deployment:
 
+`forge script script/cdxUsd/<nr>_<scriptName>.s.sol --chain-id <chainId> --rpc-url $<RPC_URL> -vvvv --broadcast`
+
 ```bash
 forge script script/cdxUsd/CdxUsdDeploy.s.sol --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $BASE_SCAN_APY_KEY --verify contracts/tokens/CdxUSD.sol:CdxUSD --broadcast
 ```

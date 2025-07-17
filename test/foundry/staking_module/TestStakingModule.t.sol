@@ -91,7 +91,8 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             poolAdd = createStablePool(assets, 2500, userA);
 
             // join Pool
-            IERC20[] memory setupPoolTokens = IVaultExplorer(vaultV3).getPoolTokens(poolAdd);
+            IERC20[] memory setupPoolTokens =
+                IVaultExplorer(balancerContracts.balVault).getPoolTokens(poolAdd);
 
             uint256 indexCdxUsdTemp;
             uint256 indexUsdcTemp;
@@ -156,7 +157,9 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         {
             address[] memory interactors = new address[](1);
             interactors[0] = address(this);
-            balancerV3Router = new BalancerV3Router(address(vaultV3), address(this), interactors);
+            balancerV3Router = new BalancerV3Router(
+                address(balancerContracts.balVault), address(this), interactors
+            );
 
             address[] memory ownerArr = new address[](3);
             ownerArr[0] = address(this);
@@ -175,7 +178,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
                 "scdxUSD",
                 type(uint256).max,
                 0,
-                treasury,
+                extContracts.treasury,
                 ownerArr,
                 ownerArr,
                 address(feeControllerMock)
@@ -188,7 +191,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
             reliquary.transferFrom(address(this), address(strategy), RELIC_ID); // transfer Relic#1 to strategy.
             strategy.initialize(
                 address(cod3xVault),
-                address(vaultV3),
+                address(balancerContracts.balVault),
                 address(balancerV3Router),
                 ownerArr1,
                 ownerArr,
@@ -244,7 +247,7 @@ contract TestStakingModule is TestCdxUSD, ERC721Holder {
         // strategy
         assertEq(address(strategy.cdxUSD()), address(cdxUSD));
         assertEq(address(strategy.reliquary()), address(reliquary));
-        assertEq(address(strategy.balancerVault()), address(vaultV3));
+        assertEq(address(strategy.balancerVault()), address(balancerContracts.balVault));
         assertNotEq(strategy.cdxUsdIndex(), type(uint256).max);
         assertEq(strategy.minBPTAmountOut(), 1);
         assertEq(strategy.want(), poolAdd);

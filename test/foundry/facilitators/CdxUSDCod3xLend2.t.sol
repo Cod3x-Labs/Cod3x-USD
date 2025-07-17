@@ -144,7 +144,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         deployedContracts.lendingPool.repay(address(erc20Tokens[2]), true, amountMintDai / 2, user);
         (,,,,, uint256 healthFactor2) = deployedContracts.lendingPool.getUserAccountData(user);
         assertGt(healthFactor2, healthFactor1);
-        assertGt(balanceUserBefore, cdxUsd.balanceOf(user));
+        assertGt(balanceUserBefore, cdxUsdContract.balanceOf(user));
     }
 
     function testCdxUsdBorrow() public {
@@ -169,17 +169,19 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         uint256 amountMintCdxUsd = 1000e18;
         vm.startPrank(user);
         deployedContracts.lendingPool.borrow(address(cdxUsd), false, amountMintCdxUsd, user);
-        uint256 balanceUserBefore = cdxUsd.balanceOf(user);
+        uint256 balanceUserBefore = cdxUsdContract.balanceOf(user);
         assertEq(amountMintCdxUsd, balanceUserBefore);
         (uint256 totalCollateralETH, uint256 totalDebtETH,,,, uint256 healthFactor1) =
             deployedContracts.lendingPool.getUserAccountData(user);
 
         vm.startPrank(user);
-        cdxUsd.approve(address(deployedContracts.lendingPool), type(uint256).max);
-        deployedContracts.lendingPool.repay(address(cdxUsd), false, amountMintCdxUsd / 2, user);
+        cdxUsdContract.approve(address(deployedContracts.lendingPool), type(uint256).max);
+        deployedContracts.lendingPool.repay(
+            address(cdxUsdContract), false, amountMintCdxUsd / 2, user
+        );
         (,,,,, uint256 healthFactor2) = deployedContracts.lendingPool.getUserAccountData(user);
         assertGt(healthFactor2, healthFactor1);
-        assertGt(balanceUserBefore, cdxUsd.balanceOf(user));
+        assertGt(balanceUserBefore, cdxUsdContract.balanceOf(user));
     }
 
     function testBorrowRepay() public {
@@ -324,7 +326,7 @@ contract TestCdxUSDCod3xLend2 is TestCdxUSDAndLendAndStaking {
         tokenAddresses[0] = address(cdxUsd);
         amounts[0] = 1e18;
         modes[0] = 0;
-        balancesBefore[0] = cdxUsd.balanceOf(address(this));
+        balancesBefore[0] = cdxUsdContract.balanceOf(address(this));
 
         ILendingPool.FlashLoanParams memory flashloanParams =
             ILendingPool.FlashLoanParams(address(this), tokenAddresses, reserveTypes, address(this));

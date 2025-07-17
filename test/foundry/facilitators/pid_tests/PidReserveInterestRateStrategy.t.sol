@@ -209,7 +209,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
             cdxUsdInterestRateStrategy.getCurrentInterestRates();
 
         (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
-            IVault(vaultV3).getPoolTokenInfo(poolAdd);
+            IVault(balancerContracts.balVault).getPoolTokenInfo(poolAdd);
 
         uint256 cashCdxusd = lastBalancesLiveScaled18_[indexCdxUsd];
 
@@ -236,7 +236,7 @@ contract PidReserveInterestRateStrategyCdxUsdTest is TestCdxUSDAndLendAndStaking
 
     function logCash() public view {
         (IERC20[] memory tokens_,,, uint256[] memory lastBalancesLiveScaled18_) =
-            IVault(vaultV3).getPoolTokenInfo(poolAdd);
+            IVault(balancerContracts.balVault).getPoolTokenInfo(poolAdd);
 
         uint256 cashCdxusd = lastBalancesLiveScaled18_[indexCdxUsd];
         uint256 cashCa = lastBalancesLiveScaled18_[indexCounterAsset];
